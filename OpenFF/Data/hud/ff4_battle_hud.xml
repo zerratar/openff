@@ -10,13 +10,13 @@
     battle.commands         the command window is open: a member chooses
     battle.command[0..3]    present, name, lit (the hand on it), disabled; sub, the small line under it (Focus's rounds,
                             Twincast's sync), with hasSub / plain
-    battle.scroll           shown, top and size (percent of the track: the rows in view)
+    battle.scroll           shown, top and size (percent of the track: the rows in view), knob (the rows overflow)
     battle.party            the party's rows are shown (not while a foe is picked)
     battle.member[0..4]     present, name, hp, maxHp, mp, showMp, status (the one shown now), gauge (0..100), fill (1 grey while it fills, 2 yellow once full), alive,
                             low, acting (their turn to choose), picked (the hand on them)
     battle.keys             the keys' hints are shown; battle.auto (auto battle on), battle.running (the run control on)
     battle.targets          the foes are listed for a pick: battle.target[0..3] present, name, sub (the chance to hit,
-                            or the spell's name), lit
+                            or the spell's name), hasSub / plain, lit
     battle.card             shown, name, hp, weakText / absorbText ("None"), weak[0..7] / absorb[0..7] (cell: battle_icon's
                             element cells): the picked one's card
     battle.grid             shown, three / two (the columns), title, line1, line2 (the description), mp, maxMp, showMp,
@@ -34,299 +34,383 @@
   <frame bind-display="battle.panel">
     <id>panel</id>
 
-    <!-- The command window: four rows, the scroll bar beside them. -->
+    <!-- The command window (Steam's draws): rows 453 x 101.25 edge to edge, each its two bands, the lit one's three over
+         them, and the sunken frame over both; the scroll bar beside them. -->
     <frame bind-display="battle.commands">
       <id>commands</id>
-      <x>150</x><y>677</y><width>450</width><height>400</height>
+      <x>148.7</x><y>675</y><width>453</width><height>405</height>
       <frame data-source="battle.command[0]" bind-display="present" bind-class="lit: lit; disabled: disabled" class="row command">
-        <id>command0</id><x>0</x><y>0</y><width>450</width><height>95</height>
-        <frame class="label" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
-        <frame class="label" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>6</y><width>450</width><height>52</height></frame>
-        <frame class="sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>52</y><width>450</width><height>36</height></frame>
-        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+        <id>command0</id><x>0</x><y>0</y><width>453</width><height>101.25</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="label" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="label" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>6.4</y><width>453</width><height>55.4</height></frame>
+        <frame class="sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>55.4</y><width>453</width><height>38.4</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>101.25</height></frame>
       </frame>
       <frame data-source="battle.command[1]" bind-display="present" bind-class="lit: lit; disabled: disabled" class="row command">
-        <id>command1</id><x>0</x><y>101</y><width>450</width><height>95</height>
-        <frame class="label" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
-        <frame class="label" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>6</y><width>450</width><height>52</height></frame>
-        <frame class="sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>52</y><width>450</width><height>36</height></frame>
-        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+        <id>command1</id><x>0</x><y>101.25</y><width>453</width><height>101.25</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="label" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="label" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>6.4</y><width>453</width><height>55.4</height></frame>
+        <frame class="sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>55.4</y><width>453</width><height>38.4</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>101.25</height></frame>
       </frame>
       <frame data-source="battle.command[2]" bind-display="present" bind-class="lit: lit; disabled: disabled" class="row command">
-        <id>command2</id><x>0</x><y>203</y><width>450</width><height>95</height>
-        <frame class="label" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
-        <frame class="label" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>6</y><width>450</width><height>52</height></frame>
-        <frame class="sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>52</y><width>450</width><height>36</height></frame>
-        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+        <id>command2</id><x>0</x><y>202.5</y><width>453</width><height>101.25</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="label" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="label" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>6.4</y><width>453</width><height>55.4</height></frame>
+        <frame class="sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>55.4</y><width>453</width><height>38.4</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>101.25</height></frame>
       </frame>
       <frame data-source="battle.command[3]" bind-display="present" bind-class="lit: lit; disabled: disabled" class="row command">
-        <id>command3</id><x>0</x><y>304</y><width>450</width><height>95</height>
-        <frame class="label" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
-        <frame class="label" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>6</y><width>450</width><height>52</height></frame>
-        <frame class="sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>52</y><width>450</width><height>36</height></frame>
-        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+        <id>command3</id><x>0</x><y>303.75</y><width>453</width><height>101.25</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="label" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="label" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>6.4</y><width>453</width><height>55.4</height></frame>
+        <frame class="sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>55.4</y><width>453</width><height>38.4</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>101.25</height></frame>
       </frame>
     </frame>
-    <frame bind-display="battle.scroll.shown" class="row">
+    <!-- scrollbar_00: the up arrow, the track, the down arrow; the knob over the track, its caps kept. -->
+    <frame bind-display="battle.scroll.shown">
       <id>scroll</id>
-      <x>602</x><y>677</y><width>60</width><height>400</height>
-      <frame><id>track</id><x>0</x><y>36</y><width>60</width><height>328</height>
-        <frame bind-style="top: {battle.scroll.top}%; height: {battle.scroll.size}%"><id>knob</id><x>7</x><y>0</y><width>46</width><height>328</height></frame>
+      <x>601.7</x><y>675</y><width>60.75</width><height>405</height>
+      <frame class="scroll-up"><id>up</id><x>0</x><y>0</y><width>60.75</width><height>33.75</height></frame>
+      <frame class="scroll-track"><id>track</id><x>0</x><y>33.75</y><width>60.75</width><height>337.5</height>
+        <frame class="scroll-knob" bind-display="battle.scroll.knob" bind-style="top: {battle.scroll.top}%; height: {battle.scroll.size}%"><id>knob</id><x>3.4</x><y>0</y><width>54</width><height>337.5</height></frame>
       </frame>
-      <frame class="arrow"><id>up</id><x>0</x><y>2</y><width>60</width><height>32</height><data>▲</data></frame>
-      <frame class="arrow"><id>down</id><x>0</x><y>366</y><width>60</width><height>32</height><data>▼</data></frame>
+      <frame class="scroll-down"><id>down</id><x>0</x><y>371.25</y><width>60.75</width><height>33.75</height></frame>
     </frame>
 
-    <!-- The party: five rows always, the members' in their order and the rest empty. -->
-    <frame bind-display="battle.party">
+    <!-- The party: the raised window, its two bands, five rows always (the members' in their order, the rest empty),
+         each a sunken frame - the first 64.125 high from the top, the rest 60.75 and 3.375 lower than their text. -->
+    <frame bind-display="battle.party" class="party">
       <id>party</id>
-      <x>667</x><y>763</y><width>1092</width><height>310</height>
+      <x>662.5</x><y>756</y><width>1105.3</width><height>324</height>
+      <frame class="party-fill"><id>fill</id><x>6.75</x><y>6.75</y><width>1091.8</width><height>310.4</height></frame>
       <frame data-source="battle.member[0]" bind-class="lit: acting; dead: !alive; low: low" class="row member">
-        <id>member0</id><x>0</x><y>0</y><width>1092</width><height>58</height>
-        <frame bind-display="present"><id>content</id><x>0</x><y>0</y><width>1092</width><height>58</height>
-          <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
-          <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
-          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
-          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>196</width><height>58</height></frame>
-          <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
-          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
-          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
+        <id>member0</id><x>6.75</x><y>6.75</y><width>1091.8</width><height>64.125</height>
+        <frame class="lit-band" bind-visible="acting"><id>band</id><x>0</x><y>0</y><width>1091.8</width><height>64.125</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>1091.8</width><height>64.125</height></frame>
+        <frame bind-display="present"><id>content</id><x>0</x><y>0</y><width>1091.8</width><height>60.75</height>
+          <frame class="name" bind-text="{name}"><id>name</id><x>21.7</x><y>0</y><width>260</width><height>60.75</height></frame>
+          <frame class="hp" bind-text="{hp}"><id>hp</id><x>0</x><y>0</y><width>360.75</width><height>60.75</height></frame>
+          <frame class="slash"><id>slash</id><x>367.6</x><y>0</y><width>20</width><height>60.75</height><data>/</data></frame>
+          <frame class="max-hp" bind-text="{maxHp}"><id>maxhp</id><x>387.8</x><y>0</y><width>120</width><height>60.75</height></frame>
+          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>536.6</x><y>0</y><width>100</width><height>60.75</height></frame>
+          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>190</width><height>60.75</height></frame>
+          <frame class="gauge"><id>gauge</id><x>797.75</x><y>23.6</y><width>135</width><height>20.25</height></frame>
+          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>797.75</x><y>23.6</y><width>135</width><height>20.25</height></frame>
+          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>60.75</height></frame>
         </frame>
       </frame>
       <frame data-source="battle.member[1]" bind-class="lit: acting; dead: !alive; low: low" class="row member">
-        <id>member1</id><x>0</x><y>63</y><width>1092</width><height>58</height>
-        <frame bind-display="present"><id>content</id><x>0</x><y>0</y><width>1092</width><height>58</height>
-          <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
-          <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
-          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
-          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>196</width><height>58</height></frame>
-          <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
-          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
-          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
+        <id>member1</id><x>6.75</x><y>70.875</y><width>1091.8</width><height>60.75</height>
+        <frame class="lit-band" bind-visible="acting"><id>band</id><x>0</x><y>0</y><width>1091.8</width><height>60.75</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>1091.8</width><height>60.75</height></frame>
+        <frame bind-display="present"><id>content</id><x>0</x><y>-3.375</y><width>1091.8</width><height>60.75</height>
+          <frame class="name" bind-text="{name}"><id>name</id><x>21.7</x><y>0</y><width>260</width><height>60.75</height></frame>
+          <frame class="hp" bind-text="{hp}"><id>hp</id><x>0</x><y>0</y><width>360.75</width><height>60.75</height></frame>
+          <frame class="slash"><id>slash</id><x>367.6</x><y>0</y><width>20</width><height>60.75</height><data>/</data></frame>
+          <frame class="max-hp" bind-text="{maxHp}"><id>maxhp</id><x>387.8</x><y>0</y><width>120</width><height>60.75</height></frame>
+          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>536.6</x><y>0</y><width>100</width><height>60.75</height></frame>
+          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>190</width><height>60.75</height></frame>
+          <frame class="gauge"><id>gauge</id><x>797.75</x><y>23.6</y><width>135</width><height>20.25</height></frame>
+          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>797.75</x><y>23.6</y><width>135</width><height>20.25</height></frame>
+          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>60.75</height></frame>
         </frame>
       </frame>
       <frame data-source="battle.member[2]" bind-class="lit: acting; dead: !alive; low: low" class="row member">
-        <id>member2</id><x>0</x><y>126</y><width>1092</width><height>58</height>
-        <frame bind-display="present"><id>content</id><x>0</x><y>0</y><width>1092</width><height>58</height>
-          <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
-          <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
-          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
-          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>196</width><height>58</height></frame>
-          <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
-          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
-          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
+        <id>member2</id><x>6.75</x><y>131.625</y><width>1091.8</width><height>60.75</height>
+        <frame class="lit-band" bind-visible="acting"><id>band</id><x>0</x><y>0</y><width>1091.8</width><height>60.75</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>1091.8</width><height>60.75</height></frame>
+        <frame bind-display="present"><id>content</id><x>0</x><y>-3.375</y><width>1091.8</width><height>60.75</height>
+          <frame class="name" bind-text="{name}"><id>name</id><x>21.7</x><y>0</y><width>260</width><height>60.75</height></frame>
+          <frame class="hp" bind-text="{hp}"><id>hp</id><x>0</x><y>0</y><width>360.75</width><height>60.75</height></frame>
+          <frame class="slash"><id>slash</id><x>367.6</x><y>0</y><width>20</width><height>60.75</height><data>/</data></frame>
+          <frame class="max-hp" bind-text="{maxHp}"><id>maxhp</id><x>387.8</x><y>0</y><width>120</width><height>60.75</height></frame>
+          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>536.6</x><y>0</y><width>100</width><height>60.75</height></frame>
+          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>190</width><height>60.75</height></frame>
+          <frame class="gauge"><id>gauge</id><x>797.75</x><y>23.6</y><width>135</width><height>20.25</height></frame>
+          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>797.75</x><y>23.6</y><width>135</width><height>20.25</height></frame>
+          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>60.75</height></frame>
         </frame>
       </frame>
       <frame data-source="battle.member[3]" bind-class="lit: acting; dead: !alive; low: low" class="row member">
-        <id>member3</id><x>0</x><y>188</y><width>1092</width><height>58</height>
-        <frame bind-display="present"><id>content</id><x>0</x><y>0</y><width>1092</width><height>58</height>
-          <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
-          <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
-          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
-          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>196</width><height>58</height></frame>
-          <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
-          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
-          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
+        <id>member3</id><x>6.75</x><y>192.375</y><width>1091.8</width><height>60.75</height>
+        <frame class="lit-band" bind-visible="acting"><id>band</id><x>0</x><y>0</y><width>1091.8</width><height>60.75</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>1091.8</width><height>60.75</height></frame>
+        <frame bind-display="present"><id>content</id><x>0</x><y>-3.375</y><width>1091.8</width><height>60.75</height>
+          <frame class="name" bind-text="{name}"><id>name</id><x>21.7</x><y>0</y><width>260</width><height>60.75</height></frame>
+          <frame class="hp" bind-text="{hp}"><id>hp</id><x>0</x><y>0</y><width>360.75</width><height>60.75</height></frame>
+          <frame class="slash"><id>slash</id><x>367.6</x><y>0</y><width>20</width><height>60.75</height><data>/</data></frame>
+          <frame class="max-hp" bind-text="{maxHp}"><id>maxhp</id><x>387.8</x><y>0</y><width>120</width><height>60.75</height></frame>
+          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>536.6</x><y>0</y><width>100</width><height>60.75</height></frame>
+          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>190</width><height>60.75</height></frame>
+          <frame class="gauge"><id>gauge</id><x>797.75</x><y>23.6</y><width>135</width><height>20.25</height></frame>
+          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>797.75</x><y>23.6</y><width>135</width><height>20.25</height></frame>
+          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>60.75</height></frame>
         </frame>
       </frame>
       <frame data-source="battle.member[4]" bind-class="lit: acting; dead: !alive; low: low" class="row member">
-        <id>member4</id><x>0</x><y>251</y><width>1092</width><height>58</height>
-        <frame bind-display="present"><id>content</id><x>0</x><y>0</y><width>1092</width><height>58</height>
-          <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
-          <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
-          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
-          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>196</width><height>58</height></frame>
-          <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
-          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
-          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
+        <id>member4</id><x>6.75</x><y>253.125</y><width>1091.8</width><height>60.75</height>
+        <frame class="lit-band" bind-visible="acting"><id>band</id><x>0</x><y>0</y><width>1091.8</width><height>60.75</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>1091.8</width><height>60.75</height></frame>
+        <frame bind-display="present"><id>content</id><x>0</x><y>-3.375</y><width>1091.8</width><height>60.75</height>
+          <frame class="name" bind-text="{name}"><id>name</id><x>21.7</x><y>0</y><width>260</width><height>60.75</height></frame>
+          <frame class="hp" bind-text="{hp}"><id>hp</id><x>0</x><y>0</y><width>360.75</width><height>60.75</height></frame>
+          <frame class="slash"><id>slash</id><x>367.6</x><y>0</y><width>20</width><height>60.75</height><data>/</data></frame>
+          <frame class="max-hp" bind-text="{maxHp}"><id>maxhp</id><x>387.8</x><y>0</y><width>120</width><height>60.75</height></frame>
+          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>536.6</x><y>0</y><width>100</width><height>60.75</height></frame>
+          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>190</width><height>60.75</height></frame>
+          <frame class="gauge"><id>gauge</id><x>797.75</x><y>23.6</y><width>135</width><height>20.25</height></frame>
+          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>797.75</x><y>23.6</y><width>135</width><height>20.25</height></frame>
+          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>60.75</height></frame>
         </frame>
       </frame>
     </frame>
 
     <!-- A target being picked: that side's targets in the command window's place ("Target All" after them when the ability
          may spread; "V Switch to All / Solo" over them), the picked one's card in the party's. -->
-    <frame class="key-cap" bind-display="battle.switchShown"><id>switch_key</id><x>150</x><y>615</y><width>52</width><height>52</height><data>V</data></frame>
-    <frame class="key-label" bind-display="battle.switchShown" bind-text="{battle.switchLabel}"><id>switch</id><x>214</x><y>615</y><width>400</width><height>52</height></frame>
+    <frame class="key-cap" bind-display="battle.switchShown" style="-ff-cell: key 49"><id>switch_key</id><x>148.7</x><y>610.9</y><width>60.75</width><height>60.75</height></frame>
+    <frame class="key-label" bind-display="battle.switchShown" bind-text="{battle.switchLabel}"><id>switch</id><x>219.6</x><y>610.9</y><width>400</width><height>60.75</height></frame>
     <frame bind-display="battle.targets">
       <id>targets</id>
-      <x>150</x><y>677</y><width>450</width><height>400</height>
+      <x>148.7</x><y>675</y><width>453</width><height>405</height>
       <frame data-source="battle.target[0]" bind-display="present" bind-class="lit: lit" class="row target">
-        <id>target0</id><x>0</x><y>0</y><width>450</width><height>95</height>
-        <frame class="target-name" bind-text="{name}"><id>name</id><x>0</x><y>2</y><width>450</width><height>46</height></frame>
-        <frame class="target-sub" bind-text="{sub}"><id>sub</id><x>0</x><y>50</y><width>450</width><height>42</height></frame>
-        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+        <id>target0</id><x>0</x><y>0</y><width>453</width><height>101.25</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="target-name" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>30.4</y><width>453</width><height>47.2</height></frame>
+        <frame class="target-name" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>3.4</y><width>453</width><height>47.2</height></frame>
+        <frame class="target-sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>57.4</y><width>453</width><height>47.2</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>101.25</height></frame>
       </frame>
       <frame data-source="battle.target[1]" bind-display="present" bind-class="lit: lit" class="row target">
-        <id>target1</id><x>0</x><y>101</y><width>450</width><height>95</height>
-        <frame class="target-name" bind-text="{name}"><id>name</id><x>0</x><y>2</y><width>450</width><height>46</height></frame>
-        <frame class="target-sub" bind-text="{sub}"><id>sub</id><x>0</x><y>50</y><width>450</width><height>42</height></frame>
-        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+        <id>target1</id><x>0</x><y>101.25</y><width>453</width><height>101.25</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="target-name" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>30.4</y><width>453</width><height>47.2</height></frame>
+        <frame class="target-name" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>3.4</y><width>453</width><height>47.2</height></frame>
+        <frame class="target-sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>57.4</y><width>453</width><height>47.2</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>101.25</height></frame>
       </frame>
       <frame data-source="battle.target[2]" bind-display="present" bind-class="lit: lit" class="row target">
-        <id>target2</id><x>0</x><y>203</y><width>450</width><height>95</height>
-        <frame class="target-name" bind-text="{name}"><id>name</id><x>0</x><y>2</y><width>450</width><height>46</height></frame>
-        <frame class="target-sub" bind-text="{sub}"><id>sub</id><x>0</x><y>50</y><width>450</width><height>42</height></frame>
-        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+        <id>target2</id><x>0</x><y>202.5</y><width>453</width><height>101.25</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="target-name" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>30.4</y><width>453</width><height>47.2</height></frame>
+        <frame class="target-name" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>3.4</y><width>453</width><height>47.2</height></frame>
+        <frame class="target-sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>57.4</y><width>453</width><height>47.2</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>101.25</height></frame>
       </frame>
       <frame data-source="battle.target[3]" bind-display="present" bind-class="lit: lit" class="row target">
-        <id>target3</id><x>0</x><y>304</y><width>450</width><height>95</height>
-        <frame class="target-name" bind-text="{name}"><id>name</id><x>0</x><y>2</y><width>450</width><height>46</height></frame>
-        <frame class="target-sub" bind-text="{sub}"><id>sub</id><x>0</x><y>50</y><width>450</width><height>42</height></frame>
-        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+        <id>target3</id><x>0</x><y>303.75</y><width>453</width><height>101.25</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>453</width><height>101.25</height></frame>
+        <frame class="target-name" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>30.4</y><width>453</width><height>47.2</height></frame>
+        <frame class="target-name" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>3.4</y><width>453</width><height>47.2</height></frame>
+        <frame class="target-sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>57.4</y><width>453</width><height>47.2</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>101.25</height></frame>
       </frame>
     </frame>
-    <frame bind-display="battle.card.shown" class="card">
+    <frame bind-display="battle.card.shown" class="party card">
       <id>card</id>
-      <x>667</x><y>763</y><width>1092</width><height>309</height>
-      <frame class="card-name" bind-text="{battle.card.name}"><id>name</id><x>31</x><y>22</y><width>1000</width><height>54</height></frame>
-      <frame class="card-line" bind-display="battle.card.full" bind-text="HP: {battle.card.hp}"><id>hp</id><x>31</x><y>85</y><width>1000</width><height>50</height></frame>
-      <frame class="card-line" bind-display="battle.card.full"><id>weaknesses</id><x>31</x><y>189</y><width>1000</width><height>50</height><data>Weaknesses:</data></frame>
-      <frame class="card-line" bind-display="battle.card.full"><id>absorbs</id><x>31</x><y>252</y><width>1000</width><height>50</height><data>Absorbs:</data></frame>
-      <frame class="card-line" bind-display="battle.card.full" bind-text="{battle.card.weakText}"><id>weaktext</id><x>293</x><y>189</y><width>400</width><height>50</height></frame>
-      <frame data-source="battle.card.weak[0]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak0</id><x>380</x><y>181</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.weak[1]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak1</id><x>432</x><y>181</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.weak[2]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak2</id><x>484</x><y>181</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.weak[3]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak3</id><x>536</x><y>181</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.weak[4]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak4</id><x>588</x><y>181</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.weak[5]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak5</id><x>640</x><y>181</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.weak[6]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak6</id><x>692</x><y>181</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.weak[7]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak7</id><x>744</x><y>181</y><width>48</width><height>50</height></frame>
-      <frame class="card-line" bind-display="battle.card.full" bind-text="{battle.card.absorbText}"><id>absorbtext</id><x>293</x><y>252</y><width>400</width><height>50</height></frame>
-      <frame data-source="battle.card.absorb[0]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb0</id><x>380</x><y>244</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.absorb[1]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb1</id><x>432</x><y>244</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.absorb[2]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb2</id><x>484</x><y>244</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.absorb[3]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb3</id><x>536</x><y>244</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.absorb[4]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb4</id><x>588</x><y>244</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.absorb[5]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb5</id><x>640</x><y>244</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.absorb[6]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb6</id><x>692</x><y>244</y><width>48</width><height>50</height></frame>
-      <frame data-source="battle.card.absorb[7]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb7</id><x>744</x><y>244</y><width>48</width><height>50</height></frame>
+      <x>662.5</x><y>756</y><width>1105.3</width><height>324</height>
+      <frame class="party-fill"><id>fill</id><x>6.75</x><y>6.75</y><width>1091.8</width><height>310.4</height></frame>
+      <frame class="card-name" bind-text="{battle.card.name}"><id>name</id><x>28.5</x><y>23.6</y><width>1000</width><height>60.75</height></frame>
+      <frame class="card-line" bind-display="battle.card.full" bind-text="HP: {battle.card.hp}"><id>hp</id><x>28.5</x><y>77.6</y><width>1000</width><height>60.75</height></frame>
+      <frame class="card-line" bind-display="battle.card.full"><id>weaknesses</id><x>28.5</x><y>185.6</y><width>1000</width><height>60.75</height><data>Weaknesses:</data></frame>
+      <frame class="card-line" bind-display="battle.card.full"><id>absorbs</id><x>28.5</x><y>239.6</y><width>1000</width><height>60.75</height><data>Absorbs:</data></frame>
+      <frame class="card-line" bind-display="battle.card.full" bind-text="{battle.card.weakText}"><id>weaktext</id><x>298.9</x><y>185.6</y><width>400</width><height>60.75</height></frame>
+      <frame data-source="battle.card.weak[0]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak0</id><x>384.5</x><y>185.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.weak[1]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak1</id><x>436.5</x><y>185.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.weak[2]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak2</id><x>488.5</x><y>185.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.weak[3]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak3</id><x>540.5</x><y>185.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.weak[4]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak4</id><x>592.5</x><y>185.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.weak[5]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak5</id><x>644.5</x><y>185.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.weak[6]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak6</id><x>696.5</x><y>185.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.weak[7]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak7</id><x>748.5</x><y>185.6</y><width>48</width><height>60.75</height></frame>
+      <frame class="card-line" bind-display="battle.card.full" bind-text="{battle.card.absorbText}"><id>absorbtext</id><x>298.9</x><y>239.6</y><width>400</width><height>60.75</height></frame>
+      <frame data-source="battle.card.absorb[0]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb0</id><x>384.5</x><y>239.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.absorb[1]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb1</id><x>436.5</x><y>239.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.absorb[2]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb2</id><x>488.5</x><y>239.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.absorb[3]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb3</id><x>540.5</x><y>239.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.absorb[4]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb4</id><x>592.5</x><y>239.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.absorb[5]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb5</id><x>644.5</x><y>239.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.absorb[6]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb6</id><x>696.5</x><y>239.6</y><width>48</width><height>60.75</height></frame>
+      <frame data-source="battle.card.absorb[7]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb7</id><x>748.5</x><y>239.6</y><width>48</width><height>60.75</height></frame>
     </frame>
 
     <!-- A spell, a song, a ninjutsu or an item being picked, as Steam's battle lists it: a window of three rows - three
          columns for the magic, two for items and songs - each cell a panel of its own, and under it the picked one's
          description: its name, the caster's MP, its cost and stat (or what it does) and its targets. -->
-    <frame bind-display="battle.grid.shown" class="grid">
+    <!-- The spell and item grid (Steam's draws): the raised window, its bands, the cells sunken frames 101.25 high (three
+         columns 517.2 / 513.8 / 517.2 wide, or two of 774.1), the lit one's bands; the scroll bar at the right. -->
+    <frame bind-display="battle.grid.shown" class="party grid">
       <id>grid</id>
-      <x>150</x><y>521</y><width>1609</width><height>306</height>
+      <x>148.7</x><y>519.8</y><width>1622.5</width><height>317.2</height>
+      <frame class="party-fill"><id>fill</id><x>6.75</x><y>6.75</y><width>1609</width><height>303.75</height></frame>
       <frame bind-display="battle.grid.three">
-        <id>three</id><x>0</x><y>0</y><width>1609</width><height>306</height>
+        <id>three</id><x>6.75</x><y>6.75</y><width>1548.2</width><height>303.75</height>
         <frame data-source="battle.grid.cell[0]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>three0</id><x>8</x><y>3</y><width>509</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>335</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>475</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>three0</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>317.2</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>439.2</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[1]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>three1</id><x>523</x><y>3</y><width>509</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>335</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>475</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>three1</id><x>517.2</x><y>0</y><width>513.8</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>513.8</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>513.8</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>313.8</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>435.8</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[2]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>three2</id><x>1038</x><y>3</y><width>509</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>335</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>475</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>three2</id><x>1031</x><y>0</y><width>517.2</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>317.2</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>439.2</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[3]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>three3</id><x>8</x><y>104</y><width>509</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>335</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>475</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>three3</id><x>0</x><y>101.25</y><width>517.2</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>317.2</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>439.2</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[4]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>three4</id><x>523</x><y>104</y><width>509</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>335</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>475</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>three4</id><x>517.2</x><y>101.25</y><width>513.8</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>513.8</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>513.8</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>313.8</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>435.8</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[5]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>three5</id><x>1038</x><y>104</y><width>509</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>335</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>475</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>three5</id><x>1031</x><y>101.25</y><width>517.2</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>317.2</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>439.2</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[6]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>three6</id><x>8</x><y>205</y><width>509</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>335</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>475</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>three6</id><x>0</x><y>202.5</y><width>517.2</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>317.2</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>439.2</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[7]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>three7</id><x>523</x><y>205</y><width>509</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>335</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>475</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>three7</id><x>517.2</x><y>202.5</y><width>513.8</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>513.8</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>513.8</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>313.8</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>435.8</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[8]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>three8</id><x>1038</x><y>205</y><width>509</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>335</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>475</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>three8</id><x>1031</x><y>202.5</y><width>517.2</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>517.2</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>317.2</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>439.2</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
       </frame>
       <frame bind-display="battle.grid.two">
-        <id>two</id>
+        <id>two</id><x>6.75</x><y>6.75</y><width>1548.2</width><height>303.75</height>
         <frame bind-display="battle.grid.reequip" bind-class="lit: battle.grid.reequipLit" class="row cell">
-          <id>reequip</id><x>8</x><y>3</y><width>1534</width><height>97</height>
-          <frame class="reequip-label"><id>label</id><x>0</x><y>0</y><width>1534</width><height>97</height><data>Re-equip</data></frame>
-          <frame class="cell-hand" bind-visible="battle.grid.reequipLit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
-        </frame><x>0</x><y>0</y><width>1609</width><height>306</height>
+          <id>reequip</id><x>0</x><y>0</y><width>1548.2</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="battle.grid.reequipLit"><id>band</id><x>0</x><y>0</y><width>1548.2</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>1548.2</width><height>101.25</height></frame>
+          <frame class="reequip-label"><id>label</id><x>0</x><y>0</y><width>1548.2</width><height>101.25</height><data>Re-equip</data></frame>
+          <frame class="cell-hand" bind-visible="battle.grid.reequipLit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
+        </frame>
         <frame data-source="battle.grid.cell[0]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>two0</id><x>8</x><y>3</y><width>764</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>590</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>730</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>two0</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>574.1</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>696.1</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[1]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>two1</id><x>778</x><y>3</y><width>764</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>590</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>730</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>two1</id><x>774.1</x><y>0</y><width>774.1</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>574.1</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>696.1</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[2]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>two2</id><x>8</x><y>104</y><width>764</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>590</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>730</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>two2</id><x>0</x><y>101.25</y><width>774.1</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>574.1</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>696.1</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[3]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>two3</id><x>778</x><y>104</y><width>764</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>590</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>730</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>two3</id><x>774.1</x><y>101.25</y><width>774.1</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>574.1</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>696.1</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[4]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>two4</id><x>8</x><y>205</y><width>764</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>590</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>730</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>two4</id><x>0</x><y>202.5</y><width>774.1</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>574.1</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>696.1</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
         <frame data-source="battle.grid.cell[5]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
-          <id>two5</id><x>778</x><y>205</y><width>764</width><height>97</height>
-          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
-          <frame class="cell-name" bind-text="{name}"><id>name</id><x>118</x><y>0</y><width>590</width><height>97</height></frame>
-          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>730</width><height>97</height></frame>
-          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+          <id>two5</id><x>774.1</x><y>202.5</y><width>774.1</width><height>101.25</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height></frame>
+          <frame class="edge"><id>edge</id><x>0</x><y>0</y><width>774.1</width><height>101.25</height></frame>
+          <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80.5</x><y>0</y><width>36</width><height>101.25</height></frame>
+          <frame class="cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>574.1</width><height>101.25</height></frame>
+          <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>696.1</width><height>101.25</height></frame>
+          <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>81</x><y>36.65</y><width>1</width><height>1</height></frame>
         </frame>
       </frame>
-      <frame bind-display="battle.grid.scroll.shown" class="grid-track">
-        <id>track</id><x>1556</x><y>10</y><width>40</width><height>286</height>
-        <frame class="grid-knob" bind-style="top: {battle.grid.scroll.top}%; height: {battle.grid.scroll.size}%"><id>knob</id><x>14</x><y>0</y><width>12</width><height>286</height></frame>
+      <frame bind-display="battle.grid.scroll.shown">
+        <id>scroll</id><x>1555</x><y>6.75</y><width>60.75</width><height>303.75</height>
+        <frame class="scroll-up"><id>up</id><x>0</x><y>0</y><width>60.75</width><height>33.75</height></frame>
+        <frame class="scroll-track"><id>track</id><x>0</x><y>33.75</y><width>60.75</width><height>236.25</height>
+          <frame class="scroll-knob" bind-display="battle.grid.scroll.knob" bind-style="top: {battle.grid.scroll.top}%; height: {battle.grid.scroll.size}%"><id>knob</id><x>3.4</x><y>0</y><width>54</width><height>236.25</height></frame>
+        </frame>
+        <frame class="scroll-down"><id>down</id><x>0</x><y>270</y><width>60.75</width><height>33.75</height></frame>
       </frame>
     </frame>
     <!-- Re-equip's hands: Right Arm and Left Arm, what each holds, over the list of what may go there. -->
@@ -347,16 +431,23 @@
         <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>30</x><y>50</y><width>1</width><height>1</height></frame>
       </frame>
     </frame>
-    <frame bind-display="battle.grid.shown" class="grid-desc">
+    <!-- The description (Steam's draws): the raised window to the screen's foot, the title line (the icon and name in
+         yellow, "MP  mp / max"), a sunken bottom and top edge meeting under it, two lines of text 54 apart. -->
+    <frame bind-display="battle.grid.shown" class="party grid-desc">
       <id>desc</id>
-      <x>150</x><y>838</y><width>1609</width><height>236</height>
-      <frame class="desc-icon" bind-style="-ff-cell: symbol {battle.grid.titleIcon}"><id>titleicon</id><x>30</x><y>8</y><width>40</width><height>60</height></frame>
-      <frame class="desc-title" bind-text="{battle.grid.title}"><id>title</id><x>76</x><y>8</y><width>900</width><height>60</height></frame>
-      <frame class="desc-mp" bind-display="battle.grid.showMp" bind-text="MP {battle.grid.mp} / {battle.grid.maxMp}"><id>mp</id><x>900</x><y>8</y><width>520</width><height>60</height></frame>
-      <frame class="grid-line"><id>rule</id><x>8</x><y>72</y><width>1593</width><height>2</height></frame>
-      <frame class="desc-line" bind-text="{battle.grid.line1}"><id>line1</id><x>76</x><y>98</y><width>1450</width><height>50</height></frame>
-      <frame class="desc-icon" bind-style="-ff-cell: battle-icon {battle.grid.lineIcon}; left: {battle.grid.lineIconX}px"><id>lineicon</id><x>0</x><y>90</y><width>48</width><height>50</height></frame>
-      <frame class="desc-line" bind-text="{battle.grid.line2}"><id>line2</id><x>76</x><y>156</y><width>1450</width><height>50</height></frame>
+      <x>148.7</x><y>837</y><width>1622.5</width><height>243</height>
+      <frame class="party-fill"><id>fill</id><x>6.75</x><y>6.75</y><width>1609</width><height>229.4</height></frame>
+      <frame class="rule-bottom"><id>rule</id><x>6.75</x><y>57.4</y><width>1609</width><height>27</height></frame>
+      <frame class="rule-top"><id>rule2</id><x>6.75</x><y>81</y><width>1609</width><height>33.75</height></frame>
+      <frame class="desc-icon" bind-style="-ff-cell: symbol {battle.grid.titleIcon}"><id>titleicon</id><x>53.5</x><y>10.1</y><width>36</width><height>60.75</height></frame>
+      <frame class="desc-title" bind-text="{battle.grid.title}"><id>title</id><x>94.5</x><y>10.1</y><width>800</width><height>60.75</height></frame>
+      <frame class="desc-mp" bind-display="battle.grid.showMp"><id>mplabel</id><x>927.6</x><y>10.1</y><width>80</width><height>60.75</height><data>MP</data></frame>
+      <frame class="desc-mp mp-value" bind-display="battle.grid.showMp" bind-text="{battle.grid.mp}"><id>mp</id><x>0</x><y>10.1</y><width>1069.6</width><height>60.75</height></frame>
+      <frame class="desc-mp" bind-display="battle.grid.showMp"><id>mpslash</id><x>1089.9</x><y>10.1</y><width>30</width><height>60.75</height><data>/</data></frame>
+      <frame class="desc-mp" bind-display="battle.grid.showMp" bind-text="{battle.grid.maxMp}"><id>maxmp</id><x>1123.7</x><y>10.1</y><width>150</width><height>60.75</height></frame>
+      <frame class="desc-line" bind-text="{battle.grid.line1}"><id>line1</id><x>82.6</x><y>97.9</y><width>1450</width><height>60.75</height></frame>
+      <frame class="desc-icon" bind-style="-ff-cell: battle-icon {battle.grid.lineIcon}; left: {battle.grid.lineIconX}px"><id>lineicon</id><x>0</x><y>97.9</y><width>48</width><height>60.75</height></frame>
+      <frame class="desc-line" bind-text="{battle.grid.line2}"><id>line2</id><x>82.6</x><y>151.9</y><width>1450</width><height>60.75</height></frame>
       <frame bind-display="battle.grid.equipStats">
         <id>equipstats</id><x>0</x><y>0</y><width>1609</width><height>236</height>
         <frame class="desc-line"><id>attacklabel</id><x>30</x><y>12</y><width>200</width><height>50</height><data>Attack:</data></frame>
@@ -370,16 +461,17 @@
       </frame>
     </frame>
 
-    <!-- The keys, over the party's rows: "Tab Skip" (another member ready), "C Auto battle  M Run away". -->
+    <!-- The keys, over the party's rows (Steam's draws): icon_keyboard_64's caps, 36 base pixels, and the words after
+         them unshadowed - "Tab Skip" (another member ready), "C Auto battle", "M Run away". The cells: Tab 16, C 48, M 52. -->
     <frame bind-display="battle.keys">
       <id>keys</id>
-      <x>1210</x><y>695</y><width>600</width><height>52</height>
-      <frame class="key-cap" bind-display="battle.skip"><id>skip_key</id><x>-190</x><y>0</y><width>70</width><height>52</height><data>Tab</data></frame>
-      <frame class="key-label" bind-display="battle.skip"><id>skip</id><x>-105</x><y>0</y><width>100</width><height>52</height><data>Skip</data></frame>
-      <frame class="key-cap"><id>auto_key</id><x>0</x><y>0</y><width>55</width><height>52</height><data>C</data></frame>
-      <frame class="key-label" bind-class="on: battle.auto"><id>auto</id><x>70</x><y>0</y><width>220</width><height>52</height><data>Auto battle</data></frame>
-      <frame class="key-cap"><id>run_key</id><x>273</x><y>0</y><width>55</width><height>52</height><data>M</data></frame>
-      <frame class="key-label" bind-class="on: battle.running"><id>run</id><x>343</x><y>0</y><width>220</width><height>52</height><data>Run away</data></frame>
+      <x>0</x><y>691.9</y><width>1920</width><height>60.75</height>
+      <frame class="key-cap" bind-display="battle.skip" style="-ff-cell: key 16"><id>skip_key</id><x>1034.4</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+      <frame class="key-label" bind-display="battle.skip"><id>skip</id><x>1107.3</x><y>0</y><width>100</width><height>60.75</height><data>Skip</data></frame>
+      <frame class="key-cap" style="-ff-cell: key 48"><id>auto_key</id><x>1206.8</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+      <frame class="key-label" bind-class="on: battle.auto"><id>auto</id><x>1279.7</x><y>0</y><width>200</width><height>60.75</height><data>Auto battle</data></frame>
+      <frame class="key-cap" style="-ff-cell: key 52"><id>run_key</id><x>1480.6</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+      <frame class="key-label" bind-class="on: battle.running"><id>run</id><x>1551.5</x><y>0</y><width>200</width><height>60.75</height><data>Run away</data></frame>
     </frame>
   </frame>
 

@@ -28,9 +28,10 @@ namespace OpenFF.Client
 				float width = d.W, height = d.H, em = 0f;
 				if (d.Kind == DrawKind.Text)
 				{
-					width = TrueTypeText.Width(d.Text, d.Size);
-					em = d.Size * TrueTypeText.SizeFactor * sy;
-					height = d.Size * TrueTypeText.SizeFactor;
+					float kx = d.W > 0f ? d.W : 1f, ky = d.H > 0f ? d.H : 1f;
+					width = TrueTypeText.Width(d.Text, d.Size) * kx;
+					em = d.Size * TrueTypeText.SizeFactor * ky * sy;
+					height = d.Size * TrueTypeText.SizeFactor * ky;
 				}
 				if (d.Kind == DrawKind.Line) { width = d.X2 - d.X; height = d.Y2 - d.Y; }
 				w.WriteLine(string.Join("\t",

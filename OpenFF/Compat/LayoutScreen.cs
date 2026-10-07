@@ -20,12 +20,13 @@
 //   border, border-*-width/-color      per side
 //   box-shadow                         x y [blur [spread]] colour, the outer ones, as a rectangle behind
 //   color, font-size, text-align,      its text (bind-text, or <data>): px in the layout's units; text-align left,
-//   vertical-align, text-shadow        center or right; vertical-align top or middle; the shadows drawn under it
+//   vertical-align, text-shadow        center or right; vertical-align top, middle (the line's box) or central (the capitals' middle, as FF4.exe sets its text); the shadows drawn under it
 //   -ff-cell: <name> <index>           a sprite cell of the game's art, by a name the client registers (Cells): FF4's
 //                                      cursor, gauge, number; "glove" for FF4's pointing glove
 //   -ff-cell-origin: x y               where the cell's own origin goes in the frame (px or %; default 0 50%)
 //   -ff-cell-crop: <percent>           the cell drawn that much of its width (a gauge's fill), bindable
 //   -ff-cell-scale: <number>           the cell's size against the game's (1)
+//   -ff-cell-shadow: x y colour        the cell drawn under itself in the colour, moved (a drop shadow)
 //   -ff-panel: <name>                  a panel of the game's art under the frame, by a name the client registers: FF4's
 //                                      window, "ff4-window"
 // Bindings as the menus have them: bind-text, bind-visible, bind-display, bind-class, bind-style, data-source -
@@ -223,8 +224,8 @@ namespace OpenFF.Client
 					d.Rect(x + (shadow.X - sp) * sx, y + (shadow.Y - sp) * sy, w + 2 * sp * sx, h + 2 * sp * sy, Fade(shadow.Colour));
 				}
 				if (bg.Colour.HasValue && (bg.Colour.Value & 0xFF) != 0) d.Rect(x, y, w, h, Fade(bg.Colour.Value));
-				if (bg.Gradient != null) Gradient(d, bg.Gradient, x, y, w, h, Fade);
-				if (bg.ImagePath != null && bg.ImageKind == "url") Picture(d, bg, x, y, w, h, opacity);
+				if (bg.Gradient != null) Gradient(d, bg.Gradient, x, y, w, h, sx, sy, Fade);
+				if (bg.ImagePath != null) Picture(d, bg, x, y, w, h, sx, sy, opacity);
 				if (bg.HasBorder)
 				{
 					float t = bg.BorderWidth[0] * sy, r = bg.BorderWidth[1] * sx, b = bg.BorderWidth[2] * sy, l = bg.BorderWidth[3] * sx;
@@ -238,7 +239,7 @@ namespace OpenFF.Client
 			if (_texts.TryGetValue(frame, out string text) && !string.IsNullOrEmpty(text)) DrawText(d, text, look, v, x, y, w, h, sx, sy, opacity);
 		}
 
-		private static void Gradient(DrawList d, MenuGradient g, float x, float y, float w, float h, Func<uint, Color> fade)
+		private static void Gradient(DrawList d, MenuGradient g, float x, float y, float w, float h, float sx, float sy, Func<uint, Color> fade)
 		{
 			if (g.Kind != "linear" || g.Stops.Count == 0) return;
 			// To the bottom (180) or the right (90); anything else drawn as the nearer of the two.
@@ -246,19 +247,34 @@ namespace OpenFF.Client
 			angle = ((angle % 360) + 360) % 360;
 			bool across = (angle > 45 && angle < 135) || (angle > 225 && angle < 315);
 			bool reverse = across ? angle > 180 : angle < 90 || angle > 270;
-			const int strips = 24;
 			float length = across ? w : h;
-			for (int i = 0; i < strips; i++)
+			float[] at = StopsAt(g, across ? w / sx : h / sy);
+			int n = at.Length;
+			// Between two stops of one colour (a hard stop's band, a menu's flat rows) one rectangle, edge to edge, so
+			// translucent bands meet without a seam; a blend in strips, 24 to the whole length.
+			void Band(float t0, float t1, uint colour)
 			{
-				float t = (i + 0.5f) / strips;
-				uint colour = ColourAt(g, reverse ? 1 - t : t, length);
-				float a = length * i / strips, b = length * (i + 1) / strips;
-				if (across) d.Rect(x + a, y, b - a + 0.5f, h, fade(colour));
-				else d.Rect(x, y + a, w, b - a + 0.5f, fade(colour));
+				if (t1 <= t0) return;
+				float a = length * (reverse ? 1 - t1 : t0), b = length * (reverse ? 1 - t0 : t1);
+				if (across) d.Rect(x + a, y, b - a, h, fade(colour));
+				else d.Rect(x, y + a, w, b - a, fade(colour));
 			}
+			Band(0, Math.Clamp(at[0], 0, 1), g.Stops[0].Colour);
+			for (int i = 1; i < n; i++)
+			{
+				float t0 = Math.Clamp(at[i - 1], 0, 1), t1 = Math.Clamp(at[i], 0, 1);
+				if (t1 <= t0) continue;
+				uint c0 = g.Stops[i - 1].Colour, c1 = g.Stops[i].Colour;
+				if (c0 == c1) { Band(t0, t1, c0); continue; }
+				int strips = Math.Max(1, (int)Math.Ceiling(24 * (t1 - t0)));
+				for (int k = 0; k < strips; k++) Band(t0 + (t1 - t0) * k / strips, t0 + (t1 - t0) * (k + 1) / strips, Mix(c0, c1, (k + 0.5f) / strips));
+			}
+			Band(Math.Clamp(at[n - 1], 0, 1), 1, g.Stops[n - 1].Colour);
 		}
 
-		private static uint ColourAt(MenuGradient g, float t, float length)
+		/// <summary>Where each stop falls along the gradient (0..1), <paramref name="length"/> the line's length in layout units
+		/// (for px stops); a stop without a position spread between its neighbours, one before an earlier stop's at that.</summary>
+		private static float[] StopsAt(MenuGradient g, float length)
 		{
 			int n = g.Stops.Count;
 			float[] at = new float[n];
@@ -268,15 +284,9 @@ namespace OpenFF.Client
 				if (p != null && p.EndsWith("%", StringComparison.Ordinal) && float.TryParse(p.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) at[i] = pc / 100f;
 				else if (p != null && float.TryParse(p.Replace("px", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out float px) && length > 0) at[i] = px / length;
 				else at[i] = n == 1 ? 0 : i / (float)(n - 1);
+				if (i > 0 && at[i] < at[i - 1]) at[i] = at[i - 1];
 			}
-			if (t <= at[0]) return g.Stops[0].Colour;
-			for (int i = 1; i < n; i++)
-			{
-				if (t > at[i]) continue;
-				float k = at[i] > at[i - 1] ? (t - at[i - 1]) / (at[i] - at[i - 1]) : 1;
-				return Mix(g.Stops[i - 1].Colour, g.Stops[i].Colour, k);
-			}
-			return g.Stops[n - 1].Colour;
+			return at;
 		}
 
 		private static uint Mix(uint a, uint b, float k)
@@ -285,18 +295,32 @@ namespace OpenFF.Client
 			return (C(24) << 24) | (C(16) << 16) | (C(8) << 8) | C(0);
 		}
 
-		private void Picture(DrawList d, MenuBackground bg, float x, float y, float w, float h, double opacity)
+		private void Picture(DrawList d, MenuBackground bg, float x, float y, float w, float h, float sx, float sy, double opacity)
 		{
-			string path = Path.Combine(_directory, bg.ImagePath);
+			// url: a file beside the layout; resource: one of the game's ("files/MENU_Common.dat/frame_00.NCGR").
+			bool resource = bg.ImageKind == "resource";
+			string path = resource ? bg.ImagePath : Path.Combine(_directory, bg.ImagePath);
 			if (!_pictures.TryGetValue(path, out Texture texture))
 			{
-				try { texture = File.Exists(path) ? d.LoadTexture("hud:" + path, File.ReadAllBytes(path)) : null; } catch (Exception) { texture = null; }
+				try
+				{
+					byte[] data = resource ? GameArchive.Read(path) : File.Exists(path) ? File.ReadAllBytes(path) : null;
+					texture = data != null ? d.LoadTexture("hud:" + path, data) : null;
+				}
+				catch (Exception) { texture = null; }
 				_pictures[path] = texture;
 			}
 			if (texture == null) return;
-			int[] r = bg.Rect;
 			uint tint = bg.Tint;
 			Color c = new Color((byte)(tint >> 24), (byte)(tint >> 16), (byte)(tint >> 8), (byte)Math.Round((tint & 0xFF) * opacity));
+			if (bg.Sliced)
+			{
+				// 9-sliced: the corners kept at -ff-slice-scale layout units a picture pixel, the edges and the middle stretched.
+				foreach (MenuBackground.Quad q in bg.Layout(w / sx, h / sy, texture.Width, texture.Height))
+					d.Sprite(texture, x + q.X * sx, y + q.Y * sy, q.W * sx, q.H * sy, c, 0f, q.U, q.V, q.UW, q.VH);
+				return;
+			}
+			int[] r = bg.Rect;
 			if (r != null && r.Length == 4) d.Sprite(texture, x, y, w, h, c, 0f, r[0], r[1], r[2], r[3]);
 			else d.Sprite(texture, x, y, w, h, c);
 		}
@@ -322,6 +346,16 @@ namespace OpenFF.Client
 			}
 			// color: the cell tinted (a greyed list entry's icon), white otherwise.
 			uint tint = (v.TryGetValue("color", out string cs) ? MenuBackground.ParseColour(MenuStyles.Hex(cs) ?? cs) : null) ?? 0xFFFFFFFF;
+			// -ff-cell-shadow: x y colour - the cell once more under it, in the colour, moved (a glyph's drop shadow, as Steam's
+			// orbs before the spells' names have the lettering's).
+			if (v.TryGetValue("-ff-cell-shadow", out string shadow))
+			{
+				string[] bits = shadow.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+				if (bits.Length >= 3 && float.TryParse(bits[0].Replace("px", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out float dx)
+					&& float.TryParse(bits[1].Replace("px", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out float dy)
+					&& MenuBackground.ParseColour(MenuStyles.Hex(bits[2]) ?? bits[2]) is uint shade)
+					drawer(d, index, x + ox + dx * sx, y + oy + dy * sy, scale, crop, new Color((byte)(shade >> 24), (byte)(shade >> 16), (byte)(shade >> 8), (byte)Math.Round((shade & 0xFF) * opacity)));
+			}
 			drawer(d, index, x + ox, y + oy, scale, crop, new Color((byte)(tint >> 24), (byte)(tint >> 16), (byte)(tint >> 8), (byte)Math.Round((tint & 0xFF) * opacity)));
 		}
 
@@ -329,13 +363,20 @@ namespace OpenFF.Client
 		{
 			float size = 25f;
 			if (v.TryGetValue("font-size", out string fs) && float.TryParse(fs.Trim().Replace("px", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out float f)) size = f;
-			int drawn = Math.Max(4, (int)Math.Round(size * sy));
+			// The font's whole size at or above the one asked for, scaled down to it - and across by the layout's own aspect, so a
+			// glyph is as wide in the layout's units as it is high (the 800 x 480 space is stretched over a 16:9 screen).
+			float wanted = Math.Max(4f, size * sy);
+			int drawn = (int)Math.Ceiling(wanted - 0.001f);
+			float ky = wanted / drawn, kx = ky * sx / sy;
 			uint colour = (v.TryGetValue("color", out string cs) ? MenuBackground.ParseColour(MenuStyles.Hex(cs) ?? cs) : null) ?? 0xFFFFFFFF;
 			string align = v.TryGetValue("text-align", out string ta) ? ta.Trim().ToLowerInvariant() : "left";
-			bool middle = v.TryGetValue("vertical-align", out string va) && va.Trim().Equals("middle", StringComparison.OrdinalIgnoreCase);
-			float width = d.MeasureText(text, drawn);
+			string valign = v.TryGetValue("vertical-align", out string va) ? va.Trim().ToLowerInvariant() : "top";
+			bool middle = valign == "middle", central = valign == "central";
+			float width = d.MeasureText(text, drawn) * kx;
 			float tx = align == "center" ? x + (w - width) / 2 : align == "right" ? x + w - width : x;
-			float ty = middle ? y + (h - drawn * 1.3f) / 2 : y;
+			// middle: the line's box centred; central: the capitals' middle on the frame's (FF4.exe's text) - an Arial capital's
+			// middle 0.547 em under the line's top, the em the size's 2 / 1.117, less the 0.1 the text path lifts it.
+			float ty = middle ? y + (h - wanted * 1.3f) / 2 : central ? y + h / 2 - wanted * 0.879f : y;
 			if (look?.TextStyle != null)
 			{
 				MenuText lettering = MenuText.Parse(look.TextStyle);
@@ -345,11 +386,11 @@ namespace OpenFF.Client
 					{
 						MenuText.Shadow s = lettering.Shadows[i];
 						uint c = s.Colour;
-						d.Text(text, tx + s.X * sx, ty + s.Y * sy, new Color((byte)(c >> 24), (byte)(c >> 16), (byte)(c >> 8), (byte)Math.Round((c & 0xFF) * opacity)), drawn);
+						d.Text(text, tx + s.X * sx, ty + s.Y * sy, new Color((byte)(c >> 24), (byte)(c >> 16), (byte)(c >> 8), (byte)Math.Round((c & 0xFF) * opacity)), drawn, kx, ky);
 					}
 				}
 			}
-			d.Text(text, tx, ty, new Color((byte)(colour >> 24), (byte)(colour >> 16), (byte)(colour >> 8), (byte)Math.Round((colour & 0xFF) * opacity)), drawn);
+			d.Text(text, tx, ty, new Color((byte)(colour >> 24), (byte)(colour >> 16), (byte)(colour >> 8), (byte)Math.Round((colour & 0xFF) * opacity)), drawn, kx, ky);
 		}
 
 		private static float Number(XElement frame, string tag) => float.TryParse(((string)frame.Element(tag))?.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float v) ? v : 0;

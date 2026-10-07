@@ -42,6 +42,10 @@ namespace OpenFF.Client
 		/// </summary>
 		public const float Scale = 0.75f;
 
+		/// <summary>A sheet pixel's width against its height in the 800 x 480 space, so a cell keeps square pixels on the window
+		/// the space is stretched over (15/16 on a 16:9 one, as Steam's are): set from the window as the draws are drawn (ModDraw).</summary>
+		public static float SquareX = 1f;
+
 		public const string FrameSheet = "window_frame_00.NCGR", FrameBank = "window_frame_00.NCER";
 		public const string CursorSheet = "cursor.NCGR", CursorBank = "cursor.NCER";
 		public const string GaugeSheet = "gauge_atb.NCGR", GaugeBank = "gauge_atb.NCER";
@@ -141,9 +145,9 @@ namespace OpenFF.Client
 		/// <summary>One part of a cell drawn with its origin at (x, y), the sheet's pixels times <paramref name="scale"/>; a width or height given stretches the part to it.</summary>
 		private static void Part(DrawList d, Texture sheet, CellPart p, float x, float y, float scale, Color? tint = null, float? width = null, float? height = null, float? sourceWidth = null)
 		{
-			float w = width ?? p.Width * scale, h = height ?? p.Height * scale;
+			float w = width ?? p.Width * scale * SquareX, h = height ?? p.Height * scale;
 			float sw = sourceWidth ?? p.Width;
-			d.Sprite(sheet, x + p.X * scale, y + p.Y * scale, w, h, tint, 0f, p.SourceX, p.SourceY, sw, p.Height);
+			d.Sprite(sheet, x + p.X * scale * SquareX, y + p.Y * scale, w, h, tint, 0f, p.SourceX, p.SourceY, sw, p.Height);
 		}
 
 		/// <summary>A whole cell at (x, y).</summary>
@@ -204,7 +208,7 @@ namespace OpenFF.Client
 			Part(d, sheet, tr, x + w, y, k);
 			Part(d, sheet, bl, x, y + h, k);
 			Part(d, sheet, br, x + w, y + h, k);
-			float edgeH = h - corner, edgeW = w - corner;
+			float cornerX = corner * SquareX, edgeH = h - corner, edgeW = w - cornerX;
 			if (edgeH > 0)
 			{
 				Part(d, sheet, left, x, y + corner / 2, k, null, null, edgeH);
@@ -212,8 +216,8 @@ namespace OpenFF.Client
 			}
 			if (edgeW > 0)
 			{
-				Part(d, sheet, top, x + corner / 2, y, k, null, edgeW, null);
-				Part(d, sheet, bottom, x + corner / 2, y + h, k, null, edgeW, null);
+				Part(d, sheet, top, x + cornerX / 2, y, k, null, edgeW, null);
+				Part(d, sheet, bottom, x + cornerX / 2, y + h, k, null, edgeW, null);
 			}
 			return true;
 		}
@@ -228,7 +232,7 @@ namespace OpenFF.Client
 			{
 				// point.png is the phone's pointing glove at the same 48 x 48, hanging the same way.
 				float k = Scale, s = 48f * k;
-				d.Sprite(_steamPointer, x - 48f * k, y - 12f * k, s, s);
+				d.Sprite(_steamPointer, x - 48f * k * SquareX, y - 12f * k, s * SquareX, s);
 				return true;
 			}
 			return Cell(d, CursorBank, CursorSheet, pressed ? 1 : 0, x, y);
@@ -243,7 +247,7 @@ namespace OpenFF.Client
 			Cell cell = Bank(NumberBank)?[index];
 			if (cell == null) return (0f, 0f);
 			float w = 0f, h = 0f;
-			foreach (CellPart p in cell.Parts) { w = Math.Max(w, (p.X + p.Width) * Scale); h = Math.Max(h, (p.Y + p.Height) * Scale); }
+			foreach (CellPart p in cell.Parts) { w = Math.Max(w, (p.X + p.Width) * Scale * SquareX); h = Math.Max(h, (p.Y + p.Height) * Scale); }
 			return (w, h);
 		}
 
@@ -256,7 +260,7 @@ namespace OpenFF.Client
 			crop = Math.Clamp(crop, 0f, 1f);
 			if (crop <= 0f) return true;
 			foreach (CellPart p in cell.Parts)
-				d.Sprite(sheet, x + p.X * Scale * stretch, y + p.Y * Scale, p.Width * Scale * stretch * crop, p.Height * Scale, Color.White, 0f, p.SourceX, p.SourceY, p.Width, p.Height);
+				d.Sprite(sheet, x + p.X * Scale * SquareX * stretch, y + p.Y * Scale, p.Width * Scale * SquareX * stretch * crop, p.Height * Scale, Color.White, 0f, p.SourceX, p.SourceY, p.Width, p.Height);
 			return true;
 		}
 
@@ -269,7 +273,7 @@ namespace OpenFF.Client
 			crop = Math.Clamp(crop, 0f, 1f);
 			if (crop <= 0f) return true;
 			float k = Scale * scale;
-			foreach (CellPart p in cell.Parts) Part(d, sheet, p, x, y, k, tint, p.Width * k * crop, null, p.Width * crop);
+			foreach (CellPart p in cell.Parts) Part(d, sheet, p, x, y, k, tint, p.Width * k * SquareX * crop, null, p.Width * crop);
 			return true;
 		}
 
@@ -300,7 +304,7 @@ namespace OpenFF.Client
 			Texture sheet = Sheet(SymbolSheet);
 			if (sheet == null) return false;
 			float size = 54f * DrawList.ScreenHeight / 1080f * scale;   // Steam's: about 27 screen pixels at 1080p, the draw space half that
-			d.Sprite(sheet, x, y - size / 2, size, size, tint, 0f, (index % 16) * 24, (index / 16) * 24, 24, 24);
+			d.Sprite(sheet, x, y - size / 2, size * SquareX, size, tint, 0f, (index % 16) * 24, (index / 16) * 24, 24, 24);
 			return true;
 		}
 
@@ -313,6 +317,8 @@ namespace OpenFF.Client
 			LayoutScreen.Cells["symbol"] = SymbolCell;
 			LayoutScreen.Cells["battle-icon"] = BattleIconCell;
 			LayoutScreen.Panels["ff4-window"] = (d, x, y, w, h, opacity) => Window(d, x, y, w, h, 1, 0.82f * opacity);
+			// The Steam build's key caps (icon_keyboard_64: a blank cap and the key's letter, 64 x 64 about the middle).
+			LayoutScreen.Cells["key"] = (d, i, x, y, s, crop, t) => Cell(d, "icon_keyboard_64.NCER", "icon_keyboard_64.NCGR", i, x, y, Scale * s, t);
 			LayoutScreen.Cells["number"] = (d, i, x, y, s, crop, t) => Cell(d, NumberBank, NumberSheet, i, x, y, Scale * s, t);
 			// HelpWindow::setResultPageIcon's arrow, as Steam draws it: a white triangle pointing down, 44 wide and 16 high
 			// at the game's scale, its origin the top middle.
@@ -339,7 +345,7 @@ namespace OpenFF.Client
 			fraction = Math.Clamp(fraction, 0f, 1f);
 			if (fraction <= 0f) return true;
 			Cell f = bank[Math.Clamp(fill, 1, 3)];
-			foreach (CellPart p in f.Parts) Part(d, sheet, p, x, y, Scale, null, p.Width * Scale * fraction, null, p.Width * fraction);
+			foreach (CellPart p in f.Parts) Part(d, sheet, p, x, y, Scale, null, p.Width * Scale * SquareX * fraction, null, p.Width * fraction);
 			return true;
 		}
 

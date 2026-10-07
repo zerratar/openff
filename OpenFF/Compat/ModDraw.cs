@@ -111,6 +111,7 @@ namespace OpenFF.Client
 			Viewport view = GraphicsDevice.Viewport;
 			float sx = view.Width / TextSpaceWidth;
 			float sy = view.Height / TextSpaceHeight;
+			if (sx > 0f) Ff4Ui.SquareX = sy / sx;
 
 			// The place-name window is asked for by the step's own list, whichever step's list is drawn: Banner.Tick
 			// decides once a step whether it stays.
@@ -197,7 +198,10 @@ namespace OpenFF.Client
 				OpenFF.DrawCommand c = commands[i];
 				if (c.Kind != OpenFF.DrawKind.Text) continue;
 				graphics.SetColor(c.Color.R, c.Color.G, c.Color.B, c.Color.A);
+				bool scaled = c.W > 0f && c.H > 0f;
+				if (scaled) graphics.SetImageScale(c.W, c.H);
 				graphics.DrawString(c.Text, c.X, c.Y, c.Size);
+				if (scaled) graphics.SetImageScale(1f, 1f);
 			}
 			// The banner's words, centred in its window with the place name's shadow (the window itself is the game's 2D, drawn under).
 			if (Banner.Shown is (float bx, float by, float bw, float bh, string text))

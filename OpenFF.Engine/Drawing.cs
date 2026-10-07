@@ -100,6 +100,14 @@ namespace OpenFF
 			_commands.Add(new DrawCommand { Kind = DrawKind.Text, X = x, Y = y, Text = text, Color = color, Size = size, Group = _group });
 		}
 
+		/// <summary>Text at a size and scaled across and down from it (a size between the font's whole ones, glyphs kept square
+		/// on a screen the 800 x 480 space is stretched over): the scales go in the command's W and H.</summary>
+		public void Text(string text, float x, float y, Color color, int size, float scaleX, float scaleY)
+		{
+			if (string.IsNullOrEmpty(text)) return;
+			_commands.Add(new DrawCommand { Kind = DrawKind.Text, X = x, Y = y, W = scaleX, H = scaleY, Text = text, Color = color, Size = size, Group = _group });
+		}
+
 		public float MeasureText(string text, int size = 12)
 		{
 			return TextMeasure == null || string.IsNullOrEmpty(text) ? 0f : TextMeasure(text, size);

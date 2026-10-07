@@ -2380,7 +2380,13 @@ namespace OpenFF.Client
 			public bool HasSub => !string.IsNullOrEmpty(Sub);
 			public bool Plain => string.IsNullOrEmpty(Sub);
 		}
-		public sealed class TargetRow { public bool Present, Lit; public string Name = "", Sub = ""; }
+		public sealed class TargetRow
+		{
+			public bool Present, Lit;
+			public string Name = "", Sub = "";
+			public bool HasSub => !string.IsNullOrEmpty(Sub);
+			public bool Plain => string.IsNullOrEmpty(Sub);
+		}
 		public sealed class IconSlot { public int Cell = -1; }
 
 		public sealed class CardData
@@ -2405,7 +2411,13 @@ namespace OpenFF.Client
 			public List<GridCell> Cell = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(0, 12), _ => new GridCell()));
 			public ScrollData Scroll = new ScrollData();
 		}
-		public sealed class ScrollData { public bool Shown; public float Top, Size = 100; }
+		public sealed class ScrollData
+		{
+			public bool Shown;
+			public float Top, Size = 100;
+			/// <summary>The knob is drawn only while the rows overflow (Steam's target list, its rows all in view: the bar bare).</summary>
+			public bool Knob => Size < 100;
+		}
 		public sealed class MemberRow { public bool Present, Alive, Low, Acting, Picked, ShowMp; public string Name = "", Status = ""; public int Hp, MaxHp, Mp, Gauge, Fill = 1; }
 
 		public sealed class ResultData
@@ -2621,6 +2633,7 @@ namespace OpenFF.Client
 				c.Sub = c.Present ? CommandSub(_acting, commands[i]) : "";
 			}
 			h.Scroll.Shown = h.Commands || h.Targets;
+			if (h.Targets) count = 0;   // the targets all in view
 			h.Scroll.Size = count <= CommandRows ? 100 : 100f * CommandRows / count;
 			h.Scroll.Top = count <= CommandRows ? 0 : (100 - h.Scroll.Size) * _commandScroll / Math.Max(1, count - CommandRows);
 			for (int i = 0; i < h.Member.Count; i++)
@@ -2848,7 +2861,7 @@ namespace OpenFF.Client
 						float share = hp ? (m.MaxHp > 0 ? (float)m.Hp / m.MaxHp : 0f) : (m.Member.MaxMp > 0 ? (float)m.Member.Mp / m.Member.MaxMp : 0f);
 						// Steam's frames: the bar across the turn cursor, centred on it.
 						(float bw, float bh) = Ff4Ui.NumberCellSize(22);
-						const float stretch = 2.8f;
+						const float stretch = 3f;   // BattleHpGauge's sprites at x scale 3
 						float gx = over.Value.X - bw * stretch * 0.467f, gy = over.Value.Y + 8f * Ff4Ui.Scale - bh * 0.59f;
 						Ff4Ui.NumberCellStretched(d, 22, gx, gy, stretch, 1f);
 						Ff4Ui.NumberCellStretched(d, hp ? (share > 0.25f ? 23 : 25) : 26, gx, gy, stretch, share);

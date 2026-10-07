@@ -1,51 +1,69 @@
 /* FF4's battle HUD as the Steam game draws it (ff4_battle_hud.xml), in Steam's 1080p pixels. A mod restyles it with
    menus/hud/styles/*.css: those sheets come after this one, so their rules win. */
 
-/* Steam's row panels: a translucent lavender, a light edge along the top and left, a dark one along the bottom and
-   right; the lit one (the hand's row, the member whose turn it is) lighter. */
-.row {
-  background-color: #373a7180;
-  border-width: 2px;
-  border-color: #969cdedc #1a1c42c8 #1a1c42c8 #969cdedc;
+/* Steam's rows, as FF4.exe draws them (Tools/ff4hook's draws): two bands at 48% - a lighter one the top 16 of the 640-line
+   base's pixels (27 at 1080), a darker below - and the window frame's sunken square (MENU_Common.dat's frame_00, its right
+   half) over them, its 16-pixel corners kept. The lit row (the hand's, the member choosing) has three lighter bands
+   over the two, under the frame. */
+.row { background-image: linear-gradient(to bottom, #5054837b 0px, #5054837b 27px, #2a2b667b 27px, #2a2b667b 100%); }
+.row .lit-band { background-image: linear-gradient(to bottom, #6987dd7b 0%, #6987dd7b 40%, #667dc47b 40%, #667dc47b 63.33%, #4a5daa7b 63.33%, #4a5daa7b 100%); }
+.member .lit-band { background-image: linear-gradient(to bottom, #6987dd7b 0%, #6987dd7b 36.84%, #667dc47b 36.84%, #667dc47b 63.16%, #4a5daa7b 63.16%, #4a5daa7b 100%); }
+.edge {
+  background-image: resource("files/MENU_Common.dat/frame_00.NCGR");
+  -ff-background-rect: 192 0 192 192;
+  -ff-slice: 16;
+  -ff-slice-scale: 1.6875;
+  -ff-background-tint: #ffffff7b;
 }
-.row.lit { background-color: #566ab2b8; }
+/* The party's window: the raised square (frame_00's left half) round two bands, the lighter 12 base pixels high. */
+.party {
+  background-image: resource("files/MENU_Common.dat/frame_00.NCGR");
+  -ff-background-rect: 0 0 192 192;
+  -ff-slice: 16;
+  -ff-slice-scale: 1.6875;
+  -ff-background-tint: #ffffff7b;
+}
+.party-fill { background-image: linear-gradient(to bottom, #5054837b 0px, #5054837b 20.25px, #2a2b667b 20.25px, #2a2b667b 100%); }
+.member { background-image: none; }
 
-/* Every text: white with Steam's soft drop shadow, at Steam's size (inherited by everything inside). */
-#panel, #message, #result { color: #ffffff; font-size: 25px; text-shadow: 2px 2px #000000a0; }
+/* Every text: white, Arial at Steam's size (a 37.7-pixel em at 1080: a line 42 high, font-size 21), with Steam's shadow - the same
+   glyphs in black 2 base pixels down and right, opaque. */
+#panel, #message, #result { color: #ffffff; font-size: 21px; text-shadow: 3.375px 3.375px #000000; }
 
-.command .label { text-align: center; vertical-align: middle; }
+.command .label { text-align: center; vertical-align: central; }
 .command.disabled .label { color: #babeda; }
 /* The small line under a command (Focus's "Rounds of focus: 1", Twincast's "Sync: 100%"). */
-.command .sub { font-size: 17px; text-align: center; vertical-align: top; }
+.command .sub { font-size: 14.3px; text-align: center; vertical-align: top; }
 
 /* The pointing glove, its fingertip at the frame's left middle. */
 .hand { -ff-cell: glove; -ff-cell-origin: 0 50%; }
+/* In a command or target row, the fingertip 37.15 pixels down (Steam's glove: its top 16.9 under the row's). */
+.command .hand, .target .hand { -ff-cell-origin: 0 37.15px; }
 
-#scroll #knob { background-color: #aaacc496; }
-#scroll .arrow { color: #c8cce6c8; font-size: 22px; text-align: center; vertical-align: middle; text-shadow: none; }
+/* The scroll bar: scrollbar_00's pieces at 48%, the knob's 4-pixel caps kept and its middle stretched. */
+.scroll-up, .scroll-down, .scroll-track, .scroll-knob {
+  background-image: resource("files/MENU_Common.dat/scrollbar_00.NCGR");
+  -ff-background-tint: #ffffff7b;
+}
+.scroll-up { -ff-background-rect: 36 0 36 20; }
+.scroll-down { -ff-background-rect: 0 268 36 20; }
+.scroll-track { -ff-background-rect: 0 32 36 32; }
+.scroll-knob { -ff-background-rect: 72 0 32 216; -ff-slice: 4 0 4 0; -ff-slice-scale: 1.6875; }
 
-.member .name, .member .hp, .member .mp { vertical-align: middle; }
-.member .hp, .member .mp { text-align: right; }
-.member.dead .name, .member.dead .hp { color: #babeda; }
+.member .name, .member .hp, .member .slash, .member .max-hp, .member .mp { vertical-align: central; }
+.member .hp { text-align: right; }
+.member.dead .name, .member.dead .hp, .member.dead .slash, .member.dead .max-hp { color: #babeda; }
 .member.low .hp { color: #ffe86e; }   /* a quarter of the HP or less: yellow, as Steam shows it */
 /* A member's status, one at a time (BattleStatusFontManager::drawCondition), smaller, between MP and the gauge. */
-.member .status { font-size: 21px; color: #ffe86e; text-align: center; vertical-align: middle; }
+.member .status { font-size: 17.6px; color: #ffe86e; text-align: center; vertical-align: central; }
 
 /* The ATB gauge: the trough, and the fill cut to the gauge (grey while it fills, yellow once full). */
 .gauge { -ff-cell: gauge 0; -ff-cell-origin: 0 50%; }
 .gauge-fill { -ff-cell-origin: 0 50%; }
 
-/* The keys: the letter on a dark blue key cap, the words after it. */
-.key-cap {
-  background-color: #0e3660eb;
-  border: 2px solid #466ea0;
-  color: #c8d8ec;
-  font-size: 29px;
-  text-align: center;
-  vertical-align: middle;
-  text-shadow: none;
-}
-.key-label { font-size: 20px; vertical-align: middle; }
+/* The keys: icon_keyboard_64's cap with its letter (a 64-pixel cell drawn 36 base pixels), the words unshadowed. */
+.key-cap { -ff-cell-origin: 50% 50%; -ff-cell-scale: 0.5625; }
+.key-label { vertical-align: central; text-shadow: none; }
 .key-label.on { color: #ffe86e; }   /* auto battle or the run control on */
 
 #message {
@@ -53,9 +71,9 @@
   border-width: 2px;
   border-color: #969cdedc #1a1c42c8 #1a1c42c8 #969cdedc;
 }
-#message .message-text { font-size: 34px; text-align: center; vertical-align: middle; }
+#message .message-text { font-size: 34px; text-align: center; vertical-align: central; }
 #abilityname { background-color: #25256064; color: #ffffff; text-shadow: 2px 2px #000000a0; }   /* Steam's: 39% of a dark blue */
-#abilityname .name-text { font-size: 21px; vertical-align: middle; }
+#abilityname .name-text { font-size: 21px; vertical-align: central; }
 
 /* The result: Steam's panel, a near-white frame 3 pixels thick with a soft shadow outside it. */
 #result {
@@ -65,43 +83,50 @@
 }
 .page-arrow { -ff-cell: page-arrow; -ff-cell-origin: 0 0; }
 
-/* A foe being picked (Steam's frames): its name in yellow, the chance to hit under it, the card with a light frame. */
-.target-name { color: #f0ec40; font-size: 18px; text-align: center; vertical-align: middle; }
-.target-sub { font-size: 16px; text-align: center; vertical-align: middle; }
-.card { background-color: #373a7180; border: 3px solid #ffffff90; }
-.card-name { color: #f0ec40; font-size: 21px; }   /* Steam's: "Rosa" 88 wide, "Weaknesses:" 228 */
-.card-line { font-size: 21px; }
+/* A target being picked (Steam's draws): its name in yellow in the smaller lettering (a 16 base-pixel em, 27 at 1080, its
+   advances rounded down a little narrower than ours), a foe's chance to hit under it in white; the card in the party's window. */
+.target-name { color: #ffff00; font-size: 15.1px; text-align: center; vertical-align: central; }
+.target-sub { font-size: 15.1px; text-align: center; vertical-align: central; }
+.card-name { color: #ffff00; vertical-align: central; }
+.card-line { vertical-align: central; }
 
-/* The spell and item grid, in FF4's window. */
-.grid, .grid-desc { color: #ffffff; font-size: 31px; text-shadow: 2px 2px #000000a0; }
-.grid, .grid-desc { -ff-panel: ff4-window; }
-.cell-name { vertical-align: middle; }
-.cell-value { text-align: right; vertical-align: middle; }
-.desc-title { color: #f0ec40; vertical-align: middle; }
-.desc-mp { text-align: right; vertical-align: middle; }
-.desc-line { vertical-align: middle; }
-.reequip-label { text-align: center; vertical-align: middle; }
+/* The spell and item grid and its description, in the party's window (Steam's draws): a cell has no bands of its own,
+   only the lit one's and its sunken frame; the description's title in yellow, a sunken bottom and top edge under it. */
+.grid, .grid-desc { color: #ffffff; font-size: 21px; text-shadow: 3.375px 3.375px #000000; }
+.cell { background-image: none; }
+.rule-bottom, .rule-top {
+  background-image: resource("files/MENU_Common.dat/frame_00.NCGR");
+  -ff-background-tint: #ffffff7b;
+}
+.rule-bottom { -ff-background-rect: 208 176 160 16; }
+.rule-top { -ff-background-rect: 208 0 160 20; }
+/* The orb before a name: a glyph of Steam's lettering, 32 pixels across (the symbol cell at 0.79), shadowed; yellow with the title. */
+.cell-icon, #titleicon { -ff-cell-scale: 0.79; -ff-cell-shadow: 3.375px 3.375px #000000; }
+#titleicon { color: #ffff00; }
+.cell-name { vertical-align: central; }
+.cell-value { text-align: right; vertical-align: central; }
+.desc-title { color: #ffff00; vertical-align: central; }
+.desc-mp { vertical-align: central; }
+.desc-mp.mp-value { text-align: right; }
+.desc-line { vertical-align: central; }
+.reequip-label { text-align: center; vertical-align: central; }
 /* Re-equip's numbers: "Attack:  10→0", the new value red when it falls (Steam). */
-.stat-from { text-align: right; vertical-align: middle; }
-.stat-arrow { text-align: center; vertical-align: middle; }
-.stat-to { vertical-align: middle; }
+.stat-from { text-align: right; vertical-align: central; }
+.stat-arrow { text-align: center; vertical-align: central; }
+.stat-to { vertical-align: central; }
 .stat-to.down { color: #ff5a5a; }
-#hands { color: #ffffff; font-size: 31px; text-shadow: 2px 2px #000000a0; }
-.hand-label { font-size: 24px; vertical-align: middle; }
-.hand-name { vertical-align: middle; }
-.grid-line { background-color: #aab0e66e; }
-.grid-mp { font-size: 31px; text-align: right; }
+#hands { color: #ffffff; font-size: 21px; text-shadow: 3.375px 3.375px #000000; }
+.hand-label { font-size: 16.3px; vertical-align: central; }
+.hand-name { vertical-align: central; }
 
-.cell.cant .cell-name { color: #babeda; }
-.cell.cant .cell-icon { color: #9a9ab4; }   /* the icon greyed with the name (Steam's Sight) */
+.cell.cant .cell-name { color: #808080; }   /* Steam's grey (Sight) */
+.cell.cant .cell-icon { color: #808080; }
 
 .cell-hand { -ff-cell: glove; -ff-cell-origin: 0 50%; }
-.grid-track { background-color: #14163ca0; }
-.grid-knob { background-color: #d6daf2; }
 
 /* A member's level-up page: the title centred, the values in two columns, a risen value in FF4's colour 3. */
-.levelup-title { text-align: center; vertical-align: middle; }
-.levelup-label, .levelup-new { vertical-align: middle; }
-.levelup-old { text-align: right; vertical-align: middle; }
-.levelup-arrow { text-align: center; vertical-align: middle; }
+.levelup-title { text-align: center; vertical-align: central; }
+.levelup-label, .levelup-new { vertical-align: central; }
+.levelup-old { text-align: right; vertical-align: central; }
+.levelup-arrow { text-align: center; vertical-align: central; }
 .up .levelup-new { color: #ffe86e; }
