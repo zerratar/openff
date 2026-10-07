@@ -369,6 +369,16 @@ namespace OpenFF.Client
 			int drawn = (int)Math.Ceiling(wanted - 0.001f);
 			float ky = wanted / drawn, kx = ky * sx / sy;
 			uint colour = (v.TryGetValue("color", out string cs) ? MenuBackground.ParseColour(MenuStyles.Hex(cs) ?? cs) : null) ?? 0xFFFFFFFF;
+			// Lines (a message's): each placed as a text of its own, line-height apart (px in the layout's units; 1.25 em
+			// when not given), the first where a single line would be.
+			if (text.IndexOf('\n') >= 0)
+			{
+				float step = v.TryGetValue("line-height", out string lh) && float.TryParse(lh.Trim().Replace("px", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out float l) ? l : size * 1.25f;
+				string[] lines = text.Split('\n');
+				for (int i = 0; i < lines.Length; i++)
+					if (lines[i].Length > 0) DrawText(d, lines[i], look, v, x, y + i * step * sy, w, h, sx, sy, opacity);
+				return;
+			}
 			string align = v.TryGetValue("text-align", out string ta) ? ta.Trim().ToLowerInvariant() : "left";
 			string valign = v.TryGetValue("vertical-align", out string va) ? va.Trim().ToLowerInvariant() : "top";
 			bool middle = valign == "middle", central = valign == "central";

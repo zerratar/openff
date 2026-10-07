@@ -152,6 +152,20 @@ namespace OpenFF.Content
 					_paths[name] = path;
 				}
 			}
+
+			// The shell's own pictures beside the executable - Steam FF4's window.png (its panel), point.png (the glove),
+			// button_on / button_off.png - as shell/<name>, so a layout's sheet can name one (resource("shell/window.png"))
+			// as it names the game's. Read from the player's install, never copied.
+			string install = string.Equals(Path.GetFileName(root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)), "EXTRACTED_DATA", StringComparison.OrdinalIgnoreCase)
+				? Path.GetDirectoryName(root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+				: root;
+			if (install != null && Directory.Exists(install))
+			{
+				foreach (string path in Directory.EnumerateFiles(install, "*.png", SearchOption.TopDirectoryOnly))
+				{
+					_paths["shell/" + Path.GetFileName(path)] = path;
+				}
+			}
 		}
 
 		public string Kind => "loose files";

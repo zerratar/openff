@@ -23,6 +23,9 @@ internal static partial class GlobalScope
 
 								private int m_MesDeleteFrame;
 
+								/// <summary>PORT: the window itself, for what FF4's layout reads off it (OpenFF.Client.Ff4Dialogue).</summary>
+								public menu.MessageWindow Window => m_MesWindow;
+
 								private ds.Vector2<short> m_MessagePosition = new ds.Vector2<short>();
 
 								public void setup()

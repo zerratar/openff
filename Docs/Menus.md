@@ -531,7 +531,8 @@ The client keeps `field_hud` as it last built it (`OpenFF/Compat/FieldHud.cs`), 
 
 ## Screens the client draws itself
 
-Some screens are the client's from the start, not the game's: FF4's battle HUD is the first. They are
+Some screens are the client's from the start, not the game's: FF4's battle HUD is the first, FF4's
+field message window (`ff4_field_hud`) the second. They are
 the same kind of data - a `<menu>` of frames, Crystal Style Sheets, bindings - but nothing is patched
 into an `.xbn`: the client reads the layout and draws it itself (`OpenFF/Compat/LayoutScreen.cs`).
 
@@ -549,18 +550,29 @@ bound `top`, `width` or `height` lays it out again (a scroll bar's knob: `bind-s
 {battle.scroll.top}%"`).
 
 What a frame draws: `background-color`; `background-image` (a `linear-gradient`, drawn as strips,
-or a `url("x.png")` picture beside the layout with `-ff-background-rect`); `border` per side;
+a `url("x.png")` picture beside the layout or a `resource("…")` of the game's, with
+`-ff-background-rect` or `-ff-slice`); a Steam install's own pictures beside its executable are
+resources too, as `shell/<name>`: FF4's panel is `resource("shell/window.png")`; `border` per side;
 `box-shadow` (the outer ones, unblurred); its text (`bind-text` or `<data>`) with `color`,
 `font-size` (in the canvas's units), `text-align`, `vertical-align: middle` and `text-shadow`;
 `opacity`, `visibility` and `display` as CSS. And the game's art:
 
 | Property | What |
 | --- | --- |
-| `-ff-cell: <name> <index>` | A cell of the game's art, by a name the client registers. FF4's: `cursor`, `glove` (the pointing hand; 1 the pressed one), `gauge` (0 the ATB trough, 1 grey, 2 yellow, 3 red), `number` (the battle digits and words), `page-arrow`. |
+| `-ff-cell: <name> <index>` | A cell of the game's art, by a name the client registers. FF4's: `cursor`, `glove` (the pointing hand; 1 the pressed one), `gauge` (0 the ATB trough, 1 grey, 2 yellow, 3 red), `number` (the battle digits and words), `page-arrow`, `message-next` (the message window's arrow, bobbing; 1 down, 0 up). |
 | `-ff-cell-origin: x y` | Where the cell's origin goes in the frame (px or %; `0 50%` by default). |
 | `-ff-cell-crop: <n>%` | The cell drawn that much of its width - a gauge's fill: `bind-style="-ff-cell-crop: {gauge}%"`. |
 | `-ff-cell-scale: <n>` | Its size against the game's. |
 | `-ff-panel: <name>` | A panel of the game's art under the frame, stretched to it, by a name the client registers: FF4's window, `ff4-window`. |
+
+A text's lines (a `\n` in it) are placed `line-height` apart (in the canvas's units).
+
+FF4's message window binds to the root `dialogue` (`Ff4Dialogue.DialogueData`): `open`, `text` (typed
+so far), `speaker` and `nameWidth`, `next` (the page arrow), `inPlace` / `placed` with `lineLeft`,
+`lineTop`, `lineAlign`, `lineDown` (a line the script set somewhere else, a centred one), and `colour`
+(the game's number; the layout turns it into classes, the sheet colours them). The game's own window
+still opens, types its text page by page and waits for the press; it just draws nothing, so the
+layout decides the whole look - Steam's `window.png` and lettering by default.
 
 The battle binds to the root `battle` (`Ff4Battle.HudData`): the panel, the command rows, the
 scroll bar, the party's rows (name, HP, MP, gauge, whose turn, who is picked), FF4's help line,

@@ -600,11 +600,21 @@ internal static partial class GlobalScope
 			{
 			}
 
+			/// <summary>PORT: typed on but not drawn - a layout of the client's draws the text it has so far (getStringBuffer):
+			/// FF4's message window (OpenFF.Client.Ff4Dialogue).</summary>
+			public bool Silent;
+
 			public void draw()
 			{
 				erase();
 				if (!visibility() || !activity() || (!progress() && (m_Flag & 4) == 0))
 				{
+					return;
+				}
+				if (Silent)
+				{
+					m_Flag |= 2;
+					m_Flag &= 251;
 					return;
 				}
 				if (funcTagCallback == null)

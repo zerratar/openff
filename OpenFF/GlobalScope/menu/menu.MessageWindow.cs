@@ -169,7 +169,7 @@ internal static partial class GlobalScope
 			private void mwShowNext(bool show)
 			{
 				m_NextWanted = show;
-				m_ProgressIcon.SetShow(show && OpenFF.Client.FieldHud.NextGame);
+				m_ProgressIcon.SetShow(show && OpenFF.Client.FieldHud.NextGame && !LaidOut);
 				OpenFF.Client.FieldHud.NextShown(show);
 			}
 
@@ -307,6 +307,9 @@ internal static partial class GlobalScope
 				m_State = 0;
 				// PORT: the field_hud layout's look on the window (OpenFF.Client.FieldHud): its panel, its frames of the mod's.
 				OpenFF.Client.FieldHud.DialogueMade(m_Window.GetWindowHandle(), mwIsWindowOpen, m_ProgressIcon);
+				// PORT: FF4's window is drawn by its layout (OpenFF.Client.Ff4Dialogue): the game's own is kept for what it does - its
+				// opening, its texts typing on - and drawn at nothing.
+				if (OpenFF.Client.Ff4Dialogue.Drawn) m_Window.GetWindowHandle().SetLook(0f, null);
 				return true;
 			}
 
@@ -382,6 +385,7 @@ internal static partial class GlobalScope
 				dGSMessage.setPosition(vector.vx, vector.vy, erase: true);
 				dGSMessage.setDisplaySpeed(m_Bar ? byte.MaxValue : mwDEFAULT_DISPLAY_SPEED);   // PORT: FF4's scene bar shows its line whole (EventConteManager::createMessage draws the text at once)
 				dGSMessage.setShadow(m_MessageShadow && !m_Bar);   // PORT: the Steam bar's line has no shadow
+				mwNoteLine(dGSMessage, vector);
 				mwPlaceAligned(dGSMessage, vector);
 				if (m_MessageAlign != 0)
 				{
@@ -442,6 +446,7 @@ internal static partial class GlobalScope
 				dGSMessage.setPosition(vector.vx, vector.vy, erase: true);
 				dGSMessage.setDisplaySpeed(m_Bar ? byte.MaxValue : mwDEFAULT_DISPLAY_SPEED);
 				dGSMessage.setShadow(m_MessageShadow && !m_Bar);   // PORT: the Steam bar's line has no shadow
+				mwNoteLine(dGSMessage, vector);
 				mwPlaceAligned(dGSMessage, vector);
 				if (m_MessageAlign != 0)
 				{
@@ -475,7 +480,9 @@ internal static partial class GlobalScope
 					// FF4 writes the name in the message's own font (NameWindow::nwDrawMessage_), in a window of its own.
 					bool ff4 = OpenFF.Client.GameProfile.IsFf4;
 					m_NameId = mm[m_Display].createMessage((uint)who, (ushort)name_message_pos.vx, (ushort)name_message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, ff4 ? dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12 : dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
-					if (ff4) mwOpenNameWindow(name_message_pos, who);
+					if (ff4 && LaidOut) mm[m_Display].Message(m_NameId).Silent = true;
+					else if (ff4) mwOpenNameWindow(name_message_pos, who);
+					m_NameWho = who;
 				}
 				dGSMessage = mm[m_Display].Message(m_NameId);
 				dGSMessage.setDisplaySpeed(byte.MaxValue);
@@ -589,6 +596,7 @@ internal static partial class GlobalScope
 
 			public void NameMessageRelease()
 			{
+				m_NameWho = -1;
 				if (m_NameId != -1)
 				{
 					mm[m_Display].releaseMessage(m_NameId);
@@ -600,6 +608,31 @@ internal static partial class GlobalScope
 					m_NameWindow.Release();
 					m_NameWindow = null;
 				}
+			}
+
+			// PORT: what FF4's layout (OpenFF.Client.Ff4Dialogue) draws in the game's place - the window (not the scene's bar) open,
+			// the text typed so far, the speaker, the arrow, and where the script put a line of its own (setMessagePosition /
+			// setMessageAlignment) in the 480 x 320 screen, its alignment (0 left, 1 centred, 2 right; down: 0 top, 1 middle,
+			// 2 bottom) and its colour.
+			private bool LaidOut => OpenFF.Client.Ff4Dialogue.Drawn && !m_Bar;
+			private int m_NameWho = -1;
+			private int m_LineX = 12, m_LineY = 252, m_LineAlign, m_LineDown, m_LineColour = 1;
+
+			public bool Ff4Open => LaidOut && m_Made_1 && mwIsWindowOpen() && m_Window.GetWindowHandle().IsShow();
+			public string Ff4Text => m_MessageId >= 0 ? mm[m_Display].Message(m_MessageId)?.getStringBuffer() : null;
+			public int Ff4NameWho => m_NameWho;
+			public bool Ff4Next => m_NextWanted;
+			public (int X, int Y, int Align, int Down, int Colour) Ff4Line => (m_LineX, m_LineY, m_LineAlign, m_LineDown, m_LineColour);
+
+			private void mwNoteLine(dgs.DGSMessage dGSMessage, ds.Vector2<short> at)
+			{
+				if (!LaidOut) return;
+				dGSMessage.Silent = true;
+				m_LineX = at.vx;
+				m_LineY = at.vy;
+				m_LineAlign = (m_MessageAlign & 0x10u) != 0 ? 1 : (m_MessageAlign & 0x20u) != 0 ? 2 : 0;
+				m_LineDown = (m_MessageAlign & 0x2u) != 0 ? 1 : (m_MessageAlign & 0x4u) != 0 ? 2 : 0;
+				m_LineColour = (int)m_MessageColor;
 			}
 
 			// PORT: FF4's name window (menu::NameWindow::nwOpen): from 8 left and 2 above the name, 24 high and the name's

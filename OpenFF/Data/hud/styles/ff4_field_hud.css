@@ -1,0 +1,28 @@
+/* FF4's field message window as the Steam game draws it (ff4_field_hud.xml), in Steam's 1080p pixels. A mod restyles it
+   with menus/hud/styles/*.css: those sheets come after this one, so their rules win. */
+
+/* Steam's panel: window.png beside FF4.exe (598 x 288, the blue-violet gradient with its thin light border baked into
+   the edges) over the window, its 6-pixel edges kept and the middle stretched; nearly opaque. */
+.window {
+  background-image: resource("shell/window.png");
+  -ff-slice: 6;
+  -ff-background-tint: #ffffffef;
+}
+
+/* The text: Steam's soft white, Arial at Steam's size (the game's 16-unit font, a 54-pixel em at 1080: font-size 30), lines
+   20 units apart, with the game's shadow - the glyphs in near-black a unit down and right (colours off Steam's frames). */
+.message { color: #cfd0dc; font-size: 30px; line-height: 67.5px; text-shadow: 3.375px 3.375px #0f101d; }
+.message.red { color: #ff5050; }
+.message.green { color: #50ff50; }
+.message.blue { color: #6070ff; }
+.message.cyan { color: #50ffff; }
+.message.magenta { color: #ff50ff; }
+.message.yellow { color: #ffff00; }
+
+#line.center { text-align: center; }
+#line.right { text-align: right; }
+#line.middle { vertical-align: middle; }
+
+/* The page-turn arrow: FF4's own (button_up_down's down arrow), bobbing as the game has it; its cell's origin on the
+   frame's corner. */
+#next { -ff-cell: message-next 1; -ff-cell-origin: 0 0; }

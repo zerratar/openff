@@ -310,6 +310,8 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>The cells FF4's art gives a layout's -ff-cell (LayoutScreen): cursor, glove, gauge, number, symbol, and the result window's page arrow.</summary>
+		private static readonly int[] NextBob = { 0, 1, 2, 3, 4, 3, 2, 1 };
+
 		public static void RegisterLayoutCells()
 		{
 			LayoutScreen.Cells["cursor"] = (d, i, x, y, s, crop, t) => Cell(d, CursorBank, CursorSheet, i, x, y, Scale * s, t);
@@ -317,6 +319,10 @@ namespace OpenFF.Client
 			LayoutScreen.Cells["gauge"] = GaugeCell;
 			LayoutScreen.Cells["symbol"] = SymbolCell;
 			LayoutScreen.Cells["battle-icon"] = BattleIconCell;
+			// The message window's arrow (MessageWindow::mwInitialize: MENU_Common's button_up_down, cell 1 down, 0 up), bobbing
+			// as its NANR's sequence 1 has it: 0, 1, 2, 3, 4, 3, 2, 1 of the sheet's pixels down, each 3 of the DS's 60 a second.
+			LayoutScreen.Cells["message-next"] = (d, i, x, y, s, crop, t) =>
+				Cell(d, "button_up_down.NCER", "button_up_down.NCGR", i, x, y + NextBob[(int)(LegacyStep.Count * 2 / 3 % 8)] * Scale * s, Scale * s, t);
 			LayoutScreen.Panels["ff4-window"] = (d, x, y, w, h, opacity) => Window(d, x, y, w, h, 1, 0.82f * opacity);
 			// The Steam build's key caps (icon_keyboard_64: a blank cap and the key's letter, 64 x 64 about the middle).
 			LayoutScreen.Cells["key"] = (d, i, x, y, s, crop, t) => Cell(d, "icon_keyboard_64.NCER", "icon_keyboard_64.NCGR", i, x, y, Scale * s, t);

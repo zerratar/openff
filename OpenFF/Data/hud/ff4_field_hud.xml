@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FF4's field message window (OpenFF.Client.Ff4Dialogue draws it through LayoutScreen). Written in Steam's 1080p pixels -
+  the places and sizes measured off the Steam game's frames, the game's own (libff4's MessageWindow and NameWindow) behind
+  them - and drawn stretched onto the client's 800 x 480. Its look is in styles/ff4_field_hud.css: Steam's window.png
+  (beside FF4.exe, read as resource("shell/window.png")) under the text.
+
+  A mod reshapes it with menus/hud/ff4_field_hud.xml (a copy of this, changed), or restyles it with
+  menus/hud/styles/*.css alone. Everything binds to the root "dialogue":
+    dialogue.open           the window is up (the story scenes speak over a bar of their own instead)
+    dialogue.text           the text typed so far, its lines as the game breaks them
+    dialogue.speaker        the name window's name, or nothing; nameWidth the width FF4 gives its window
+    dialogue.next           the page-turn arrow is wanted
+    dialogue.inPlace        the text starts in the window; placed when the script set the line elsewhere (a centred
+                            "Relinquished the Water Crystal."): lineLeft / lineTop place the "line" frame, lineAlign
+                            (0 left, 1 centred, 2 right) and lineDown (0 top, 1 middle, 2 bottom) how it stands there
+    dialogue.colour         the text's colour as the game numbers it (1 white, 3 red, 4 green, 5 blue, 6 cyan, 7 magenta,
+                            8 yellow) - the classes below name them, the sheet colours them
+-->
+<menu style="width: 1920px; height: 1080px">
+  <name>ff4_field_hud</name>
+
+  <!-- The window: libff4's 472 x 72 at (4, 244) of the 480 x 320 screen, as Steam draws it. -->
+  <frame class="window">
+    <id>dialogue</id>
+    <x>163</x><y>826</y><width>1592</width><height>236</height>
+    <frame class="message" bind-display="dialogue.inPlace" bind-text="{dialogue.text}"
+           bind-class="red: dialogue.colour == 3; green: dialogue.colour == 4; blue: dialogue.colour == 5; cyan: dialogue.colour == 6; magenta: dialogue.colour == 7; yellow: dialogue.colour == 8">
+      <id>text</id><x>27</x><y>24</y><width>1538</width><height>200</height>
+    </frame>
+    <!-- The arrow: its sprite's place, (448, 304). -->
+    <frame bind-visible="dialogue.next"><id>next</id><x>1499</x><y>200</y><width>0</width><height>0</height></frame>
+  </frame>
+
+  <!-- The speaker's window on the message window's top edge: (4, 220), 24 high, as wide as the name and 18. -->
+  <frame class="window" bind-display="dialogue.speaker" bind-style="width: {dialogue.nameWidth}px">
+    <id>name</id>
+    <x>163</x><y>744</y><width>207</width><height>78</height>
+    <frame class="message" bind-text="{dialogue.speaker}"><id>label</id><x>27</x><y>4</y><width>1200</width><height>70</height></frame>
+  </frame>
+
+  <!-- A line the script placed itself, in the frame's width across and 100 high about its place. -->
+  <frame class="message" bind-display="dialogue.placed" bind-text="{dialogue.text}" bind-style="left: {dialogue.lineLeft}px; top: {dialogue.lineTop}px"
+         bind-class="center: dialogue.lineAlign == 1; right: dialogue.lineAlign == 2; middle: dialogue.lineDown == 1; bottom: dialogue.lineDown == 2; red: dialogue.colour == 3; green: dialogue.colour == 4; blue: dialogue.colour == 5; cyan: dialogue.colour == 6; magenta: dialogue.colour == 7; yellow: dialogue.colour == 8">
+    <id>line</id><x>0</x><y>0</y><width>1920</width><height>100</height>
+  </frame>
+</menu>
