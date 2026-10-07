@@ -38,8 +38,9 @@ namespace OpenFF.Client
 			public List<int[]> Sets = new List<int[]>();
 			/// <summary>The groups of set 0 that exist in the tables, for the log and the roll.</summary>
 			public List<int> Parties = new List<int>();
-			/// <summary>The attack-type word and the three percentages of chain 2 (back attacks and the like; not applied yet).</summary>
-			public int AttackType;
+			/// <summary>Chain 2: the area's level (encountParameter[0], "AREA LV" - world::attackType weighs the party's average
+			/// against it) and the three step revises the encounter count picks by that difference (not applied yet).</summary>
+			public int AreaLevel;
 			public float[] Thresholds = new float[3];
 			private int _last = -1;
 
@@ -139,11 +140,11 @@ namespace OpenFF.Client
 						if (pack.Size(2) >= 16)
 						{
 							int at = pack.Offset(2);
-							table.AttackType = ChainPack.S16(pack.Data, at);
+							table.AreaLevel = ChainPack.S16(pack.Data, at);
 							for (int i = 0; i < 3; i++) table.Thresholds[i] = BitConverter.ToSingle(pack.Data, at + 4 + 4 * i);
 						}
 					}
-					Log.Write(LogChannel.File, "encounters: " + key + " rate " + table.Rate + " (by land form " + string.Join("/", table.Rates) + "), battle stage b" + table.BattleMap.ToString("00") + " (" + string.Join("/", table.BattleMaps) + "), set 0 groups " + string.Join(",", table.Parties) + " of " + table.Sets.Count + " set(s); attack type " + table.AttackType + " at " + string.Join("/", table.Thresholds) + "%");
+					Log.Write(LogChannel.File, "encounters: " + key + " rate " + table.Rate + " (by land form " + string.Join("/", table.Rates) + "), battle stage b" + table.BattleMap.ToString("00") + " (" + string.Join("/", table.BattleMaps) + "), set 0 groups " + string.Join(",", table.Parties) + " of " + table.Sets.Count + " set(s); area level " + table.AreaLevel + ", step revises " + string.Join("/", table.Thresholds));
 				}
 			}
 			catch (Exception ex)

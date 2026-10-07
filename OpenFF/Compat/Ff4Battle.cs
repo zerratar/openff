@@ -258,7 +258,7 @@ namespace OpenFF.Client
 				Attack = Math.Max(1, m.Attack), Defence = Math.Max(0, m.Defence), Agility = Math.Max(1, m.Stats.Agility),
 				Level = Math.Max(1, m.Level), Intellect = m.Stats.Intellect, Spirit = m.Stats.Spirit, Vitality = m.Stats.Vitality, MagicDefence = Math.Max(0, m.MagicDefence),
 				Strength = m.Stats.Strength, HitChance = m.Hit > 0 ? m.Hit : 90, Evade = Math.Max(0, m.Evade),
-				Gauge = StartGauge(),
+				Gauge = StartGauge(true),
 				AtbRate = m.AtbRateMin + (float)_random.NextDouble() * Math.Max(0f, m.AtbRateMax - m.AtbRateMin),
 				Facing = facing ?? 0f,
 			};
@@ -295,6 +295,7 @@ namespace OpenFF.Client
 			_runOn = _runReady = _cantEscapeShown = _escaping = _fledFade = false; _runFrames = 0;
 			_closing = false; _queue.Clear(); _counterAbilities.Clear(); _dying.Clear(); _turnEffects.Clear(); _executing = null; _party.Clear(); _foes.Clear(); _log.Clear(); _dropsWon.Clear();
 			_expWon = _gilWon = 0;
+			BeginOpening(monsterIds);
 			foreach (Character c in party.Members)
 			{
 				OpenFF.Data.Stats stats = c.StatsWith(tables);
@@ -305,7 +306,7 @@ namespace OpenFF.Client
 					Attack = Math.Max(1, weapon > 0 ? weapon : stats.Strength / 2), Defence = Armour(c, tables), Agility = Math.Max(1, stats.Agility),
 					Level = c.Level, Intellect = stats.Intellect, Spirit = stats.Spirit, Vitality = stats.Vitality, MagicDefence = MagicArmour(c, tables),
 					Strength = stats.Strength, HitChance = weapon > 0 ? WeaponHit(c, tables) : 90, Evade = Evasion(c, tables),
-					Gauge = StartGauge(), Conditions = c.Conditions, HpSeen = c.Hp, MagicEvasion = MagicEvasionOf(c, tables),
+					Gauge = StartGauge(false), Conditions = c.Conditions, HpSeen = c.Hp, MagicEvasion = MagicEvasionOf(c, tables),
 				});
 			}
 			if (onStage)
@@ -347,6 +348,17 @@ namespace OpenFF.Client
 					HoldEquipment(npc, ally.Member, tables);
 					npc.Solid = false;
 					ally.Facing = Ff4BattleStage.PartyFacingDegrees(_rootId, position, row);
+					if (StandInPlace)
+					{
+						// A back attack's or a surprise's party: at its spots from the start, no run-in - turned away from the
+						// foes in a back attack (the root's facing negated; a boss's turned about), as it is in a surprise.
+						ally.Npc = npc;
+						ally.Home = spot;
+						npc.Teleport(spot);
+						Face(ally, OpeningFacing(ally.Facing));
+						Play(ally, _heroMotionIdle, true, 0);
+						continue;
+					}
 					// The entrance Steam's frames show: from 25 behind the spot, turned about, running in (1115) over six
 					// frames, then facing the foes in the stance (2004).
 					// Placed frame by frame as Steam's trace has it (25 back, then 5 equal steps in; turned 180 all the way -
@@ -624,7 +636,7 @@ namespace OpenFF.Client
 					if (Ff4BattleStage.Arrived)
 					{
 						Ff4BattleStage.Arrive();
-						if (_pendingIds == null || !Start(_pendingIds, false, -1)) { _pendingIds = null; Ff4BattleStage.Leave(); }
+						if (_pendingIds == null || !Start(_pendingIds, false, -1)) { _pendingIds = null; _nextOpening = OpenNormal; Ff4BattleStage.Leave(); }
 					}
 					return;
 				}
@@ -652,7 +664,8 @@ namespace OpenFF.Client
 			{
 				case Phase.Intro:
 					StepBossCamera();
-					if (_timer > IntroFrames) { _phase = Phase.Fight; _timer = 0; _bossCamera = null; }
+					StepOpening();
+					if (OpeningDone) { FinishOpening(); _phase = Phase.Fight; _timer = 0; _bossCamera = null; }
 					break;
 				case Phase.Fight:
 					Fight();
@@ -1170,7 +1183,6 @@ namespace OpenFF.Client
 		private static float BattleSpeedRate => SpeedRate / (float)Tick;
 
 		/// <summary>A normal encounter's start (BattlePlayer / BattleMonster::initializeATG): 45 to 65 of the gauge's 100, at random.</summary>
-		private float StartGauge() => (45 + _random.Next(21)) / 100f;
 
 		/// <summary>A frame's fill: (1 + agility / 32) at the battle's speed, times a monster's ATB rate - of the gauge's 100.</summary>
 		private static float GaugeStep(Fighter f) => BattleSpeedRate * (1f + Math.Max(0, f.Agility) / 32f) * f.AtbRate / 100f * PaceOf(f);
@@ -2089,9 +2101,14 @@ namespace OpenFF.Client
 					Game.Input.Capture = true;
 					try { Game.Hero.PlayMotion(1000, true); } catch (Exception) { }
 					int battleMap = table.BattleMap;
+					// world::attackType: the opening by the party's dash and its level against the area's. OpenFF's hero
+					// moves at the dash (WSMove's 1002), as Steam's does on the keys and a full tilt.
+					int opening = RollOpening(true, AverageLevel(), table.AreaLevel, _random);
 					EncounterZoom.Start(() =>
 					{
+						SetNextOpening(opening);
 						if (StartParty(party, false, battleMap)) return;
+						SetNextOpening(OpenNormal);
 						// It could not start: the field again.
 						try { Game.Hero.Unfreeze(); } catch (Exception) { }
 						Game.Input.Capture = false;
@@ -2105,6 +2122,7 @@ namespace OpenFF.Client
 		private void End()
 		{
 			Log.Write(LogChannel.File, "battle: over (step " + LegacyStep.Count + ")");
+			EndOpening();
 			_sinceBattle = 0;
 			_lastStep = Game.Hero.Present ? Game.Hero.Position : Vector3.Zero;
 			Action after = AfterBattle;

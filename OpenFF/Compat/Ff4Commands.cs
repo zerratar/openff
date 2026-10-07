@@ -368,10 +368,14 @@ namespace OpenFF.Client
 		private static void BootEventBattle(GlobalScope.ScriptEngine engine)
 		{
 			int party = (int)engine.getWord();
-			engine.getByte(); engine.getByte(); engine.getByte(); engine.getByte();
+			engine.getByte();
+			int type = engine.getByte();   // the opening: 0 Normal, 1 Back attack, 2 Surprise (table at 0x1bbf50; 3 and up Normal)
+			engine.getByte(); engine.getByte();
+			Ff4Battle.Instance?.SetNextOpening(type == 1 ? Ff4Battle.OpenBack : type == 2 ? Ff4Battle.OpenSurprise : Ff4Battle.OpenNormal);
 			if (Ff4Battle.Instance == null || !Ff4Battle.Instance.StartParty(party))
 			{
 				Log.Write(LogChannel.General, "script: bootEventBattle " + party + " could not start");
+				Ff4Battle.Instance?.SetNextOpening(Ff4Battle.OpenNormal);
 			}
 		}
 

@@ -325,6 +325,8 @@ namespace OpenFF.Data
 		public float BackRowAttack = 1f, BackRowTarget = 1f;
 		/// <summary>FF4: where an effect on it plays (BaseBattleCharacter::hitEffectPosition, chain 4's +4 and +8): this much up, and this much toward the camera.</summary>
 		public float EffectHeight = 8f, EffectToCamera;
+		/// <summary>FF4: its height (chain 4's +0x40, before the battle scale): a preemptive strike's "!" stands this high, scaled, and 3 more (drawExclamationEffect).</summary>
+		public float Height = 10f;
 		/// <summary>FF4: its plain attack (monster.chaindata chain 2, ys::Effects, 28 bytes by monster id): the effect and the frame it starts, its sound (bank, number) and frame, the frame its number shows. -1 for none.</summary>
 		public int AttackEffect = -1, AttackEffectFrame = 8, AttackSoundBank = -1, AttackSound = -1, AttackSoundFrame = 8, AttackNumberFrame = 8;
 		/// <summary>The game's monster id (monsterId at 8), what encounters and scripts name.</summary>
@@ -440,8 +442,8 @@ namespace OpenFF.Data
 	/// <summary>
 	/// Where the party stands in battle: FF4's battle_parameter.chain, chain 0 (btl::BattleParameter::partyRoot
 	/// finds the record by id, BattlePartyPosition::position takes row x 80 + slot x 16 + 4 from it). One
-	/// record per situation - 0 the normal fight, 1 a back attack (the party turned, spread across), 2 a
-	/// pincer - with two rows (front, back) of five slots each, the slots running from the top of the
+	/// record per layout, named by the encounter group's byte 2 (not by the opening) - 0 the usual columns, 1 a
+	/// diagonal spread for story and boss staging, 2 a one-member duel's single spot - with two rows (front, back) of five slots each, the slots running from the top of the
 	/// screen (z -25) to the bottom (z 50) as the camera sees them.
 	/// </summary>
 	public sealed class PartyRoot

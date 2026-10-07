@@ -1019,21 +1019,21 @@ namespace OpenFF.Client
 			Guard("effect pack " + pack, () => GlobalScope.eff.CEffectMng.instance().unLoadEfpNamed(pack));
 		}
 
-		// ce_CallBattle(group, stage, ?, return map, x, y, z): FF4 only takes note (EventConteManager::setNextBattle, the
+		// ce_CallBattle(group, stage, opening, return map, x, y, z): FF4 only takes note (EventConteManager::setNextBattle, the
 		// battle parameters' group and stage, the return map and spot) and the scene goes on - in the opening a sound,
 		// a second's wait, ce_EndEvent - and the battle part follows the scene on that stage (CBattleDisplay::
 		// initialize: battle_map.dat's b<stage>), then the return map. So here: noted, started at ce_EndEvent.
-		private sealed class NextBattle { public int Group, Stage; public string ReturnMap; public GlobalScope.VecFx32 Position; }
+		private sealed class NextBattle { public int Group, Stage, Opening; public string ReturnMap; public GlobalScope.VecFx32 Position; }
 		private static NextBattle _nextBattle;
 
 		private static void CallBattle(GlobalScope.ScriptEngine engine)
 		{
 			int battle = (int)engine.getWord();
 			int stage = engine.getByte();
-			engine.getByte();
+			int opening = engine.getByte();   // OutsideToBattle's type as it is (0..3)
 			string returnMap = engine.getString();
 			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
-			_nextBattle = new NextBattle { Group = battle, Stage = stage, ReturnMap = returnMap, Position = new GlobalScope.VecFx32(x, y, z) };
+			_nextBattle = new NextBattle { Group = battle, Stage = stage, Opening = opening, ReturnMap = returnMap, Position = new GlobalScope.VecFx32(x, y, z) };
 			BlurRotate.Start();   // executeBattleEncount: the whirl to white while the scene plays out
 			Log.Write(LogChannel.General, "script: FF4 scene battle " + battle + " next, on b" + stage.ToString("00") + " - then on to " + returnMap);
 		}
@@ -1047,12 +1047,14 @@ namespace OpenFF.Client
 			Ff4Battle battle = Ff4Battle.Instance;
 			if (battle == null) return false;
 			battle.AfterBattle = () => { if (!string.IsNullOrEmpty(next.ReturnMap)) JumpTo(next.ReturnMap, next.Position); };
+			battle.SetNextOpening(next.Opening);
 			if (battle.StartParty(next.Group, false, next.Stage))
 			{
 				Log.Write(LogChannel.General, "script: FF4 scene battle " + next.Group + " starts");
 				return true;
 			}
 			battle.AfterBattle = null;
+			battle.SetNextOpening(Ff4Battle.OpenNormal);
 			Log.Write(LogChannel.General, "script: FF4 scene battle " + next.Group + " could not start - on to " + next.ReturnMap);
 			if (!string.IsNullOrEmpty(next.ReturnMap)) JumpTo(next.ReturnMap, next.Position);
 			return true;

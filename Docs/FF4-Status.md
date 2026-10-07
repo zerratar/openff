@@ -97,10 +97,13 @@ Darkness, Aim, Pray, Focus, Brace, Kick, Steal, Throw, Bluff, Cry, Hide and Retu
 Upgrade, Cover and its interception, Bardsong (the lasting songs too), Ninjutsu (Smoke's escape), Bless; Defend instant;
 the poise from a decision, the confirm windows, the command window's second line (Focus's rounds, Twincast's sync) and
 greyed commands, the target window's line (accuracy, a steal's chance), the lists as Steam's with their description
-window. Not FF4's yet: the lists' icons, the items' Re-equip row, Dualcast (no member has it), the target card's
-weaknesses, a summon's own model-animation pack (the
-Chocobo's parts), the summons whose stages animate, skipping a summon, enemy-player commands, the battle modes'
-other cases.
+window, the lists' icons, Re-equip, the target card's elements, Skip, the battle speed setting. The openings
+(world::attackType's roll by the dash and the party's level against the area's, an event's own): a preemptive
+strike's "!" over the monsters and the party's full gauges, a back attack's swapped rows, the party turned away under
+the "!" and then turning (Steam's 18 + 16 frames), a surprise, a boss's back attack after its entrance; the
+formation put back as the battle ends. Not FF4's yet: Dualcast (no member has it), a summon's own model-animation pack
+(the Chocobo's parts), the summons whose stages animate, skipping a summon, enemy-player commands, the battle modes'
+other cases, the Config menu's battle speed.
 
 ## Menus - 15%
 

@@ -45,8 +45,8 @@ namespace OpenFF.Client
 			Note("boss entrance: " + name + " over " + camera.Frames + " frames");
 		}
 
-		/// <summary>The frames the opening takes before the fight: a boss's entrance, or the plain opening's 30.</summary>
-		private int IntroFrames => _bossCamera != null ? BossMoveFrom + _bossCamera.Frames : 30;
+		/// <summary>The frames the opening takes at least: a boss's entrance, the camera's slide when no one runs in, or the plain opening's 30.</summary>
+		private int IntroFrames => _bossCamera != null ? BossMoveFrom + _bossCamera.Frames : StandInPlace ? Ff4BattleStage.OpeningFrames + 1 : 30;
 
 		/// <summary>updateBossAppearCamera: from the close-up to the standing shot, pos = stand + (start - stand) x cos(k/N x 90 deg), the snap at N.</summary>
 		private void StepBossCamera()
