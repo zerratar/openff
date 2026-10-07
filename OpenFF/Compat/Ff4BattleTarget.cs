@@ -37,6 +37,18 @@ namespace OpenFF.Client
 			_pick = foes ? Pick.Target : Pick.Ally;
 			bool wantAll = state == 1 || state == 3 || state == 5;
 			_targetAll = wantAll && (Forced(foes) || CanSpread(foes));
+			// The member's last decision (initialize 96576-96613): all of that side again while two or more stand there, else
+			// the one it picked if it still can be - when it lies on the side this ability opens on.
+			Fighter last = _acting?.LastTarget;
+			if (_acting != null && _acting.LastTargetFoes == foes && !Forced(foes) && (_acting.LastTargetAll || last != null))
+			{
+				if (_acting.LastTargetAll && CanSpread(foes)) { _targetAll = true; _cursor = foes ? FirstAliveFoe() : Math.Max(0, _party.IndexOf(_acting)); return; }
+				if (!_acting.LastTargetAll && last != null && SideList(foes).Contains(last) && (last.Alive || !foes) && !wantAll)
+				{
+					_cursor = foes ? _foes.IndexOf(last) : _party.IndexOf(last);
+					return;
+				}
+			}
 			if (foes) _cursor = FirstAliveFoe();
 			else
 			{
@@ -131,6 +143,9 @@ namespace OpenFF.Client
 			SpellDefinition spell = _casting;
 			int item = _usingItem, castItem = _castItem;
 			int ability = _targetAbility;
+			who.LastTarget = one;
+			who.LastTargetAll = all;
+			who.LastTargetFoes = foes;
 			EndTargeting();
 			_castItem = 0;
 			if (castItem > 0 && IsFang(castItem)) Decide(who, () => UseFang(who, castItem, Targets()), ItemWait(castItem), castItem);

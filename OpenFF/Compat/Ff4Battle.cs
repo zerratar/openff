@@ -123,7 +123,9 @@ namespace OpenFF.Client
 			public int SongId, SongTimer, SongTick;        // the song being sung (+0x4c), its time (+0x2e0) and Life's Anthem's count
 			public int ElementOverride = -1;               // Upgrade's attack element (+0x40)
 			public bool Robbed;                            // a monster stolen from (flag 0x11)
-			public int PlayerType = -1;                    // a monster fighting as a member (btl::BattleEnemyPlayer): the player type it is drawn as
+			public int PlayerType = -1;
+			public Fighter LastTarget;                     // BattleTargetSelector +0x58 / +0x5C: the member's last decision - one target,
+			public bool LastTargetAll, LastTargetFoes;     // or all of a side - the selector reopens on                    // a monster fighting as a member (btl::BattleEnemyPlayer): the player type it is drawn as
 			public bool Examined;                          // analyzed (flag 0xd): its card shows its HP and elements
 			public bool TwinWaiting;                       // Twincast chosen, its partner awaited (PAIR_MAGIC_WAIT)
 			public Fighter TwinPartner;
