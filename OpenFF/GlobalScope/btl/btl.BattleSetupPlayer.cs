@@ -372,6 +372,7 @@ internal static partial class GlobalScope
 					if (nowPlayer_ >= 4)
 					{
 						OpenFF.Client.AutoBattle.CommandTurn = false;
+						OpenFF.Client.AutoBattle.ListOpen = false;
 						cancelWindow_.setShowTarget(show: false);
 						B.playerWindow().nowPlayer_set(-1);
 						setPhase(Phase.Terminate);
@@ -414,6 +415,7 @@ internal static partial class GlobalScope
 					nowPlayer_++;
 				}
 				playerState_[(int)state_].playerState(player, B);
+				OpenFF.Client.AutoBattle.ListOpen = commandState_ == COMMAND_STATE.SELECT_MAGIC || commandState_ == COMMAND_STATE.SELECT_ITEM || commandState_ == COMMAND_STATE.SELECT_SONG;   // PORT: the hint stays off a list
 				OS_AssignBackButton(cancelWindow_.isShowTarget() ? 1 : 0);
 			}
 

@@ -35,6 +35,8 @@ namespace OpenFF.Client
 
 		/// <summary>Whether the command turn is up, so the hint shows (BattleSetupPlayer sets it as it runs and clears it as it ends).</summary>
 		public static bool CommandTurn;
+		/// <summary>A magic, item or song list is up over the party's lines: the hint is not shown over it.</summary>
+		public static bool ListOpen;
 
 		/// <summary>Whether the battle is ending - won or lost (BattleWin / BattleLose): no hint over it. A round's start clears it.</summary>
 		public static bool Ending;
@@ -92,7 +94,7 @@ namespace OpenFF.Client
 		{
 			get
 			{
-				if (!(CommandTurn || On) || Ending || !InBattle) return false;
+				if (!(CommandTurn || On) || Ending || !InBattle || ListOpen) return false;
 				try
 				{
 					btl.BATTLE_CAMERA camera = btl.OutsideToBattle.getInstance().battleCamera();
