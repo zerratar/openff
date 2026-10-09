@@ -853,6 +853,8 @@ namespace OpenFF.Client
 					_gamePlaces = places;
 					if (moved && _gameScreen.HasPortraitFrame) OpenWindows(_gameScreen);
 				}
+				// The game moved its screen to another hero (L / R on Equipment, Status): the portrait frames show that one.
+				if (_gameScreen.FollowTarget() && _gameScreen.HasPortraitFrame) OpenWindows(_gameScreen);
 				if (_gameScreen.Animating) _gameScreen.Restyle();
 			}
 			catch (Exception) { }
@@ -1339,7 +1341,8 @@ namespace OpenFF.Client
 				GlobalScope.menu.Medget root = GlobalScope.menu.MenuManager.getSingleton().GetBaseMedget();
 				for (GlobalScope.menu.Medget m = root?.childNode(); m != null; m = m.nextSibling()) Add(m, null, sources);
 				// The hero picked (a mod screen that asked; the game's per-hero screens - Status, Equipment - have one too).
-				try { Hero = def.CharacterSelect || host == null ? GlobalScope.pl.PlayerParty.instance().player((byte)GlobalScope.menu.MenuManager.getSingleton().GetTargetCharNo()).playerId() : -1; }
+				_followsTarget = host == null;
+				try { Hero = def.CharacterSelect || host == null ? TargetHero() : -1; }
 				catch (Exception) { Hero = -1; }
 			}
 
@@ -1379,7 +1382,23 @@ namespace OpenFF.Client
 					return null;
 				}
 			}
-			public int Hero { get; }
+			public int Hero { get; private set; }
+
+			// One of the game's per-hero screens (Equipment, Status): its hero is whoever the game has it on - L / R move it.
+			private bool _followsTarget;
+
+			private static int TargetHero() => GlobalScope.pl.PlayerParty.instance().player((byte)GlobalScope.menu.MenuManager.getSingleton().GetTargetCharNo()).playerId();
+
+			/// <summary>On one of the game's per-hero screens, the hero the game has moved to with L / R: true when it changed.</summary>
+			public bool FollowTarget()
+			{
+				if (!_followsTarget || Hero < 0) return false;
+				int now;
+				try { now = TargetHero(); } catch (Exception) { return false; }
+				if (now == Hero) return false;
+				Hero = now;
+				return true;
+			}
 			public IDictionary<string, object> Data { get; } = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
 			public void Focus(string id)
