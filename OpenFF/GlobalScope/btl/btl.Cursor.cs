@@ -168,7 +168,7 @@ internal static partial class GlobalScope
 			public void setPositionTargetMonster(int type, BattleMonster monster)
 			{
 				sys2d.Window window = monster.targetWindow();
-				NNSG2dFVec2 pos = new NNSG2dFVec2(4096 * (window.GetPositionUL().vx + 8), 4096 * window.GetPositionCC().vy);
+				NNSG2dFVec2 pos = new NNSG2dFVec2(4096 * NameHandX(type, window.GetPositionUL().vx), 4096 * window.GetPositionCC().vy);
 				setPosition(type, pos);
 			}
 
@@ -176,8 +176,20 @@ internal static partial class GlobalScope
 			{
 				BattlePlayer battlePlayer = static_cast<BattlePlayer>(player);
 				sys2d.Window window = battlePlayer.targetWindow();
-				NNSG2dFVec2 pos = new NNSG2dFVec2(4096 * (window.GetPositionUL().vx + 8), 4096 * window.GetPositionCC().vy);
+				NNSG2dFVec2 pos = new NNSG2dFVec2(4096 * NameHandX(type, window.GetPositionUL().vx), 4096 * window.GetPositionCC().vy);
 				setPosition(type, pos);
+			}
+
+			/// <summary>PORT: where the hand stands on a target's name window (menu.TargetWindow writes the name 8 in): the phone's 8,
+			/// its fingertip on the name's first letter with Steam's wider hand - on Steam's layouts the hand ends a gap before the
+			/// name, as the menus' hands do.</summary>
+			private int NameHandX(int type, int windowLeft)
+			{
+				if (!OpenFF.Client.SteamLayout.Active)
+				{
+					return windowLeft + 8;
+				}
+				return windowLeft + 8 - OpenFF.Client.SteamCells.CellRight(cursor_[type], STOP_CURSOR, 8) - OpenFF.Client.SteamLayout.MENU_GAP;
 			}
 
 			public void setPositionTargetAll(int type)
