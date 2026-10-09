@@ -26,6 +26,8 @@ internal static partial class GlobalScope
 			protected dgs.SmartPtr<dgs.DGSMessage> message = new dgs.SmartPtr<dgs.DGSMessage>();
 
 			protected sys2d.Cell icon = new sys2d.Cell();
+			// PORT: the icon's cell (a sprite does not keep it), for where Steam's wider icons end.
+			private int iconCell = 14;
 
 			public MBItemName()
 			{
@@ -201,7 +203,7 @@ internal static partial class GlobalScope
 					{
 						icon.SetShow(show: false);
 					}
-					icon.SetPositionI(num - 16, num2 + -2);
+					icon.SetPositionI(IconX(num), num2 + -2);
 				}
 				else
 				{
@@ -216,16 +218,30 @@ internal static partial class GlobalScope
 				switch ((int)cATEGORY)
 				{
 				case 1:
-					icon.SetCell((ushort)convertIDXWeaponSysToIcon(idx));
+					iconCell = convertIDXWeaponSysToIcon(idx);
+					icon.SetCell((ushort)iconCell);
 					break;
 				case 2:
-					icon.SetCell((ushort)convertIDXProtectionSysToIcon(idx));
+					iconCell = convertIDXProtectionSysToIcon(idx);
+					icon.SetCell((ushort)iconCell);
 					break;
 				default:
 					icon.SetShow(show: false);
 					break;
 				}
 				icon.SetPriority(2);
+			}
+
+			/// <summary>PORT: where the icon goes before a name drawn from <paramref name="textX"/>: the phone's 16 to the left; on
+			/// Steam's layouts its icons are drawn wider than the phone's 12, so the icon ends a pixel before the name instead of
+			/// over its first letter.</summary>
+			private int IconX(int textX)
+			{
+				if (!OpenFF.Client.SteamLayout.Active)
+				{
+					return textX - 16;
+				}
+				return textX - OpenFF.Client.SteamCells.CellRight(icon, iconCell, 14) - 1;
 			}
 
 			public new static int classIdentifier()

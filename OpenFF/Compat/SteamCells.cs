@@ -76,7 +76,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>How far right of the cell's position its OAMs extend (max x + w), or the fallback when the bank is not there.</summary>
-		public static int CellRight(GlobalScope.sys2d.Cell cell, int index, int fallback)
+		public static int CellRight(GlobalScope.sys2d.Sprite cell, int index, int fallback)
 		{
 			GlobalScope.NNSG2dCellOAMAttrData[] oams = Oams(cell, index);
 			if (oams == null || oams.Length == 0)
@@ -180,7 +180,7 @@ namespace OpenFF.Client
 			return oams != null && oams.Length > 0;
 		}
 
-		private static GlobalScope.NNSG2dCellOAMAttrData[] Oams(GlobalScope.sys2d.Cell cell, int index)
+		private static GlobalScope.NNSG2dCellOAMAttrData[] Oams(GlobalScope.sys2d.Sprite cell, int index)
 		{
 			try
 			{

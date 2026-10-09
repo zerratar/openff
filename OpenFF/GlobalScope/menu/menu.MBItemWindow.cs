@@ -234,7 +234,7 @@ internal static partial class GlobalScope
 							}
 							if (MenuManager.getSingleton().battleMode())
 							{
-								pMsg[num4].setPosition((short)(medget.x() + 12), (short)(medget.y() + num5), erase: true);
+								pMsg[num4].setPosition((short)(medget.x() + BattleNameInset), (short)(medget.y() + num5), erase: true);
 							}
 							else
 							{
@@ -615,7 +615,22 @@ internal static partial class GlobalScope
 
 			/// <summary>PORT: where an item's name starts right of its icon - 16 as the game has it; on a screen a mod's layout styles
 			/// (its face wider than the game's), a little more room.</summary>
-			private static int NameInset => OpenFF.Client.ModMenus.ScreenStyled ? 22 : 16;
+			private static int NameInset => Math.Max(OpenFF.Client.ModMenus.ScreenStyled ? 22 : 16, SteamIconRoom(0));
+
+			/// <summary>PORT: where an item's name starts in battle - 12 as the game has it, its icon 4 left of the row.</summary>
+			private static int BattleNameInset => Math.Max(12, SteamIconRoom(-4));
+
+			/// <summary>PORT: on Steam's layouts the icons are drawn wider than the phone's 12 - the name a pixel past where the icon,
+			/// drawn from <paramref name="iconX"/>, ends (0 elsewhere).</summary>
+			private static int SteamIconRoom(int iconX)
+			{
+				if (!OpenFF.Client.SteamLayout.Active)
+				{
+					return 0;
+				}
+				sys2d.Sprite icon = MenuManager.getSingleton().Get2d3dMode() == 2 ? MenuManager.getSingleton().GetSmallIcon2d() : MenuManager.getSingleton().GetSmallIcon3d();
+				return iconX + OpenFF.Client.SteamCells.CellRight(icon, 45, 12) + 1;
+			}
 
 			public void CreateItemTypeIcon(dgs.DGSMessageManager pm, dgs.msg.CMessageMng.MSF_HANDLE_KIND _msfHandle, int x, int y, int tItemNo, int indexNo)
 			{
@@ -813,7 +828,7 @@ internal static partial class GlobalScope
 								}
 								if (MenuManager.getSingleton().battleMode())
 								{
-									pMsg[num3].setPosition((short)(medget.x() + 12), (short)(medget.y() + num4), erase: true);
+									pMsg[num3].setPosition((short)(medget.x() + BattleNameInset), (short)(medget.y() + num4), erase: true);
 								}
 								else
 								{
@@ -1129,7 +1144,7 @@ internal static partial class GlobalScope
 								}
 								if (MenuManager.getSingleton().battleMode())
 								{
-									pMsg[num3].setPosition((short)(medget.x() + 12), (short)(medget.y() + num4), erase: true);
+									pMsg[num3].setPosition((short)(medget.x() + BattleNameInset), (short)(medget.y() + num4), erase: true);
 								}
 								else
 								{
@@ -1280,7 +1295,7 @@ internal static partial class GlobalScope
 							}
 							if (MenuManager.getSingleton().battleMode())
 							{
-								pMsg[num2].setPosition((short)(medget2.x() + 12), (short)(medget2.y() + num3), erase: true);
+								pMsg[num2].setPosition((short)(medget2.x() + BattleNameInset), (short)(medget2.y() + num3), erase: true);
 							}
 							else
 							{
