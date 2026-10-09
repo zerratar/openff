@@ -459,7 +459,10 @@ internal static partial class GlobalScope
 
 			public override int bmGetCursorX(Medget M)
 			{
-				if (OpenFF.Client.SteamLayout.Active && (alignment == ALIGNMENT.ALIGN_CENTER || (int)alignment == OpenFF.Client.SteamLayout.STEAM_ALIGN_MENU))
+				// PORT: a button (the inn's and the job change's Yes / No) was only ever tapped on the phone, so its hand stood
+				// off the screen and nothing showed the focus; with keys or a pad the hand stands before its word, as a centred
+				// line's does.
+				if (OpenFF.Client.SteamLayout.Active && (alignment == ALIGNMENT.ALIGN_CENTER || alignment == ALIGNMENT.ALIGN_BUTTON || (int)alignment == OpenFF.Client.SteamLayout.STEAM_ALIGN_MENU))
 				{
 					// PORT: the phone's offsets put the hand inside Steam's frames, over the word
 					// (and Steam's own alignment, 6, fell through to 0: the hand on the word's
@@ -470,7 +473,7 @@ internal static partial class GlobalScope
 					// SELECTOR_X.
 					int textStart = 0;
 					int gap = OpenFF.Client.SteamLayout.MENU_GAP;
-					if (alignment == ALIGNMENT.ALIGN_CENTER && message != null && M != null)
+					if ((alignment == ALIGNMENT.ALIGN_CENTER || alignment == ALIGNMENT.ALIGN_BUTTON) && message != null && M != null)
 					{
 						ds.Vector2<short> size = new ds.Vector2<short>();
 						message.getTextSize(size);

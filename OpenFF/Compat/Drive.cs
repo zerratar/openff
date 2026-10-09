@@ -340,6 +340,19 @@ namespace OpenFF.Client
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: shop failed: " + ex.Message); }
 					break;
 				}
+				case "inn":
+				{
+					// FF3's inn as a keeper's script boots it (ff3Command_BootInn): "inn 50" - its question, the price and the Yes / No.
+					if (!int.TryParse(step.Arg.Trim(), out int price)) { Log.Write(LogChannel.General, "drive: inn wants <price>"); break; }
+					try
+					{
+						GlobalScope.CCastCommandTransit.getInstance().cast_setInnValue(price);
+						GlobalScope.wld.WorldPart.getInstance().getWorldSystem().setInn(b: true);
+						Log.Write(LogChannel.File, "drive: inn " + price);
+					}
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: inn failed: " + ex.Message); }
+					break;
+				}
 				case "learn":
 				{
 					// A spell taught to a party member through the API: "learn 0 4101" (Fire to the first).
