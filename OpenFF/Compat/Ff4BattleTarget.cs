@@ -120,8 +120,8 @@ namespace OpenFF.Client
 			if (forced) _targetAll = true;
 			if (input.Pressed(Pad.B))
 			{
-				_pick = _casting != null ? Pick.Spell : _usingItem > 0 && _targetAbility == _usingItem ? Pick.Item : Pick.Command;
-				_cursor = 0;
+				_pick = _slotDirect ? Pick.Command : _casting != null ? Pick.Spell : _usingItem > 0 && _targetAbility == _usingItem ? Pick.Item : Pick.Command;
+				_cursor = SlotBack();
 				_casting = null;
 				_castItem = 0;
 				EndTargeting();

@@ -62,6 +62,12 @@ namespace OpenFF.Client
 		private static bool CommandUsable(Fighter who, int id)
 		{
 			if (who == null) return true;
+			if (id >= 256)
+			{
+				// A spell or an item in the slot: its MP, or one in the bag.
+				if (Ff4Party.Tables.Item(id) != null) return Ff4Party.Party.CountItem(id) > 0 && ItemUsable(id);
+				return Ff4Party.Tables.Spell(id) is SpellDefinition s && s.UsableInBattle && (who.Member == null || who.Member.Mp >= MpCostOf(who, s));
+			}
 			if (Ff4Augments.IsPassive(id)) return false;   // isUsefulAbility: a passive in a slot is shown, never chosen
 			if (IsAugmentCast(id) && who.Member != null && Ff4Party.Tables.Spell(id) is SpellDefinition paid && who.Member.Mp < MpCostOf(who, paid)) return false;   // its MP
 			if (who.Hiding && id != CmdReturn && id != CmdAim && id != CmdThrow) return false;
@@ -165,6 +171,33 @@ namespace OpenFF.Client
 
 		/// <summary>Out of everyone's reach: in the air from a Jump, or hidden (isSelectable).</summary>
 		private static bool Untargetable(Fighter f) => f.Airborne || f.Hiding;
+
+		/// <summary>A spell or an item a slot holds (Abilities put it there): aimed at once, as if picked from its list.</summary>
+		private void SlotDirect(int id)
+		{
+			_slotDirect = true;
+			_command = Command.Other;
+			if (Ff4Party.Tables.Item(id) is ItemDefinition item)
+			{
+				_usingItem = id;
+				_castItem = IsFang(id) || CastOf(id) != null ? id : 0;
+				if (_castItem > 0 && (IsFang(id) || !Helps(CastOf(id)))) { BeginTargeting(id); return; }
+				BeginTargeting(id, ItemEffect(item)?.Id == 17);
+				return;
+			}
+			SpellDefinition spell = Ff4Party.Tables.Spell(id);
+			_casting = spell;
+			BeginTargeting(spell.Id, spell.Revives);
+		}
+
+		/// <summary>Back from aiming: the hand on the slot it came from when it came from one, else the list's top.</summary>
+		private int SlotBack()
+		{
+			if (!_slotDirect) return 0;
+			_slotDirect = false;
+			int id = _casting?.Id ?? _usingItem;
+			return Math.Max(0, Commands.IndexOf(id));
+		}
 
 		/// <summary>A party command chosen in the window (one of these): true when it is taken here.</summary>
 		private bool AbilityChosen(Fighter who, int id)

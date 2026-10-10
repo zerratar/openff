@@ -388,6 +388,16 @@ namespace OpenFF.Client
 					Log.Write(LogChannel.File, "drive: autocmd " + id + " on " + (who?.Name ?? "no one"));
 					break;
 				}
+				case "slotcmd":
+				{
+					// FF4: what a battle command slot holds, as Abilities sets it: "slotcmd 0 0 4001" (the first member's first slot: Cure).
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 3 || !int.TryParse(bits[0], out int slot) || !int.TryParse(bits[1], out int k) || !int.TryParse(bits[2], out int id) || k < 0 || k > 4) { Log.Write(LogChannel.General, "drive: slotcmd wants <member> <slot 0..4> <command, spell or item id>"); break; }
+					OpenFF.Data.Character who = slot >= 0 && slot < Ff4Party.Party.Members.Count ? Ff4Party.Party.Members[slot] : null;
+					if (who != null) Ff4Augments.Slots(who)[k] = id;
+					Log.Write(LogChannel.File, "drive: slotcmd " + k + " = " + id + " on " + (who?.Name ?? "no one"));
+					break;
+				}
 				case "job":
 				{
 					// A party member's job through the API: "job 0 Evoker" (a name as definitions write it, or its number).

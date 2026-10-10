@@ -3,6 +3,9 @@
 // the current one left out unless it is a list), sorted by id - Steam's Dark Knight: Defend, Items, Darkness. A command
 // that is a list (+0x14: White / Black Magic, Items, Summon, Bardsong, Ninjutsu) opens its spells or the bag's battle
 // items in three columns (FUN_004d46cc, state 7), and the one picked is the auto command (list 5); Back returns a step.
+// A battle command slot the same way (readyEquipableIDList): the learned commands in no slot, the list commands always,
+// a blank to empty it; a list command's own entry heads its spells or items when it is in no slot - so a slot may hold a
+// spell or an item, which the battle uses at once. The Items slot keeps Items (case 3: a pick there changes nothing).
 
 using System;
 using System.Collections.Generic;
@@ -16,6 +19,7 @@ namespace OpenFF.Client
 		private int _autoSubOf;                      // the list command whose spells or items are up, 0 for the commands
 		private readonly List<int> _autoList = new List<int>();
 		private int _autoAt, _autoTop;
+		private int _autoSlot = -1;				   // the battle command slot being set (0..4), -1 for the auto-battle command
 		private const int AutoRows = 4;
 
 		/// <summary>Player::learningAbility's commands, as the port keeps them: Attack, the slots, the class's by level, the augments.</summary>
@@ -65,6 +69,35 @@ namespace OpenFF.Client
 			return list;
 		}
 
+		/// <summary>readyEquipableIDList: the learned commands in no slot, a list command whether or not, sorted, and a blank.</summary>
+		private static List<int> SlotCommands(Character c)
+		{
+			GameTables t = Ff4Party.Tables;
+			int[] slots = Ff4Augments.Slots(c);
+			List<int> list = new List<int>();
+			foreach (int id in LearnedCommands(c))
+			{
+				if (Array.IndexOf(slots, id) >= 0 && t.AbilityListKind(id) == 0) continue;
+				list.Add(id);
+			}
+			list.Add(0);
+			return list;
+		}
+
+		/// <summary>FUN_004d46cc for a slot: the list command itself when it is in no slot, then its spells or the bag's
+		/// battle items that are in no slot.</summary>
+		private static List<int> SlotSubList(Character c, int command)
+		{
+			int[] slots = Ff4Augments.Slots(c);
+			List<int> list = new List<int>();
+			if (Array.IndexOf(slots, command) < 0) list.Add(command);
+			int auto = c.AutoCommand;
+			c.AutoCommand = 0;   // the auto-battle command is not what is left out here: the slots are
+			try { foreach (int id in AutoSubList(c, command)) if (Array.IndexOf(slots, id) < 0) list.Add(id); }
+			finally { c.AutoCommand = auto; }
+			return list;
+		}
+
 		/// <summary>An auto command's name: a command's, a spell's or an item's.</summary>
 		private static string AutoName(int id)
 		{
@@ -86,9 +119,20 @@ namespace OpenFF.Client
 		private void OpenAutoList()
 		{
 			_autoPicking = true;
+			_autoSlot = -1;
 			_autoSubOf = 0;
 			_autoList.Clear();
 			_autoList.AddRange(AutoCommands(Member));
+			_autoAt = _autoTop = 0;
+		}
+
+		private void OpenSlotList(int slot)
+		{
+			_autoPicking = true;
+			_autoSlot = slot;
+			_autoSubOf = 0;
+			_autoList.Clear();
+			_autoList.AddRange(SlotCommands(Member));
 			_autoAt = _autoTop = 0;
 		}
 
@@ -101,7 +145,7 @@ namespace OpenFF.Client
 				{
 					// Back to the commands, the hand on the list command.
 					int of = _autoSubOf;
-					OpenAutoList();
+					if (_autoSlot >= 0) OpenSlotList(_autoSlot); else OpenAutoList();
 					_autoAt = Math.Max(0, _autoList.IndexOf(of));
 					KeepAutoInView(2);
 				}
@@ -120,16 +164,29 @@ namespace OpenFF.Client
 			KeepAutoInView(cols);
 			if (!input.Pressed(Pad.A)) return;
 			int id = _autoList[_autoAt];
-			if (_autoSubOf == 0 && Ff4Party.Tables.AbilityListKind(id) != 0)
+			if (_autoSubOf == 0 && id != 0 && Ff4Party.Tables.AbilityListKind(id) != 0)
 			{
 				_autoSubOf = id;
 				_autoList.Clear();
-				_autoList.AddRange(AutoSubList(Member, id));
+				_autoList.AddRange(_autoSlot >= 0 ? SlotSubList(Member, id) : AutoSubList(Member, id));
 				_autoAt = _autoTop = 0;
 				return;
 			}
-			Member.AutoCommand = id;
-			Log.Write(LogChannel.File, "menu: " + Member.Name + "'s auto-battle command is " + AutoName(id) + " (" + id + ")");
+			if (_autoSlot >= 0)
+			{
+				int[] slots = Ff4Augments.Slots(Member);
+				if (slots[_autoSlot] != CmdItems)
+				{
+					slots[_autoSlot] = id;
+					Ff4Augments.Refresh(Member);
+					Log.Write(LogChannel.File, "menu: " + Member.Name + "'s battle command " + (_autoSlot + 1) + " is " + (id == 0 ? "empty" : AutoName(id) + " (" + id + ")"));
+				}
+			}
+			else
+			{
+				Member.AutoCommand = id;
+				Log.Write(LogChannel.File, "menu: " + Member.Name + "'s auto-battle command is " + AutoName(id) + " (" + id + ")");
+			}
 			_autoPicking = false;
 			_autoSubOf = 0;
 		}

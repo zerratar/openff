@@ -487,23 +487,20 @@ namespace OpenFF.Client
 		}
 
 		private static string CommandName(int id) => id > 0 ? Ff4Party.Tables?.AbilityName(3000 + id)?.Trim() ?? "" : "";
+		private const int CmdItems = 4;
 
-		/// <summary>Abilities: the hand on the auto-battle command (0) or one of the five (1..5); Enter on one of the five picks it
-		/// up and Enter on another sets it down there, the two swapping places; left and right the member before and after.</summary>
+		/// <summary>Abilities: the hand on the auto-battle command (0) or one of the five (1..5); Enter lists what can go there
+		/// (Ff4MenuAuto); left and right the member before and after.</summary>
 		private void UpdateAbilities(InputState input)
 		{
 			if (_autoPicking) { UpdateAutoList(input); return; }
-			if (input.Pressed(Pad.B)) { if (_swapFrom >= 0) _swapFrom = -1; else Back(); return; }
-			if (_swapFrom < 0) SwitchMember(input);
-			if (input.Pressed(Pad.Up)) _cursor = Math.Max(_swapFrom >= 0 ? 1 : 0, _cursor - 1);
+			if (input.Pressed(Pad.B)) { Back(); return; }
+			SwitchMember(input);
+			if (input.Pressed(Pad.Up)) _cursor = Math.Max(0, _cursor - 1);
 			if (input.Pressed(Pad.Down)) _cursor = Math.Min(5, _cursor + 1);
-			if (input.Pressed(Pad.A) && _cursor == 0 && _swapFrom < 0) { OpenAutoList(); return; }
-			if (!input.Pressed(Pad.A) || _cursor == 0) return;
-			int at = _cursor - 1;
-			if (_swapFrom < 0) { _swapFrom = at; return; }
-			int[] slots = Ff4Augments.Slots(Member);
-			(slots[_swapFrom], slots[at]) = (slots[at], slots[_swapFrom]);
-			_swapFrom = -1;
+			if (!input.Pressed(Pad.A)) return;
+			if (_cursor == 0) OpenAutoList();
+			else OpenSlotList(_cursor - 1);
 		}
 
 		/// <summary>Tab on Equipment: every slot takes the bag's best piece for it when that beats what is worn.</summary>
@@ -986,7 +983,7 @@ namespace OpenFF.Client
 				h.Auto.Lit = _cursor == 0;
 				for (int k = 0; k < 5; k++)
 				{
-					h.Slot[k].Name = CommandName(slots[k]);
+					h.Slot[k].Name = AutoName(slots[k]);
 					h.Slot[k].Lit = _cursor == k + 1;
 					h.Slot[k].Picked = _swapFrom == k;
 				}

@@ -50,7 +50,16 @@ namespace OpenFF.Client
 			return list;
 		}
 
-		private static string CommandName(int id) => Ff4Party.Tables?.AbilityName(3000 + id)?.Trim() ?? ("command " + id);
+		/// <summary>A slot's name: a command's (babil_ability.msd 3000 + id), or the spell's or item's a slot may hold (Abilities).</summary>
+		private static string CommandName(int id)
+		{
+			GameTables t = Ff4Party.Tables;
+			if (id >= 256 && t?.Item(id) is ItemDefinition item) return item.Name;
+			if (id >= 256 && t?.Spell(id) is SpellDefinition spell) return spell.Name;
+			return t?.AbilityName(3000 + id)?.Trim() ?? ("command " + id);
+		}
+
+		private bool _slotDirect;   // the spell or item being aimed came straight from a slot: Back returns to the commands
 
 		private static Command CommandOf(int id) => id switch
 		{
@@ -873,6 +882,8 @@ namespace OpenFF.Client
 				{
 					if (!CommandUsable(_acting, commands[_cursor])) return;   // greyed: nothing
 					EndTargeting();
+					_slotDirect = false;
+					if (commands[_cursor] >= 256) { SlotDirect(commands[_cursor]); return; }
 					_command = CommandOf(commands[_cursor]);
 					Fighter who = _acting;
 					_dualcast = commands[_cursor] == CmdDualcast;
@@ -929,7 +940,7 @@ namespace OpenFF.Client
 			{
 				if (input.Pressed(Pad.Left) || input.Pressed(Pad.Up)) _cursor = NextAliveFoe(_cursor, -1);
 				if (input.Pressed(Pad.Right) || input.Pressed(Pad.Down)) _cursor = NextAliveFoe(_cursor, 1);
-				if (input.Pressed(Pad.B)) { _pick = _casting != null ? Pick.Spell : _castItem > 0 ? Pick.Item : Pick.Command; _cursor = 0; _casting = null; _castItem = 0; return; }
+				if (input.Pressed(Pad.B)) { _pick = _slotDirect ? Pick.Command : _casting != null ? Pick.Spell : _castItem > 0 ? Pick.Item : Pick.Command; _cursor = SlotBack(); _casting = null; _castItem = 0; return; }
 				if (input.Pressed(Pad.A) && _cursor >= 0)
 				{
 					Fighter who = _acting, foe = _foes[_cursor];
@@ -975,7 +986,7 @@ namespace OpenFF.Client
 				if (!self && (input.Pressed(Pad.Up) || input.Pressed(Pad.Left))) _cursor = (_cursor + _party.Count - 1) % _party.Count;
 				if (!self && (input.Pressed(Pad.Down) || input.Pressed(Pad.Right))) _cursor = (_cursor + 1) % _party.Count;
 				if (input.Pressed(Pad.B) && _abilityCmd != 0) { int back = _abilityCmd; _abilityCmd = 0; _pick = Pick.Command; _cursor = Math.Max(0, Commands.FindIndex(id => id == back)); return; }
-				if (input.Pressed(Pad.B)) { _pick = _casting != null ? Pick.Spell : Pick.Item; _casting = null; _cursor = 0; return; }
+				if (input.Pressed(Pad.B)) { _pick = _slotDirect ? Pick.Command : _casting != null ? Pick.Spell : Pick.Item; _cursor = SlotBack(); _casting = null; return; }
 				if (input.Pressed(Pad.A) && self) { AbilityOnSelf(_acting); return; }
 				if (input.Pressed(Pad.A) && _abilityCmd == CmdCover) { AbilityOnAlly(_acting, _party[_cursor]); return; }
 				if (input.Pressed(Pad.A))
