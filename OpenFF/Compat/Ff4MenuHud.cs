@@ -116,6 +116,10 @@ namespace OpenFF.Client
 			public bool AutoPicking, AutoPair, AutoTriple;
 			// The field's key hints (Steam's: "M Map", "Tab Menu"; "M Quit Map" with the field map up), drawn by Ff4NaviMap.
 			public bool FieldKeys, MapOpen, MapClosed, HasMap;
+			// Sight (MSSSightro): the floors or the world's places down the right, seven in view; the map is Ff4NaviMap's.
+			public bool Sight;
+			public List<CommandRow> SightRow = Rows<CommandRow>(7);
+			public ScrollData SightScroll = new ScrollData();
 			public string MapLabel = "Map", MenuLabel = "Menu";
 			public List<CellRow> AutoPick = Rows<CellRow>(12);
 			public ScrollData AutoScroll = new ScrollData();

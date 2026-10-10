@@ -407,3 +407,23 @@ sv = '\n'.join([
     keys('saveKeys', 'menu.save', [(43, 1348.7, '{menu.confirm}'), (15, 1568.5, '{menu.back}')]),
 ])
 screens.append(frame('save', 0, 0, 1920, 1080, None, 'bind-display="menu.save"', indent(sv, 1)))
+
+# Sight (MSSSightro, measured off Steam's draws): the floor's map in a window on the left (Ff4NaviMap draws the picture and
+# its icons over it), the dungeon's floors down the right in rows 135 high - the name in the small lettering, the party's pin
+# at the end of its floor's row (drawn with the map) - the scroll bar, Back alone in the footer.
+sight_rows = []
+for k in range(7):
+    inner = '\n'.join([
+        frame('band', 0, 0, 662.5, 135, 'lit-band', 'bind-visible="lit"'),
+        frame('edge', 0, 0, 662.5, 135, 'm-edge'),
+        frame('name', 81.1, 0, 520, 135, 'm-text m-small', 'bind-text="{name}"'),
+        frame('hand', 87.8, 0, 1, 135, 'hand', 'bind-visible="lit"'),
+    ])
+    sight_rows.append(frame('row%d' % k, 0, 135 * k, 662.5, 135, 'm-command',
+                            'data-source="menu.sightRow[%d]" bind-display="present" bind-class="lit: lit"' % k, indent(inner, 1)))
+sg = '\n'.join([
+    window('sightMap', 155.5, 155.25, 865.4, 648, 'm-pane'),
+    window('sightList', 1034.4, 6.75, 730.1, 945, 'm-pane', '', '\n'.join(sight_rows + [scroll('sightScroll', 666.7, 0, 945, 'menu.sightScroll')])),
+    keys('sightKeys', 'menu.sight', [(15, 1568.5, '{menu.back}')]),
+])
+screens.append(frame('sight', 0, 0, 1920, 1080, None, 'bind-display="menu.sight"', indent(sg, 1)))

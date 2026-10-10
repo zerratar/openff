@@ -29,7 +29,7 @@ namespace OpenFF.Client
 {
 	internal sealed partial class Ff4Menu : GameService
 	{
-		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Gambits, Party, Settings, Save, Load, Quicksave, Difficulty }
+		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Gambits, Party, Settings, Save, Load, Quicksave, Difficulty, Sight }
 		private enum Mode { Browse, PickMember, EquipSlot, EquipItem, ItemTarget, SwapMember }
 
 		private sealed class Command
@@ -193,6 +193,7 @@ namespace OpenFF.Client
 				case Screen.Inventory: UpdateInventory(input); break;
 				case Screen.Equipment: UpdateEquipment(input); break;
 				case Screen.Magic: UpdateMemberScreen(input, ListCount()); break;
+				case Screen.Sight: UpdateSight(input); break;
 				case Screen.Gambits: UpdateGambits(input); break;
 				case Screen.Abilities:
 					if (Ff4MenuHud.Available) { UpdateAbilities(input); break; }
@@ -306,6 +307,8 @@ namespace OpenFF.Client
 					List<OpenFF.Data.MagicSchool> schools = SchoolsOf(Member);
 					if (schools.Count > 1) { _school = schools[(schools.IndexOf(_school) + 1) % schools.Count]; _cursor = _scroll = 0; }
 				}
+				List<int> shown = SpellsShown();
+				if (input.Pressed(Pad.A) && _cursor < shown.Count && CastFromMagic(shown[_cursor])) return;
 				listCount = ListCount();
 			}
 			else SwitchMember(input);
@@ -738,6 +741,7 @@ namespace OpenFF.Client
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawSlots(d); break;
 				case Screen.Difficulty: DrawDifficulty(); break;
+				case Screen.Sight: DrawScreenLayout(); break;
 				case Screen.Load:
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawSlots(d); break;
@@ -846,7 +850,9 @@ namespace OpenFF.Client
 			h.Gambits = _screen == Screen.Gambits;
 			h.Party = _screen == Screen.Party;
 			h.Save = _screen == Screen.Save || _screen == Screen.Load;
-			h.NoTitle = h.Party || h.Save;
+			h.Sight = _screen == Screen.Sight;
+			h.NoTitle = h.Party || h.Save || h.Sight;
+			if (h.Sight) FillSight(h);
 			if (h.Save) FillSave(h);
 			h.Settings = _screen == Screen.Settings;
 			if (h.Settings) FillSettings(h);
@@ -918,7 +924,7 @@ namespace OpenFF.Client
 					row.Count = "";
 					row.Icon = tables?.AbilityIcon(spells[i]) ?? -1;
 					row.Lit = i == _cursor;
-					row.Dim = spell != null && spell.MpCost > c.Mp;
+					row.Dim = spell != null && (spell.MpCost > c.Mp || !spell.UsableInMenu);   // Steam greys what the menu cannot cast (Hold, Libra) and what costs too much
 				}
 				Ff4MenuHud.Scroll(h.SpellScroll, (spells.Count + 2) / 3, 5, _scroll / 3, 526.5f, true);
 				SpellDefinition at = _cursor < spells.Count ? tables?.Spell(spells[_cursor]) : null;
@@ -994,6 +1000,7 @@ namespace OpenFF.Client
 				FillAutoList(h);
 			}
 			Ff4MenuHud.Draw(h);
+			if (h.Sight) Ff4NaviMap.Instance?.DrawSight(_scroll);
 		}
 
 		/// <summary>The member's eleven figures in MenuLayout_Status's order: the five attributes, then attack, accuracy, defence,

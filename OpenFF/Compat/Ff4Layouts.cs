@@ -60,6 +60,9 @@ namespace OpenFF.Client
 		/// <summary>A line of babil_common.msd (the field's system messages), its line breaks kept; the fallback when unknown.</summary>
 		public static string CommonText(uint id, string fallback = null) => PageText("babil_common.msd", id, fallback);
 
+		/// <summary>A babil_sightoro.msd line: a floor's or a world place's name in the Sight spell's list.</summary>
+		public static string SightText(uint id, string fallback = null) => PageText("babil_sightoro.msd", id, fallback);
+
 		/// <summary>A babil_menu.msd text with its line breaks (Text joins them into one line).</summary>
 		public static string MenuPage(uint id, string fallback = null) => PageText("babil_menu.msd", id, fallback);
 

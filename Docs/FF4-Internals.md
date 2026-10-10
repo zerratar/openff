@@ -490,6 +490,14 @@ Steam's "M Map" (libff4's DS R button; Android's Map widget, babil_menu.msd 5003
   c = bit 31 - c, by a hash of the name). `MapPercentUpDate` @004fedd0: seen / walkable; at 100 % the whole picture
   shows and a dungeon's flag 1:<complete flag> is set (`wsmNaviMapComp`). The picture draws a 16 x 16 cell at a time
   where seen, the parchment elsewhere; icons only on seen cells (shops always; world places once their flag is set).
+- **Sight** (`world::MSSSightro`, magic 4023, 5 MP, from the field menu only): `SIGHTRO.dat` is an SSAM index whose data
+  lies in the file itself (offset 8 + 40 x count + entry): `d00..d17.bbd`, `f00..f02.bbd` (8-byte header, byte 2 the row
+  count, then 12-byte rows {u32 a, u32 message, s32 flag}) and `town.bbd` (rows from 0x0C: {u8 town, u8 world, u16, s32 x,
+  s32 z}; t17 moved by flags 0:0x353..0x356). A dungeon lists its floors `dNN_<a>` that have been seen (d12_99: flag
+  0:0x3D1), named from babil_sightoro.msd; a town or the world lists the world's places whose flag is set (a = the
+  place's 1-based place in the world's .nmi), the lit one's icon alone on the map. Steam's screen is libff4's 480 x 320
+  layout x 3.375 from x 150: the picture from (155.5, 155.2), the floors' rows 135 high from (1034.4, 6.75), the pin at
+  the end of the party's floor's row at (1662, 81 + 135 row). Up / Down light a row and show it at once.
 - **Keys.** Opened and shut by M only in free walking (`WSMove`, `WSVehicleMove`); the party walks on with it up.
   Steam's hint bar over the field ("M Map", "Tab Menu"; "M Quit Map") goes while the party walks.
 

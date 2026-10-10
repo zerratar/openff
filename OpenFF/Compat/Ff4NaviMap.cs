@@ -11,6 +11,7 @@
 // always all seen). A floor all seen is complete: its flag 1:<completeFlag> is set (wsmNaviMapComp). Which picture a
 // stage shows (ws_prepare_setup_navimap, SetMapData): dNN_MM its own (d12_17 after flag 0:0xFF: d12_99), tNN_MM its own
 // or its town's main map (a shop's, the player hidden), fNN... the world's field_NN_00; no picture (or t23): no Map.
+// The Sight spell's screen shows the same pictures another way (Ff4NaviMapSight.cs).
 
 using System;
 using System.Collections.Generic;
@@ -19,7 +20,7 @@ using OpenFF;
 
 namespace OpenFF.Client
 {
-	internal sealed class Ff4NaviMap : GameService
+	internal sealed partial class Ff4NaviMap : GameService
 	{
 		public override bool WantsUpdate => true;
 
@@ -29,16 +30,123 @@ namespace OpenFF.Client
 		// The seen cells of every map visited, by map name: 24 rows of 32 bits, cell c = bit 31 - c (NavimapSaveData's order).
 		private static readonly Dictionary<string, uint[]> _seen = new Dictionary<string, uint[]>(StringComparer.OrdinalIgnoreCase);
 
-		private sealed class Icon { public string Bank; public int Cell = -1; public int Anim; public float Fx, Fz; public int Flag = -1; public int OpenCell = -1; public bool Always; }
+		private sealed class Icon { public string Bank; public int Cell = -1; public int Anim; public float Fx, Fz; public int Flag = -1; public int OpenCell = -1; public bool Always; public bool Place; }
+
+		/// <summary>One map's picture and data (SetMapData): its .nmi geometry and icons, its .nmd walkable cells, what is seen.</summary>
+		private sealed class MapData
+		{
+			public string Name;               // the navimap's map name (after the rewrites)
+			public char Kind;                 // 'd' dungeon, 't' town, 'f' world
+			public bool Track;
+			public int StageW = 1, StageH = 1, CorrX, CorrZ, CompleteFlag = -1, Total;
+			public readonly bool[,] Walk = new bool[24, 32];
+			public readonly bool[,] Cells = new bool[24, 32];
+			public readonly List<Icon> Icons = new List<Icon>();
+
+			/// <summary>The map's files read: null when it has no picture (no Map there).</summary>
+			public static MapData Read(string name)
+			{
+				if (name == null || Ff4Ui.ReadFile(name + "_00.NSCR") == null || Ff4Ui.Sheet(name + ".NCGR") == null) return null;
+				MapData m = new MapData { Name = name, Kind = name[0] };
+				byte[] nmi = Ff4Ui.ReadFile(name + ".nmi");
+				if (nmi != null) m.ReadNmi(nmi);
+				byte[] nmd = m.Kind != 't' ? Ff4Ui.ReadFile(name + ".nmd") : null;
+				if (nmd != null && nmd.Length >= 2 + 2 * 768)
+				{
+					m.Total = S16(nmd, 0);
+					for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) m.Walk[r, c] = S16(nmd, 2 + 2 * (r * 32 + c)) == 1;
+				}
+				return m;
+			}
+
+			public void SeeAll() { for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) Cells[r, c] = true; }
+
+			private void ReadNmi(byte[] b)
+			{
+				if (Kind == 'd')
+				{
+					int chests = Math.Min(30, (int)S16(b, 0)), exits = Math.Min(20, (int)S16(b, 4));
+					StageW = Math.Max(1, (int)S16(b, 6)); StageH = Math.Max(1, (int)S16(b, 8));
+					CorrX = S16(b, 0xA); CorrZ = S16(b, 0xC);
+					int spX = S16(b, 0xE), spZ = S16(b, 0x10);
+					CompleteFlag = S16(b, 0x14);
+					Track = S16(b, 0x16) == 1;
+					for (int i = 0; i < chests; i++)
+						Icons.Add(At(new Icon { Bank = "map_mark_common", Cell = 1, OpenCell = 2, Flag = S16(b, 0x18 + 6 * i + 4) }, S16(b, 0x18 + 6 * i), S16(b, 0x18 + 6 * i + 2)));
+					for (int i = 0; i < exits; i++)
+						Icons.Add(At(new Icon { Bank = "d_map_obj", Anim = 6 }, S16(b, 0xCC + 4 * i), S16(b, 0xCC + 4 * i + 2)));
+					if (spX != 0 || spZ != 0) Icons.Add(At(new Icon { Bank = "d_map_obj", Cell = 0 }, spX, spZ));
+				}
+				else if (Kind == 't')
+				{
+					int n = S16(b, 0), hide = S16(b, 0x1A);
+					StageW = Math.Max(1, (int)S16(b, 0x1E)); StageH = Math.Max(1, (int)S16(b, 0x20));
+					CorrX = S16(b, 0x22); CorrZ = S16(b, 0x24);
+					int[] shopCells = { 3, 0, 6, 1, 2, 4 };
+					for (int i = 0; i < 6; i++)
+					{
+						if ((hide >> i & 1) != 0 || i == 4) continue;
+						Icons.Add(At(new Icon { Bank = "t_map_obj", Cell = shopCells[i], Always = true }, S16(b, 2 + 2 * i), S16(b, 0xE + 2 * i)));
+					}
+					for (int i = 0; i < n && 0x26 + 8 * i + 8 <= b.Length; i++)
+					{
+						if (S16(b, 0x26 + 8 * i + 6) != 0) continue;   // NMIHiddenItem: never drawn
+						Icons.Add(At(new Icon { Bank = "map_mark_common", Cell = 1, OpenCell = 2, Flag = S16(b, 0x26 + 8 * i + 4), Always = true }, S16(b, 0x26 + 8 * i), S16(b, 0x26 + 8 * i + 2)));
+					}
+				}
+				else
+				{
+					int n = S16(b, 0);
+					StageW = Math.Max(1, (int)S16(b, 2)); StageH = Math.Max(1, (int)S16(b, 4));
+					CorrX = S16(b, 6); CorrZ = S16(b, 8);
+					int[] placeCells = { 2, 0, 3, 4 };
+					for (int i = 0; i < n && 10 + 8 * i + 8 <= b.Length; i++)
+					{
+						int kind = S16(b, 10 + 8 * i + 4);
+						Icon icon = At(new Icon { Bank = "w_map_obj", Cell = placeCells[Math.Clamp(kind, 0, 3)], Place = true }, S16(b, 10 + 8 * i), S16(b, 10 + 8 * i + 2));
+						icon.Flag = S16(b, 10 + 8 * i + 6);   // shown once flag 0:id is set
+						Icons.Add(icon);
+					}
+				}
+			}
+
+			/// <summary>A field position as the picture's fraction across and down (nmi_visit_update_position).</summary>
+			public (float Fx, float Fz) Fraction(float x, float z) => ((x + CorrX + StageW / 2f) / StageW, (z + CorrZ + StageH / 2f) / StageH);
+
+			/// <summary>The party's place in the game's own terms: the port's world map is FF4's mirrored in z (FieldMirror).</summary>
+			public (float Fx, float Fz) PartyFraction(Vector3 at, string stage)
+			{
+				bool mirrored = Kind == 'f' && Ff4Exits.MirroredField(stage);
+				(float fx, float fz) = Fraction(at.X, mirrored ? -at.Z : at.Z);
+				if (Kind == 'f') { fx -= (float)Math.Floor(fx); fz -= (float)Math.Floor(fz); }   // the world wraps
+				return (fx, fz);
+			}
+
+			private Icon At(Icon icon, int x, int z)
+			{
+				(icon.Fx, icon.Fz) = Fraction(x, z);
+				return icon;
+			}
+
+			public bool SeenAt(float fx, float fz)
+			{
+				int c = (int)Math.Floor(fx * 32), r = (int)Math.Floor(fz * 24);
+				return c >= 0 && c < 32 && r >= 0 && r < 24 && Cells[r, c];
+			}
+
+			/// <summary>MapPercentUpDate: the walkable cells seen of all of them, 0..100.</summary>
+			public int Percent()
+			{
+				if (Total <= 0) return 0;
+				int seen = 0;
+				for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) if (Cells[r, c]) seen++;
+				return Math.Min(100, seen * 100 / Total);
+			}
+		}
 
 		private string _stage;              // the field stage the data is for
-		private string _name;               // the navimap's map name (after the rewrites), null: no Map here
-		private char _kind;                 // 'd' dungeon, 't' town, 'f' world
-		private bool _showPlayer, _track;
-		private int _stageW = 1, _stageH = 1, _corrX, _corrZ, _completeFlag = -1, _total;
-		private readonly bool[,] _walk = new bool[24, 32];
-		private readonly bool[,] _cells = new bool[24, 32];
-		private readonly List<Icon> _icons = new List<Icon>();
+		private MapData _map;               // its map, null: no Map here
+		private bool _showPlayer;
 		private bool _open;
 		private int _frame, _idle;
 		// showMapPercent: the explored percentage on a dungeon's map, as the stage's script leaves it (on for each new stage).
@@ -84,12 +192,20 @@ namespace OpenFF.Client
 
 		public static void NewGame() { _seen.Clear(); if (Instance != null) Instance._stage = null; }
 
+		/// <summary>is_visited_map: a map whose kept sight has anything in it.</summary>
+		private static bool Visited(string name)
+		{
+			if (!_seen.TryGetValue(name, out uint[] rows)) return false;
+			foreach (uint row in rows) if (row != 0) return true;
+			return false;
+		}
+
 		// ---- the map's data ----
 
 		private static bool Flag(int group, int index)
 		{
 			byte[,] flags = GlobalScope.flags;
-			return flags != null && group < flags.GetLength(0) && index >= 0 && index < flags.GetLength(1) && flags[group, index] != 0;
+			return flags != null && group >= 0 && group < flags.GetLength(0) && index >= 0 && index < flags.GetLength(1) && flags[group, index] != 0;
 		}
 
 		/// <summary>ws_prepare_setup_navimap / SetMapData's name: the picture a stage shows, and whether the party's pin is on it.</summary>
@@ -117,133 +233,46 @@ namespace OpenFF.Client
 		{
 			_stage = stage;
 			if (!string.Equals(_percentStage, stage, StringComparison.OrdinalIgnoreCase)) _showPercent = true;
-			_name = NaviName(stage, out _showPlayer);
-			_icons.Clear();
-			_completeFlag = -1;
-			_track = false;
-			Array.Clear(_walk, 0, _walk.Length);
-			if (_name == null || Ff4Ui.ReadFile(_name + "_00.NSCR") == null || Ff4Ui.Sheet(_name + ".NCGR") == null) { _name = null; return; }
-			_kind = _name[0];
-			byte[] nmi = Ff4Ui.ReadFile(_name + ".nmi");
-			if (nmi != null) ReadNmi(nmi);
-			byte[] nmd = _kind != 't' ? Ff4Ui.ReadFile(_name + ".nmd") : null;
-			_total = 0;
-			if (nmd != null && nmd.Length >= 2 + 2 * 768)
-			{
-				_total = S16(nmd, 0);
-				for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) _walk[r, c] = S16(nmd, 2 + 2 * (r * 32 + c)) == 1;
-			}
-			// The world (but its underworld) wraps at its edges; a town is seen whole; a map not tracked is seen afresh.
-			Array.Clear(_cells, 0, _cells.Length);
-			if (_kind == 't') { for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) _cells[r, c] = true; }
-			else if (_seen.TryGetValue(_name, out uint[] rows)) { for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) _cells[r, c] = (rows[r] >> (31 - c) & 1) != 0; }
-			Log.Write(LogChannel.File, "navimap: " + stage + " -> " + _name + " (" + _icons.Count + " icon(s), " + _total + " cell(s) to see)");
-		}
-
-		private void ReadNmi(byte[] b)
-		{
-			if (_kind == 'd')
-			{
-				int chests = Math.Min(30, (int)S16(b, 0)), exits = Math.Min(20, (int)S16(b, 4));
-				_stageW = Math.Max(1, (int)S16(b, 6)); _stageH = Math.Max(1, (int)S16(b, 8));
-				_corrX = S16(b, 0xA); _corrZ = S16(b, 0xC);
-				int spX = S16(b, 0xE), spZ = S16(b, 0x10);
-				_completeFlag = S16(b, 0x14);
-				_track = S16(b, 0x16) == 1;
-				for (int i = 0; i < chests; i++)
-					_icons.Add(At(new Icon { Bank = "map_mark_common", Cell = 1, OpenCell = 2, Flag = S16(b, 0x18 + 6 * i + 4) }, S16(b, 0x18 + 6 * i), S16(b, 0x18 + 6 * i + 2)));
-				for (int i = 0; i < exits; i++)
-					_icons.Add(At(new Icon { Bank = "d_map_obj", Anim = 6 }, S16(b, 0xCC + 4 * i), S16(b, 0xCC + 4 * i + 2)));
-				if (spX != 0 || spZ != 0) _icons.Add(At(new Icon { Bank = "d_map_obj", Cell = 0 }, spX, spZ));
-			}
-			else if (_kind == 't')
-			{
-				int n = S16(b, 0), hide = S16(b, 0x1A);
-				_stageW = Math.Max(1, (int)S16(b, 0x1E)); _stageH = Math.Max(1, (int)S16(b, 0x20));
-				_corrX = S16(b, 0x22); _corrZ = S16(b, 0x24);
-				int[] shopCells = { 3, 0, 6, 1, 2, 4 };
-				for (int i = 0; i < 6; i++)
-				{
-					if ((hide >> i & 1) != 0 || i == 4) continue;
-					_icons.Add(At(new Icon { Bank = "t_map_obj", Cell = shopCells[i], Always = true }, S16(b, 2 + 2 * i), S16(b, 0xE + 2 * i)));
-				}
-				for (int i = 0; i < n && 0x26 + 8 * i + 8 <= b.Length; i++)
-				{
-					if (S16(b, 0x26 + 8 * i + 6) != 0) continue;   // NMIHiddenItem: never drawn
-					_icons.Add(At(new Icon { Bank = "map_mark_common", Cell = 1, OpenCell = 2, Flag = S16(b, 0x26 + 8 * i + 4), Always = true }, S16(b, 0x26 + 8 * i), S16(b, 0x26 + 8 * i + 2)));
-				}
-			}
-			else
-			{
-				int n = S16(b, 0);
-				_stageW = Math.Max(1, (int)S16(b, 2)); _stageH = Math.Max(1, (int)S16(b, 4));
-				_corrX = S16(b, 6); _corrZ = S16(b, 8);
-				int[] placeCells = { 2, 0, 3, 4 };
-				for (int i = 0; i < n && 10 + 8 * i + 8 <= b.Length; i++)
-				{
-					int kind = S16(b, 10 + 8 * i + 4);
-					Icon icon = At(new Icon { Bank = "w_map_obj", Cell = placeCells[Math.Clamp(kind, 0, 3)] }, S16(b, 10 + 8 * i), S16(b, 10 + 8 * i + 2));
-					icon.Flag = S16(b, 10 + 8 * i + 6);   // shown once flag 0:id is set
-					_icons.Add(icon);
-				}
-			}
-		}
-
-		/// <summary>A field position as the picture's fraction across and down (nmi_visit_update_position).</summary>
-		private (float Fx, float Fz) Fraction(float x, float z) => ((x + _corrX + _stageW / 2f) / _stageW, (z + _corrZ + _stageH / 2f) / _stageH);
-
-		/// <summary>The party's place in the game's own terms: the port's world map is FF4's mirrored in z (FieldMirror).</summary>
-		private (float Fx, float Fz) PartyFraction(Vector3 at)
-		{
-			bool mirrored = _kind == 'f' && Ff4Exits.MirroredField(_stage);
-			(float fx, float fz) = Fraction(at.X, mirrored ? -at.Z : at.Z);
-			if (_kind == 'f') { fx -= (float)Math.Floor(fx); fz -= (float)Math.Floor(fz); }   // the world wraps
-			return (fx, fz);
-		}
-
-		private Icon At(Icon icon, int x, int z)
-		{
-			(icon.Fx, icon.Fz) = Fraction(x, z);
-			return icon;
-		}
-
-		private bool SeenAt(float fx, float fz)
-		{
-			int c = (int)Math.Floor(fx * 32), r = (int)Math.Floor(fz * 24);
-			return c >= 0 && c < 32 && r >= 0 && r < 24 && _cells[r, c];
+			_map = MapData.Read(NaviName(stage, out _showPlayer));
+			if (_map == null) return;
+			// A town is seen whole; elsewhere what was kept, or nothing yet.
+			if (_map.Kind == 't') _map.SeeAll();
+			else if (_seen.TryGetValue(_map.Name, out uint[] rows)) { for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) _map.Cells[r, c] = (rows[r] >> (31 - c) & 1) != 0; }
+			Log.Write(LogChannel.File, "navimap: " + stage + " -> " + _map.Name + " (" + _map.Icons.Count + " icon(s), " + _map.Total + " cell(s) to see)");
 		}
 
 		/// <summary>PassagePointChange: the 31 cells about the party's are seen where they count; kept, and a floor all seen complete.</summary>
 		private void See(float fx, float fz)
 		{
-			if (_kind == 't') return;
+			MapData m = _map;
+			if (m.Kind == 't') return;
 			int cx = (int)Math.Floor(fx * 32), cy = (int)Math.Floor(fz * 24);
-			bool wrap = _kind == 'f' && _name.Length > 7 && _name[7] != '1', changed = false;
+			bool wrap = m.Kind == 'f' && m.Name.Length > 7 && m.Name[7] != '1', changed = false;
 			foreach ((int dx, int dy) in Blob)
 			{
 				int c = cx + dx, r = cy + dy;
 				if (wrap) { c = (c % 32 + 32) % 32; r = (r % 24 + 24) % 24; }
 				else { c = Math.Clamp(c, 0, 31); r = Math.Clamp(r, 0, 23); }
-				if (_walk[r, c] && !_cells[r, c]) { _cells[r, c] = true; changed = true; }
+				if (m.Walk[r, c] && !m.Cells[r, c]) { m.Cells[r, c] = true; changed = true; }
 			}
 			if (!changed) return;
 			int seen = 0;
-			for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) if (_cells[r, c] && _walk[r, c]) seen++;
-			if (_total > 0 && seen * 100 / _total >= 100)
+			for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) if (m.Cells[r, c] && m.Walk[r, c]) seen++;
+			if (m.Total > 0 && seen * 100 / m.Total >= 100)
 			{
 				// MapPercentUpDate at 100: the whole picture shown; the floor complete (wsmNaviMapComp sets its flag).
-				for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) _cells[r, c] = true;
+				m.SeeAll();
 				byte[,] flags = GlobalScope.flags;
-				if (_kind == 'd' && _completeFlag >= 0 && flags != null && 1 < flags.GetLength(0) && _completeFlag < flags.GetLength(1) && flags[1, _completeFlag] == 0)
+				if (m.Kind == 'd' && m.CompleteFlag >= 0 && flags != null && 1 < flags.GetLength(0) && m.CompleteFlag < flags.GetLength(1) && flags[1, m.CompleteFlag] == 0)
 				{
-					flags[1, _completeFlag] = 1;
-					Log.Write(LogChannel.General, "navimap: " + _name + " complete (flag 1:" + _completeFlag + ")");
+					flags[1, m.CompleteFlag] = 1;
+					Log.Write(LogChannel.General, "navimap: " + m.Name + " complete (flag 1:" + m.CompleteFlag + ")");
 				}
 			}
-			if (_kind == 'd' && !_track) return;   // this floor's sight is not kept (d04_04)
+			if (m.Kind == 'd' && !m.Track) return;   // this floor's sight is not kept (d04_04)
 			uint[] rows = new uint[24];
-			for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) if (_cells[r, c]) rows[r] |= 1u << (31 - c);
-			_seen[_name] = rows;
+			for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) if (m.Cells[r, c]) rows[r] |= 1u << (31 - c);
+			_seen[m.Name] = rows;
 		}
 
 		// ---- the scripts' commands ----
@@ -258,7 +287,7 @@ namespace OpenFF.Client
 			uint[] rows = new uint[24];
 			for (int r = 0; r < 24; r++) rows[r] = 0xFFFFFFFF;
 			_seen[name] = rows;
-			if (Instance != null && string.Equals(Instance._name, name, StringComparison.OrdinalIgnoreCase)) Instance._stage = null;   // read again
+			if (Instance?._map != null && string.Equals(Instance._map.Name, name, StringComparison.OrdinalIgnoreCase)) Instance._stage = null;   // read again
 			Log.Write(LogChannel.File, "navimap: " + name + " fully disclosed");
 		}
 
@@ -270,15 +299,6 @@ namespace OpenFF.Client
 			engine.getDword();
 			_showPercent = shown != 0;
 			_percentStage = Game.Field.Map;
-		}
-
-		/// <summary>MapPercentUpDate: the walkable cells seen of all of them, 0..100.</summary>
-		private int Percent()
-		{
-			if (_total <= 0) return 0;
-			int seen = 0;
-			for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) if (_cells[r, c]) seen++;
-			return Math.Min(100, seen * 100 / _total);
 		}
 
 		// ---- each step ----
@@ -297,9 +317,9 @@ namespace OpenFF.Client
 			bool moving = (at - _lastAt).Length > 0.01f;
 			_lastAt = at;
 			_idle = moving ? 0 : _idle + 1;
-			if (_name != null && Game.Hero.Present && !Ff4Cutscene.Active)
+			if (_map != null && Game.Hero.Present && !Ff4Cutscene.Active)
 			{
-				(float fx, float fz) = PartyFraction(at);
+				(float fx, float fz) = _map.PartyFraction(at, _stage);
 				See(fx, fz);
 			}
 			InputState input = Game.Input;
@@ -309,11 +329,11 @@ namespace OpenFF.Client
 				if (!free) Shut(false);   // the map is free walking's only (WSMove, WSVehicleMove): an event, a message, the menu end it
 				else if (input.KeyPressed("M") || input.Pressed(Pad.B)) Shut(true);
 			}
-			else if (free && _name != null && input.KeyPressed("M"))
+			else if (free && _map != null && input.KeyPressed("M"))
 			{
 				_open = true;
 				Game.Audio.PlaySe(0, 1);
-				Log.Write(LogChannel.File, "navimap: open - " + _name);
+				Log.Write(LogChannel.File, "navimap: open - " + _map.Name);
 			}
 			if (_open) Draw(at);
 			// Steam's hints over the field: "M Map / Tab Menu", gone while the party walks or anything else is up.
@@ -337,22 +357,43 @@ namespace OpenFF.Client
 			DrawList d = Game.Draw;
 			Color fade = Color.White.WithAlpha((byte)Math.Round(255 * Alpha));
 			Ff4Ui.Cell(d, "mapwaku.NCER", "mapwaku.NCGR", 0, X(FrameX), Y(FrameY), Ff4Ui.Scale, fade);
-			Texture map = Ff4Ui.Sheet(_name + ".NCGR");
-			Texture fog = _kind == 'd' ? Ff4Ui.Sheet("dxx.NCGR") : _kind == 'f' ? Ff4Ui.Sheet("field_xx.NCGR") : null;
+			DrawPicture(d, _map, MapLeft, fade, true);
+			DrawIcons(d, _map, MapLeft, icon => (icon.Always || _map.SeenAt(icon.Fx, icon.Fz)) && (!icon.Place || Flag(0, icon.Flag)));
+			if (_map.Kind == 'd' && _showPercent && _map.Total > 0)
+			{
+				// d_map_obj's glyphs (3..12 the digits, 13 %, 2 blank) at libff4's (326 / 334 / 342 / 353, 224) on its 480 x 320,
+				// Steam's: x 960 + (x - 240) * 3.375, y 540.85 + (y - 160) * 3.375 (the "6 %" traced on the Waterway's next floor).
+				int pct = _map.Percent();
+				int[] cells = { pct >= 100 ? 4 : 2, pct >= 10 ? 3 + pct / 10 % 10 : 2, 3 + pct % 10, 13 };
+				int[] xs = { 326, 334, 342, 353 };
+				for (int k = 0; k < 4; k++)
+					Ff4Ui.Cell(d, "d_map_obj.NCER", "d_map_obj.NCGR", cells[k], X(960f + (xs[k] - 240) * 3.375f), Y(540.85f + (224 - 160) * 3.375f), Ff4Ui.Scale);
+			}
+			if (_showPlayer) DrawPin(d, _map, MapLeft, _map.PartyFraction(at, _stage));
+		}
+
+		/// <summary>The picture where seen and the blank sheet elsewhere (a town has none), a 16 x 16 cell at a time, from <paramref name="left"/>.</summary>
+		private static void DrawPicture(DrawList d, MapData m, float left, Color tint, bool fog)
+		{
+			Texture map = Ff4Ui.Sheet(m.Name + ".NCGR");
+			Texture blank = !fog ? null : m.Kind == 'd' ? Ff4Ui.Sheet("dxx.NCGR") : m.Kind == 'f' ? Ff4Ui.Sheet("field_xx.NCGR") : null;
 			float cw = 16 * Px / 2.4f, ch = 16 * Px / 2.25f;
 			for (int r = 0; r < 24; r++)
 			{
 				for (int c = 0; c < 32; c++)
 				{
-					Texture sheet = _cells[r, c] ? map : fog;
+					Texture sheet = m.Cells[r, c] ? map : blank;
 					if (sheet == null) continue;
-					d.Sprite(sheet, X(MapLeft + 16 * c * Px), Y(MapTop + 16 * r * Px), cw, ch, fade, 0f, 16 * c, 16 * r, 16, 16);
+					d.Sprite(sheet, X(left + 16 * c * Px), Y(MapTop + 16 * r * Px), cw, ch, tint, 0f, 16 * c, 16 * r, 16, 16);
 				}
 			}
-			foreach (Icon icon in _icons)
+		}
+
+		private void DrawIcons(DrawList d, MapData m, float left, Func<Icon, bool> shown)
+		{
+			foreach (Icon icon in m.Icons)
 			{
-				if (!icon.Always && !SeenAt(icon.Fx, icon.Fz)) continue;
-				if (icon.Bank == "w_map_obj" && !Flag(0, icon.Flag)) continue;
+				if (!shown(icon)) continue;
 				int cell = icon.Cell;
 				if (icon.OpenCell >= 0 && Flag(1, icon.Flag)) cell = icon.OpenCell;
 				float y = MapTop + icon.Fz * 384 * Px;
@@ -363,23 +404,14 @@ namespace OpenFF.Client
 					cell = 14 + k;
 					if (k == 2) y -= 2 * Px;
 				}
-				Ff4Ui.Cell(d, icon.Bank + ".NCER", icon.Bank + ".NCGR", cell, X(MapLeft + icon.Fx * 512 * Px), Y(y), Ff4Ui.Scale);
+				Ff4Ui.Cell(d, icon.Bank + ".NCER", icon.Bank + ".NCGR", cell, X(left + icon.Fx * 512 * Px), Y(y), Ff4Ui.Scale);
 			}
-			if (_kind == 'd' && _showPercent && _total > 0)
-			{
-				// d_map_obj's glyphs (3..12 the digits, 13 %, 2 blank) at libff4's (326 / 334 / 342 / 353, 224) on its 480 x 320,
-				// Steam's: x 960 + (x - 240) * 3.375, y 540.85 + (y - 160) * 3.375 (the "6 %" traced on the Waterway's next floor).
-				int pct = Percent();
-				int[] cells = { pct >= 100 ? 4 : 2, pct >= 10 ? 3 + pct / 10 % 10 : 2, 3 + pct % 10, 13 };
-				int[] xs = { 326, 334, 342, 353 };
-				for (int k = 0; k < 4; k++)
-					Ff4Ui.Cell(d, "d_map_obj.NCER", "d_map_obj.NCGR", cells[k], X(960f + (xs[k] - 240) * 3.375f), Y(540.85f + (224 - 160) * 3.375f), Ff4Ui.Scale);
-			}
-			if (_showPlayer)
-			{
-				(float fx, float fz) = PartyFraction(at);
-				Ff4Ui.Cell(d, "w_map_mark.NCER", "w_map_mark.NCGR", _frame / 7 % 4, X(MapLeft + fx * 512 * Px), Y(MapTop + fz * 384 * Px), Ff4Ui.Scale);
-			}
+		}
+
+		/// <summary>The party's pin (w_map_mark, four frames of seven) at a place on the picture.</summary>
+		private void DrawPin(DrawList d, MapData m, float left, (float Fx, float Fz) at)
+		{
+			Ff4Ui.Cell(d, "w_map_mark.NCER", "w_map_mark.NCGR", _frame / 7 % 4, X(left + at.Fx * 512 * Px), Y(MapTop + at.Fz * 384 * Px), Ff4Ui.Scale);
 		}
 
 		private void DrawKeys()
@@ -388,7 +420,7 @@ namespace OpenFF.Client
 			Ff4MenuHud.Data h = _hud;
 			h.FieldKeys = true;
 			h.MapOpen = _open;
-			h.HasMap = _name != null;
+			h.HasMap = _map != null;
 			h.MapClosed = h.HasMap && !_open;
 			// Steam's own hint lines (babil_menu.msd 60204 "%key_assign09%Map", 60213 "... Quit Map", 60205 "%key_assign11%Menu").
 			h.MapLabel = _open ? Ff4Menu.KeyText(60213, "Quit Map") : Ff4Menu.KeyText(60204, "Map");
