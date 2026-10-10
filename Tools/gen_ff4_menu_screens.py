@@ -217,17 +217,34 @@ def command_cell(id_, source, y, h, hand_y):
         frame('hand', 82, 0, 1, h, 'hand', 'bind-visible="lit" style="-ff-cell-origin: 0 %spx"' % hand_y),
     ])
     return frame(id_, 805.5, y, 799, h, 'm-cell', 'data-source="%s" bind-class="lit: lit; picked: picked"' % source, indent(inner, 1))
+def auto_cell(id_, source, x, y, w):
+    inner = '\n'.join([
+        frame('band', 0, 0, w, 135, 'lit-band', 'bind-visible="lit"'),
+        frame('edge', 0, 0, w, 135, 'm-edge'),
+        frame('name', 81.1, 0, w - 100, 135, 'm-cell-name', 'bind-text="{name}"'),
+        frame('hand', 81, 0, 1, 135, 'hand', 'bind-visible="lit" style="-ff-cell-origin: 0 50%"'),
+    ])
+    return frame(id_, x, y, w, 135, 'm-cell', 'data-source="%s" bind-display="present" bind-class="lit: lit"' % source, indent(inner, 1))
 ab_head = '\n'.join(l for l in head.split('\n') if "m-arrow" not in l)
 ab = '\n'.join([
     window('head', 155.5, 87.75, 1609, 148.5, 'm-pane', '', ab_head),
     window('info', 155.5, 249.75, 1609, 94.5, 'm-pane', '', frame('helpLine', 74.4, 16.9, 1500, 60.75, 'm-text', 'bind-text="{menu.help}"')),
-    window('auto', 155.5, 357.75, 1609, 108, 'm-pane', '', '\n'.join([
+    window('auto', 155.5, 357.75, 1609, 108, 'm-pane', 'bind-display="!menu.autoPicking"', '\n'.join([
         frame('label', 75.5, 0, 700, 108, 'm-text', 'bind-text="{menu.autoLabel}"'),
         command_cell('autoCommand', 'menu.auto', 0, 108, 50.6),
     ])),
-    window('commands', 155.5, 479.25, 1609, 472.5, 'm-pane', '', '\n'.join(
+    window('commands', 155.5, 479.25, 1609, 472.5, 'm-pane', 'bind-display="!menu.autoPicking"', '\n'.join(
         [frame('label', 75.5, 0, 700, 472.5, 'm-text', 'bind-text="{menu.commandsLabel}"')] +
         [command_cell('command%d' % k, 'menu.slot[%d]' % k, 94.5 * k, 94.5, 44.3) for k in range(5)])),
+    # The auto-battle list (Steam's, measured off its draws): the window the two had, cells 135 high - two columns of
+    # commands 770.7 wide, or three of a command's spells or items - the name 81.1 in, four rows in view, the scroll bar.
+    window('autoList', 155.5, 357.75, 1609, 594, 'm-pane', 'bind-display="menu.autoPicking"', '\n'.join([
+        frame('pair', 0, 0, 1541.4, 594, None, 'bind-display="menu.autoPair"', indent('\n'.join(
+            [auto_cell('pick%d' % k, 'menu.autoPick[%d]' % k, (k % 2) * 770.7, (k // 2) * 135, 770.7) for k in range(8)]), 1)),
+        frame('triple', 0, 0, 1541.4, 594, None, 'bind-display="menu.autoTriple"', indent('\n'.join(
+            [auto_cell('pick%d' % k, 'menu.autoPick[%d]' % k, (k % 3) * 513.8, (k // 3) * 135, 513.8) for k in range(12)]), 1)),
+        scroll('autoScroll', 1544.8, 0, 594, 'menu.autoScroll'),
+    ])),
     keys('abilityKeys', 'menu.abilities', [(43, 1348.7, '{menu.confirm}'), (15, 1568.5, '{menu.back}')]),
 ])
 screens.append(frame('abilities', 0, 0, 1920, 1080, None, 'bind-display="menu.abilities"', indent(ab, 1)))

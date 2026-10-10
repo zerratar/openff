@@ -159,8 +159,9 @@ namespace OpenFF.Client
 			return param.ToString();
 		}
 
-		/// <summary>A new hero's rules, and a save's without any: attack the first foe.</summary>
-		public static List<Gambit> Defaults() => new List<Gambit> { new Gambit { On = true, Condition = "foe.any", Action = "attack" } };
+		/// <summary>A new hero's rules, and a save's without any: attack the first foe - in FF4 none, its auto battle being each
+		/// member's auto-battle command (Abilities) unless rules are set.</summary>
+		public static List<Gambit> Defaults() => GameProfile.IsFf4 ? new List<Gambit>() : new List<Gambit> { new Gambit { On = true, Condition = "foe.any", Action = "attack" } };
 
 		/// <summary>A hero's rules (the defaults until a save or a screen gives others).</summary>
 		public static List<Gambit> For(int hero)

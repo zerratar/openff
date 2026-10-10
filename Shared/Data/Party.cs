@@ -32,6 +32,9 @@ namespace OpenFF.Data
 		public List<int> Spells { get; } = new List<int>();
 		/// <summary>FF4: the battle command slots (PlayerAbilityManager list 2: five chosen, then Defend and Swap Rows) - null until laid out.</summary>
 		public int[] CommandSlots { get; set; }
+		/// <summary>FF4: the auto-battle command (PlayerAbilityManager list 5): a command (1 Attack, every type's default), a
+		/// spell or an item - what the member does when auto battle has it act.</summary>
+		public int AutoCommand { get; set; } = 1;
 		/// <summary>FF4: the augments it has been given (the player save's decant level, +0x01).</summary>
 		public int DecantLevel { get; set; }
 		/// <summary>FF4: HP +50% / MP +50% applied to the maximums now (so they come off again when the augment leaves its slot).</summary>

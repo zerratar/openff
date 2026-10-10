@@ -638,6 +638,8 @@ namespace OpenFF.Data
 				if (wait > 0) tables.AbilityWaits[ChainPack.S32(data, at)] = wait;
 				tables.AbilityNameIds[ChainPack.S32(data, at)] = ChainPack.S32(data, at + 8);
 				tables.AbilityFlagBits[ChainPack.S32(data, at)] = ChainPack.U16(data, at + 0x24);
+				int kind = ChainPack.S32(data, at + 0x14);
+				if (kind != 0) tables.AbilityListKinds[ChainPack.S32(data, at)] = kind;
 				tables.AbilityHelpIds[ChainPack.S32(data, at)] = ChainPack.S32(data, at + 0xC);
 				tables.AbilityTargetBits[ChainPack.S32(data, at)] = ChainPack.U16(data, at + 0x26);
 				tables.AbilityDefaultTargets[ChainPack.S32(data, at)] = data[at + 0x28];

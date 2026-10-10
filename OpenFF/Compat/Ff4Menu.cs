@@ -274,6 +274,7 @@ namespace OpenFF.Client
 			_slot = 0;
 			_pick = 0;
 			if (screen == Screen.Gambits) OpenGambits();
+			_autoPicking = false;
 			if (screen == Screen.Save || screen == Screen.Load) _cursor = LatestSlot();
 			Log.Write(LogChannel.File, "menu: " + screen + (NeedsMember(screen) ? " of " + Ff4Party.Party.Members[_member].Name : ""));
 		}
@@ -491,10 +492,12 @@ namespace OpenFF.Client
 		/// up and Enter on another sets it down there, the two swapping places; left and right the member before and after.</summary>
 		private void UpdateAbilities(InputState input)
 		{
+			if (_autoPicking) { UpdateAutoList(input); return; }
 			if (input.Pressed(Pad.B)) { if (_swapFrom >= 0) _swapFrom = -1; else Back(); return; }
 			if (_swapFrom < 0) SwitchMember(input);
 			if (input.Pressed(Pad.Up)) _cursor = Math.Max(_swapFrom >= 0 ? 1 : 0, _cursor - 1);
 			if (input.Pressed(Pad.Down)) _cursor = Math.Min(5, _cursor + 1);
+			if (input.Pressed(Pad.A) && _cursor == 0 && _swapFrom < 0) { OpenAutoList(); return; }
 			if (!input.Pressed(Pad.A) || _cursor == 0) return;
 			int at = _cursor - 1;
 			if (_swapFrom < 0) { _swapFrom = at; return; }
@@ -977,10 +980,9 @@ namespace OpenFF.Client
 				h.AutoLabel = T(50453, "Auto-Battle Command");
 				h.CommandsLabel = T(50450, "Battle Commands");
 				int[] slots = Ff4Augments.Slots(c);
-				// The auto-battle command: libff4 keeps it in the member's own list (abilityIDList 5), Attack from the start; Attack
-				// here until that list is kept.
-				int auto = Array.IndexOf(slots, 1) >= 0 ? 1 : slots[0];
-				h.Auto.Name = CommandName(auto);
+				// The auto-battle command: the member's own (abilityIDList 5), Attack from the start.
+				int auto = c.AutoCommand;
+				h.Auto.Name = AutoName(auto);
 				h.Auto.Lit = _cursor == 0;
 				for (int k = 0; k < 5; k++)
 				{
@@ -989,7 +991,8 @@ namespace OpenFF.Client
 					h.Slot[k].Picked = _swapFrom == k;
 				}
 				int lit = _cursor == 0 ? auto : slots[_cursor - 1];
-				h.Help = lit > 0 ? (tables?.AbilityHelp(lit) ?? "").Replace("\n", " ") : "";
+				h.Help = lit > 0 ? AutoHelp(lit) : "";
+				FillAutoList(h);
 			}
 			Ff4MenuHud.Draw(h);
 		}

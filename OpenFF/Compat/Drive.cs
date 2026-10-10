@@ -378,6 +378,16 @@ namespace OpenFF.Client
 					Log.Write(LogChannel.File, "drive: augment " + ability + " on " + (who?.Name ?? "no one"));
 					break;
 				}
+				case "autocmd":
+				{
+					// FF4: a member's auto-battle command, as Abilities sets it: "autocmd 1 4001" (the second member auto-casts Cure).
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 2 || !int.TryParse(bits[0], out int slot) || !int.TryParse(bits[1], out int id)) { Log.Write(LogChannel.General, "drive: autocmd wants <member> <command, spell or item id>"); break; }
+					OpenFF.Data.Character who = slot >= 0 && slot < Ff4Party.Party.Members.Count ? Ff4Party.Party.Members[slot] : null;
+					if (who != null) who.AutoCommand = id;
+					Log.Write(LogChannel.File, "drive: autocmd " + id + " on " + (who?.Name ?? "no one"));
+					break;
+				}
 				case "job":
 				{
 					// A party member's job through the API: "job 0 Evoker" (a name as definitions write it, or its number).

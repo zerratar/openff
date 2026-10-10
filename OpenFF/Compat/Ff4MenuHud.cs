@@ -111,6 +111,11 @@ namespace OpenFF.Client
 			public bool Save, NoTitle, SlotFilled;
 			// Difficulty (New Game's DifficultyPart): the line, Normal and Hard with the hand on one, the note under them.
 			public bool Difficulty, NormalLit, HardLit;
+			// Abilities' auto-battle list (MSSAbility state 5, readyEquipableAutoIDList): two columns of commands, or three of a
+			// command's spells or items (state 7), in the window the auto and command rows had.
+			public bool AutoPicking, AutoPair, AutoTriple;
+			public List<CellRow> AutoPick = Rows<CellRow>(12);
+			public ScrollData AutoScroll = new ScrollData();
 			public string DifficultyText = "", NormalLabel = "Normal", HardLabel = "Hard", DifficultyNote1 = "", DifficultyNote2 = "";
 			public List<CommandRow> SaveRow = new List<CommandRow> { new CommandRow(), new CommandRow(), new CommandRow(), new CommandRow() };
 			public List<MemberRow> SaveMember = Rows<MemberRow>(5);

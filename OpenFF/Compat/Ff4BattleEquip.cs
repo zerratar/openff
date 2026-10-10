@@ -166,7 +166,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>Whether a fight has a use for an item: it mends, revives, casts, or is a fang.</summary>
-		private static bool ItemUsable(int itemId)
+		internal static bool ItemUsable(int itemId)
 		{
 			ItemDefinition item = itemId > 0 ? Ff4Party.Tables.Item(itemId) : null;
 			return item != null && (ItemEffect(item) != null || CastOf(itemId) != null || IsFang(itemId));

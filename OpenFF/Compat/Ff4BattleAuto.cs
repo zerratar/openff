@@ -1,8 +1,8 @@
-// Auto battle in FF4 by OpenFF's gambits (Gambits.cs): with it on (C, the key Steam's FF4 shows, or F, as in FF3), a
-// member whose gauge is full gets no command window - its rules are read top to bottom against the fight as it stands
-// and the first whose condition finds a target the action can be used on is what it does: an attack, a defend, a spell
-// (white, black or summon), an item, the run. None holds: the first foe is attacked. A member with no rule on is the
-// player's, its window opening as ever.
+// Auto battle in FF4: with it on (C, the key Steam's FF4 shows, or F, as in FF3), a member whose gauge is full gets no
+// command window. OpenFF's gambits (Gambits.cs) come first - its rules read top to bottom against the fight as it stands,
+// the first whose condition finds a target the action can be used on is what it does: an attack, a defend, a spell, an
+// item, the run. None holds (or it has none): its auto-battle command, as Steam's - the one Abilities sets (list 5,
+// Attack from the start): a command on the first foe or on itself, a spell, an item.
 
 using System;
 using System.Collections.Generic;
@@ -41,12 +41,8 @@ namespace OpenFF.Client
 			return list;
 		}
 
-		/// <summary>Whether auto battle takes this member's turn: it is on and the member has a rule on.</summary>
-		private static bool AutoTakes(Fighter member)
-		{
-			if (!AutoBattle.On || member.Member == null) return false;
-			try { return Gambits.For(member.Member.Id).Any(r => r.On && !r.IsEmpty); } catch (Exception) { return false; }
-		}
+		/// <summary>Whether auto battle takes this member's turn: it is on (Steam's takes every member).</summary>
+		private static bool AutoTakes(Fighter member) => AutoBattle.On && member.Member != null;
 
 		/// <summary>The member's action by its rules, decided (as the command windows would decide it).</summary>
 		private void AutoDecide(Fighter member)
@@ -68,10 +64,88 @@ namespace OpenFF.Client
 					}
 				}
 			}
-			Fighter first = FirstAlive(_foes);
-			if (first != null) Decide(member, () => MemberAttacks(member, first), 0, 1);
-			else Decide(member, () => Defend(member), 0, 3);
-			Note("auto battle: " + member.Name + " - no rule held; " + (first != null ? "attack" : "defend"));
+			AutoCommand(member);
+		}
+
+		/// <summary>The member's auto-battle command (abilityIDList 5): a command on the first foe or on itself, a spell on the
+		/// foes or the party as it is for, an item on the one it helps. One that cannot be used now: an attack.</summary>
+		private void AutoCommand(Fighter member)
+		{
+			int id = member.Member.AutoCommand;
+			Fighter foe = _foes.Find(f => f.Alive && !OutOfFight(f) && !Untargetable(f));
+			GameTables t = Ff4Party.Tables;
+			string what = null;
+			if (foe != null && id >= 256 && t.Item(id) == null && t.Spell(id) is SpellDefinition spell) what = AutoSpell(member, spell, foe);
+			else if (foe != null && id >= 256 && t.Item(id) != null) what = AutoItem(member, id, foe);
+			else if (foe != null) what = AutoAbility(member, id, foe);
+			if (what == null)
+			{
+				if (foe != null) { Decide(member, () => MemberAttacks(member, foe), 0, 1); what = "attack"; }
+				else { Decide(member, () => Invoke(member, CmdDefend, () => Defend(member)), 0, CmdDefend); what = "defend"; }
+			}
+			Note("auto battle: " + member.Name + " - " + what);
+		}
+
+		private string AutoAbility(Fighter member, int id, Fighter foe)
+		{
+			switch (id)
+			{
+				case CmdFight: return null;
+				case CmdDefend: Decide(member, () => Invoke(member, CmdDefend, () => Defend(member)), 0, CmdDefend); return "defend";
+				case CmdDarkness: Decide(member, () => Darkness(member), 0, CmdDarkness); return "darkness";
+				case CmdJump: Decide(member, () => Invoke(member, CmdJump, () => JumpStart(member, foe)), 0, CmdJump); return "jump";
+				case CmdAim: case CmdSteal: case CmdKick: case CmdCry: case CmdAnalyze: case CmdLove: case CmdEyeGouge:
+					_abilityCmd = id;
+					AbilityOnFoe(member, foe);
+					return CommandName(id);
+				case CmdFocus: case CmdBrace: case CmdBluff: case CmdPray: case CmdBless:
+					_abilityCmd = id;
+					AbilityOnSelf(member);
+					return CommandName(id);
+				case CmdRecall: case CmdCurse: case CmdTsunami: case CmdInferno: case CmdWhirlwind:
+					if (!AbilityChosen(member, id) || _pick == Pick.Target) { _abilityCmd = 0; return null; }
+					return CommandName(id);
+			}
+			return null;
+		}
+
+		private string AutoSpell(Fighter member, SpellDefinition spell, Fighter foe)
+		{
+			if (!member.Member.Spells.Contains(spell.Id) && !member.Member.Abilities.Contains(spell.Id)) return null;
+			if (!spell.UsableInBattle || member.Member.Mp < MpCostOf(member, spell) || !UsableUnder(member, spell.Id)) return null;
+			List<Fighter> targets;
+			if (Helps(spell))
+			{
+				List<Fighter> side = _party.FindAll(f => !OutOfFight(f) && (spell.Revives ? !f.Alive : f.Alive));
+				if (side.Count == 0) return null;
+				side.Sort((a, b) => (a.Hp * 1000L / Math.Max(1, a.MaxHp)).CompareTo(b.Hp * 1000L / Math.Max(1, b.MaxHp)));
+				targets = spell.HitsAll ? side : new List<Fighter> { side[0] };
+			}
+			else targets = spell.HitsAll ? _foes.FindAll(f => f.Alive && !OutOfFight(f)) : new List<Fighter> { foe };
+			Decide(member, () => Cast(member, spell, targets), SpellWait(spell), spell.Id);
+			return spell.Name;
+		}
+
+		private string AutoItem(Fighter member, int id, Fighter foe)
+		{
+			if (Ff4Party.Party.CountItem(id) <= 0) return null;
+			ItemDefinition item = Ff4Party.Tables.Item(id);
+			if (IsFang(id)) { Decide(member, () => UseFang(member, id, _foes.FindAll(f => f.Alive && !OutOfFight(f))), ItemWait(id), id); return item.Name; }
+			if (CastOf(id) is SpellDefinition casts && !Helps(casts))
+			{
+				bool all = (Ff4Party.Tables.AbilityTargets(id) & 0x4) != 0;
+				Decide(member, () => UseCastItem(member, id, casts, all ? _foes.FindAll(f => f.Alive && !OutOfFight(f)) : new List<Fighter> { foe }), ItemWait(id), id);
+				return item.Name;
+			}
+			Efficacy effect = ItemEffect(item);
+			if (effect == null) return null;
+			bool revive = effect.Id == 17;
+			List<Fighter> side = _party.FindAll(f => !OutOfFight(f) && (revive ? !f.Alive : f.Alive && f.Hp < f.MaxHp));
+			if (side.Count == 0) return null;
+			side.Sort((a, b) => (a.Hp * 1000L / Math.Max(1, a.MaxHp)).CompareTo(b.Hp * 1000L / Math.Max(1, b.MaxHp)));
+			Fighter on = side[0];
+			Decide(member, () => UseItem(member, id, on), ItemWait(id), id);
+			return item.Name;
 		}
 
 		/// <summary>A rule's action on its target, when it can be used there: true once decided.</summary>

@@ -567,6 +567,10 @@ namespace OpenFF.Data
 		public int AbilityDefaultTarget(int id) => AbilityDefaultTargets.TryGetValue(id, out int t) ? t : -1;
 		public string AbilityHelp(int id) => AbilityHelpIds.TryGetValue(id, out int help) && help > 0 ? AbilityName(help)?.Trim() : null;
 		public int AbilityFlags(int id) => AbilityFlagBits.TryGetValue(id, out int flags) ? flags : 0;
+		/// <summary>FF4: a command's list (ability.bbd +0x14) - 1 White Magic, 2 Black, 4 Items, 8 Summon, 16 Bardsong, 32 Ninjutsu;
+		/// 0 for a command that is one action.</summary>
+		public Dictionary<int, int> AbilityListKinds = new Dictionary<int, int>();
+		public int AbilityListKind(int id) => AbilityListKinds.TryGetValue(id, out int kind) ? kind : 0;
 		public WeaponMotionRecord WeaponMotion(int playerType, int weaponSystem) => WeaponMotions.Find(w => w.PlayerType == playerType && w.WeaponSystem == weaponSystem);
 		private Dictionary<int, MonsterParty> _parties;
 

@@ -153,6 +153,7 @@ namespace OpenFF.Client
 			public List<int> Abilities;
 			public List<int> Spells;
 			public int[] CommandSlots;
+			public int AutoCommand = 1;
 			public int DecantLevel;
 			public bool HpPlus, MpPlus;
 		}
@@ -180,6 +181,7 @@ namespace OpenFF.Client
 					Equipment = (int[])c.Equipment.Clone(),
 					Abilities = new List<int>(c.Abilities), Spells = new List<int>(c.Spells),
 					CommandSlots = c.CommandSlots != null ? (int[])c.CommandSlots.Clone() : null, DecantLevel = c.DecantLevel, HpPlus = c.HpPlus, MpPlus = c.MpPlus,
+					AutoCommand = c.AutoCommand,
 				});
 			}
 			foreach (OpenFF.Data.ItemStack stack in p.Inventory) s.Items.Add(new[] { stack.ItemId, stack.Count });
@@ -206,6 +208,7 @@ namespace OpenFF.Client
 				c.Spells.Clear(); if (sc.Spells != null) c.Spells.AddRange(sc.Spells);
 				c.CommandSlots = sc.CommandSlots != null && sc.CommandSlots.Length == 7 ? (int[])sc.CommandSlots.Clone() : null;
 				c.DecantLevel = sc.DecantLevel;
+				c.AutoCommand = sc.AutoCommand > 0 ? sc.AutoCommand : 1;
 				c.HpPlus = sc.HpPlus;
 				c.MpPlus = sc.MpPlus;
 			}

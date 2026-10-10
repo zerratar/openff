@@ -130,14 +130,14 @@ game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rule
 | Inventory | Two columns with the items' symbols, greyed by the record's field-use flag as WSCMenu::checkItem (Red Fang); key items on C; using an item on the party's places; status cures cure; Sort (Tab) as MSSItem's - consumables, weapons or armour at the top in turn, each in its records' order. |
 | Magic | The member between arrows, the spell's cost and line from babil_ability.msd, three columns, C for the next school, Z / M to change member. Casting from the menu follows the old path. |
 | Equipment | The member's figures, the lit piece's line, the five slots and what in the bag fits the lit one; C removes, Tab optimizes. Open: the figures' before / after comparison. |
-| Abilities | The auto-battle command and the five battle commands; Enter picks one up and swaps it with another. Open: the auto-battle command's own list (libff4's abilityIDList 5), choosing from a list. |
+| Abilities | The auto-battle command and the five battle commands. The auto-battle command as Steam's: Enter lists the learned commands auto battle can use (readyEquipableAutoIDList: ability.bbd +0x24 bit 7, sorted, the current one out unless it is a list) in two columns where the rows were; a list command (+0x14: magic, Items, Summon, Bardsong, Ninjutsu) opens its spells or the bag's battle items in three; the pick is kept per member (list 5, saved). Auto battle (C) runs every member: the gambits set first, then the member's auto-battle command (FF4 members start with no gambits). Open: a battle slot's own list (readyEquipableIDList - a learned command, a spell or an item into the slot, the Items slot fixed); Enter swaps two slots for now. |
 | Status | As Steam lays it out: the figures, EXP and the next level, what is worn. |
 | Quicksave | "Quicksave game and quit?" then the title, whose CONTINUE resumes it. |
 | Gambits | OpenFF's auto-battle rules (as FF3's) in the FF4 menu's style: twelve rules with ON / OFF, condition and action, and the picker for both. |
 | Party | MSSFormation's: Swap Rows turns the formation over, Party Formation trades two places (either may be empty); back-row faces stand further in, as on every member panel. |
 | Settings | Steam's nine lines: Music, Sound Effects, Voices (0..10), Battle Mode (Active / Wait), Battle Speed (1..6), Subtitles, Window Design (MENU_Common's six sets: frames, scroll bars, buttons, wallpaper - the layout's design-N class), Help, Quit (to the title). Kept in %LocalAppData%\OpenFF\ff4-settings.json; the volumes and the battle's mode and speed follow them. Not yet checked on screen against Steam's captures; Help has no screen, Voices and Subtitles are not used yet. |
 | Save | Steam's: offered on the world map and at save points (land forms whose encounter rate is 0xFF, read under the hero as checkLandForm does). Slot 1..3 and Title Menu down the right; the lit slot's party by places, the place, the play time and the gil on the left, or "No save data found."; "Save data to Slot N?" / "Return to the title menu?". The first save point ever explains itself (WS1stSPDirection: babil_common.msd 1000130, flag 0:3). |
-| Open | the lead's 3D model on the root; Abilities' auto-battle list. |
+| Open | The lead's 3D model on the root; a battle slot's own list in Abilities. |
 
 ## The Steam shell - 0%
 
