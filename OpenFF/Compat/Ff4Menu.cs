@@ -73,6 +73,7 @@ namespace OpenFF.Client
 		private void Open()
 		{
 			_open = true;
+			_fromTitle = false;
 			_screen = Screen.Root;
 			_mode = Mode.Browse;
 			_command = _commandScroll = 0;
@@ -171,6 +172,12 @@ namespace OpenFF.Client
 				return;
 			}
 			if (Ff4Saves.NoticeFrames > 0) Ff4Saves.NoticeFrames--;
+			if (_screen == Screen.Load && Ff4MenuHud.Available)
+			{
+				UpdateLoadLayout(input);
+				if (_open && !_fromTitle) Draw();
+				return;
+			}
 			// The menu key closes it from the main menu; in a screen C and M are the screen's (Key Items, the next member).
 			bool atRoot = _screen == Screen.Root && _mode == Mode.Browse && !_question;
 			if (input.KeyPressed("Escape") || (atRoot && (input.Pressed(Pad.X) || input.KeyPressed("M")))) { Close(); return; }
@@ -266,6 +273,7 @@ namespace OpenFF.Client
 			_slot = 0;
 			_pick = 0;
 			if (screen == Screen.Gambits) OpenGambits();
+			if (screen == Screen.Save || screen == Screen.Load) _cursor = LatestSlot();
 			Log.Write(LogChannel.File, "menu: " + screen + (NeedsMember(screen) ? " of " + Ff4Party.Party.Members[_member].Name : ""));
 		}
 
@@ -726,7 +734,9 @@ namespace OpenFF.Client
 				case Screen.Save:
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawSlots(d); break;
-				case Screen.Load: DrawSlots(d); break;
+				case Screen.Load:
+					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
+					DrawSlots(d); break;
 			}
 			if (Ff4Saves.NoticeFrames > 0 && !string.IsNullOrEmpty(Ff4Saves.Notice))
 			{
@@ -831,7 +841,7 @@ namespace OpenFF.Client
 			h.Abilities = _screen == Screen.Abilities;
 			h.Gambits = _screen == Screen.Gambits;
 			h.Party = _screen == Screen.Party;
-			h.Save = _screen == Screen.Save;
+			h.Save = _screen == Screen.Save || _screen == Screen.Load;
 			h.NoTitle = h.Party || h.Save;
 			if (h.Save) FillSave(h);
 			h.Settings = _screen == Screen.Settings;

@@ -31,8 +31,9 @@
 // a wide window with the 480 in the middle. The port's 800 x 480 is that at 1.5: x = 40 + 1.5 lx, y = 1.5 ly,
 // and a sheet pixel is 0.75 (Ff4Ui.Scale).
 //
-// The load screen is the port's for now - three slot windows over the title (Steam's LoadDisplayPart is
-// not read yet).
+// The load screen is Steam's: the menu's Save screen over the title (Ff4Menu.OpenLoad), whose answer the title
+// takes - a slot read, into the game, or back to the commands. Without the menu's layout, the port's three slot
+// windows.
 
 using System;
 using System.Collections.Generic;
@@ -64,6 +65,8 @@ namespace OpenFF.Client
 		private static readonly float[] _rowY = new float[4];
 		private static int _cursor = -1;
 		private static bool _loadOpen;
+		/// <summary>Whether the Load screen is the menu's layout (Steam's) rather than the port's slot windows.</summary>
+		private static bool MenuLoad => Ff4Menu.Instance != null && Ff4MenuHud.Available;
 		private static int _loadCursor;
 
 		public static void registerParts()
@@ -326,6 +329,7 @@ namespace OpenFF.Client
 						Se(1);
 						_loadOpen = true;
 						_loadCursor = 0;
+						if (MenuLoad) Ff4Menu.Instance.OpenLoad();
 						while (_loadCursor < Ff4Saves.SlotCount - 1 && !Ff4Saves.Exists(_loadCursor + 1)) _loadCursor++;
 						break;
 					case Quit:
@@ -338,6 +342,16 @@ namespace OpenFF.Client
 
 			private void LoadInput()
 			{
+				if (MenuLoad)
+				{
+					int chosen = Ff4Menu.Instance.LoadChosen;
+					if (chosen == 0) return;
+					if (chosen < 0) { _loadOpen = false; Se(2); return; }
+					if (!Ff4Saves.Load(chosen, true)) { _loadOpen = false; Se(4); return; }
+					Se(1);
+					Leave(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+					return;
+				}
 				ushort repeat = Repeat, edge = Edge;
 				if ((repeat & 0xC0) != 0)
 				{
@@ -410,7 +424,8 @@ namespace OpenFF.Client
 				}
 				// The glove at the command's left end (the cell's 144 sheet pixels left of its middle), level with it.
 				if (_cursor >= 0 && !_loadOpen) Ff4Ui.Glove(d, X(240) - 144f * Ff4Ui.Scale, Y(_rowY[_cursor]));
-				if (_loadOpen) DrawLoad(d);
+				if (_loadOpen && !MenuLoad) DrawLoad(d);
+				if (_loadOpen && MenuLoad) Ff4Menu.Instance.DrawOverTitle();
 			}
 
 			private static void DrawLoad(DrawList d)
