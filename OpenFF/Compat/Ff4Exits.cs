@@ -177,7 +177,8 @@ namespace OpenFF.Client
 			{
 				Trigger = trigger ?? "",
 				Destination = destination,
-				ArrivalX = ax, ArrivalY = ay, ArrivalZ = az,
+				// babilCommand_SetInsideMapJump / SetOutsideMapJump take the arrival's z negated (the door's box as written).
+				ArrivalX = ax, ArrivalY = ay, ArrivalZ = -az,
 				Facing = facing & 7,
 				MinX = Math.Min(x1, x2), MaxX = Math.Max(x1, x2),
 				MinY = Math.Min(y1, y2), MaxY = Math.Max(y1, y2),
