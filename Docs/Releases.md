@@ -7,14 +7,31 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
-## Unreleased
+## 0.3.6 - FF4's battle and menus (2026-10-10)
+
+Final Fantasy IV's battles now run by the game's own rules, checked frame by frame against the Steam release: the active time, the queue of turns, every party command, the monsters' AI and counters, the battle events, statuses, summons, bosses and the win. Its field menu is rebuilt screen by screen as Steam's, as layouts a mod can restyle; the story scenes, the message window and the opening movie are Steam's too. FF3 gets fixes from players' reports: the Yes / No hand at inns and job changes, item icons over names, and Starlit Menu's portrait.
 
 **Added**
+- FF4 battle: the party's commands as the game runs them (Jump, Aim, Pray, Focus, Brace, Kick, Steal, Throw, Bluff, Cry, Hide / Return, Salve, Recall, Twincast, Bardsong, Ninjutsu, Cover, Dualcast, Re-equip...), the monster AI, counters and battle events, statuses (Darkness, Toad, Pig, Mini, Reflect and the rest), summons with their cast scenes, the bosses' own actions (the Mist Dragon, the Octomammoth), openings (preemptive strike, back attack), escape, the encounter whirl, the camera's shakes and boss entrances, the win and its result pages, a lost battle; the HUD, target selector, cards and lists as Steam draws them, measured with Tools/ff4hook.
+- FF4: auto battle by OpenFF's gambits - C (Steam's key) or F in a battle - and a Gambits screen in the field menu, in FF4's style, to set each member's rules.
+- FF4 menu as Steam's, as a layout (Data/hud/ff4_menu.xml and its stylesheet; a mod restyles it with menus/hud/): the root with the lead's thought, Inventory (Sort, Key Items, using items - status cures now cure), Magic, Equipment (Optimize, Remove), Abilities, Status, Party (Swap Rows, Party Formation), Settings, Quicksave; the place named as Steam names it.
+- FF4 Settings: Music, Sound Effects and Voices, Battle Mode (Active / Wait), Battle Speed, Subtitles, Window Design (MENU_Common's six sets of window art) and Quit, kept in %LocalAppData%\OpenFF\ff4-settings.json. New in this release and not yet checked against Steam on screen; Help has no screen yet, and Voices and Subtitles are kept but not used yet.
+- FF4: Quicksave ("Quicksave game and quit?") and the title's CONTINUE resuming it; the opening movie before the title; Steam's keys (Enter confirms, Backspace cancels, Z all, C auto battle, Tab skip); story scenes skippable as on Steam.
+- FF4: the field message window and the scenes' caption bar as Steam's, as layouts (ff4_field_hud); scripted walks, turns and the event camera following the cast as libff4's.
+- UI: screens the client draws itself as data - LayoutScreen reads a menu of frames, stylesheets and bindings, with CSS scale, multi-line text, tiled backgrounds and opacity.
+- Icons for OpenFF, Crystal and the updater.
+- Tools: ff4hook (beside the Steam FF4.exe: keys, frames, draws, cameras, characters, script commands run as cheats) and ff4steam.py; FF4.exe and libff4 decompiled by Ghidra headless.
+- Test drives: `inn <price>` boots an FF3 inn as a keeper's script does.
+- Crystal: a Mods tab on the start page - a mod manager. OpenFF's mods folder: each mod on or off, updated or removed (to the Recycle Bin). Each Steam or GOG copy of FF3 and FF4: what Crystal's projects installed into it, each uninstalled with a click (the originals put back), and how many other files differ from the Steam release (another mod tool's, a damaged download), with Steam's Verify as the way back.
 - Crystal: a Mods tab on the start page - a mod manager. OpenFF's mods folder: each mod on or off, updated or removed (to the Recycle Bin). Each Steam or GOG copy of FF3 and FF4: what Crystal's projects installed into it, each uninstalled with a click (the originals put back), and how many other files differ from the Steam release (another mod tool's, a damaged download), with Steam's Verify as the way back.
 - Crystal: installs into a Steam or GOG game leave `crystal-installs.json` in its folder - the project, its backups, each file written - so the Mods tab still names an install whose project was deleted, and uninstalls it while its backups are there.
 - Crystal: deleting a project that is installed in a Steam or GOG game offers to uninstall it first (ticked), so the game is not left with files nobody can take back.
 
 **Fixes**
+- FF3: the hand shows on the Yes / No of the inn and the job change with keys or a pad (only the sound and the choice had worked).
+- FF3: item icons no longer cover the first letter of the item's name - the Equipment screen and the item lists in the field and in battle.
+- FF3: the battle hand on a target's name stands before the name, not on its first letter; the Auto battle hint no longer draws over the battle's magic, item and song lists.
+- Starlit Menu (and any layout with a portrait frame): the Equipment and Status portrait follows the hero L1 / R1 move to.
 - Crystal: updating a sample with changed files from the Mods tab updates it once, after the list of its files is confirmed, and the row says so at once (the page was read again before the confirm, so the button stayed).
 - Crystal: the Mods tab no longer waits on the check of the games' files - it runs in the background with its progress shown (a first check reads every file of a game).
 - Crystal: uninstalling from a Steam copy whose files were verified since forgets the files that are the original again, instead of keeping them on record for good.

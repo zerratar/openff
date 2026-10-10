@@ -249,8 +249,8 @@ own code (the Android build's libff4, the Steam FF4.exe decompiled): the title, 
 cameras and effects, the message window, the encounter whirl, and the battle's turns, gauges,
 blows, numbers, deaths, the monsters' AI and counters, the battle events and the win with its
 result pages. The field menu is being rebuilt screen by screen on Steam's measurements - the root,
-Inventory, Magic, Equipment, Abilities, Status, Party and Quicksave are done, with OpenFF's Gambits
-in the same style; Settings and Steam's Save screen are next. Half the field commands are
+Inventory, Magic, Equipment, Abilities, Status, Party, Settings and Quicksave are done, with OpenFF's
+Gambits in the same style; Steam's Save screen and the save points are next. Half the field commands are
 still unread, and statuses and most monster abilities are still to come. `Docs/FF4-Status.md` has each subsystem in
 detail; `Docs/FF4-Internals.md` what has been read out of the binary.
 
@@ -263,7 +263,7 @@ detail; `Docs/FF4-Internals.md` what has been read out of the binary.
 | Party data: characters, growth, magic, equipment, items | 60% | Read from the binary and the files onto the unified data layer; HP grown level by level as FF4 rolls it |
 | Encounters, shops, inns, saves | 40% | Work as calls; the presentation is not FF4's |
 | Battle | 70% | FF4's own: its stages and placings, active time and the turn queue, attacks, effects, sounds, the damage and hit formulas with elements, races and rows, numbers, deaths, the monster AI (conditions, action sets, target types, counters), the battle events (battle_ai.bbd), statuses, magic and summons, the bosses, the openings (preemptive strike, back attack, surprised), escape, the win and its result pages; every party command (Jump, Kick, Steal, Twincast, Bardsong...) checked frame by frame against the Steam game |
-| Menus | 50% | Steam's field menu, measured off its draws, as layouts a mod can restyle: the root with the lead's thought, Inventory, Magic, Equipment, Abilities, Status, Party, Quicksave, and OpenFF's Gambits in the same style; Settings, Save screen and save points to come |
+| Menus | 60% | Steam's field menu, measured off its draws, as layouts a mod can restyle: the root with the lead's thought, Inventory, Magic, Equipment, Abilities, Status, Party, Settings (its window designs too), Quicksave, and OpenFF's Gambits in the same style; Steam's Save screen and the save points to come |
 | The Steam shell (achievements, launcher screens) | 0% | Not started |
 
 **Crystal and mods** - what the editor and the API can do is in `Docs/Editor.md` and

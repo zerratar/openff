@@ -116,7 +116,7 @@ command learned - ability ids under 256 in a member's abilities are commands): t
 the second pick within the MP both cost, the MP shown less the first's, the two back to back (counters after);
 the spells' chant motions 4004 / 4005 (b_pa_005, initializeMagic) bound for every caster. Not FF4's yet: the Config menu's battle speed (--ff4-battle-speed for now), augments learned in play (no augment system - the drive's `augment` grants one), hit reactions.
 
-## Menus - 50%
+## Menus - 60%
 
 The field menu is being rebuilt screen by screen to match the Steam game's: each screen is
 captured from Steam (Tools/ff4hook's `draws`: every quad of a frame in 1080p pixels), its places,
@@ -135,7 +135,8 @@ game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rule
 | Quicksave | "Quicksave game and quit?" then the title, whose CONTINUE resumes it. |
 | Gambits | OpenFF's auto-battle rules (as FF3's) in the FF4 menu's style: twelve rules with ON / OFF, condition and action, and the picker for both. |
 | Party | MSSFormation's: Swap Rows turns the formation over, Party Formation trades two places (either may be empty); back-row faces stand further in, as on every member panel. |
-| Open | Settings, Steam's Save screen and the save points (babil_savepoint.bbd). |
+| Settings | Steam's nine lines: Music, Sound Effects, Voices (0..10), Battle Mode (Active / Wait), Battle Speed (1..6), Subtitles, Window Design (MENU_Common's six sets: frames, scroll bars, buttons, wallpaper - the layout's design-N class), Help, Quit (to the title). Kept in %LocalAppData%\OpenFF\ff4-settings.json; the volumes and the battle's mode and speed follow them. Not yet checked on screen against Steam's captures; Help has no screen, Voices and Subtitles are not used yet. |
+| Open | Steam's Save screen and the save points (babil_savepoint.bbd); the lead's 3D model on the root; Abilities' auto-battle list. |
 
 ## The Steam shell - 0%
 
