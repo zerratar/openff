@@ -158,7 +158,7 @@ namespace OpenFF.Client
 				case Screen.Status: UpdateMemberScreen(input, null); break;
 				case Screen.Inventory: UpdateInventory(input); break;
 				case Screen.Equipment: UpdateEquipment(input); break;
-				case Screen.Magic:
+				case Screen.Magic: UpdateMemberScreen(input, ListCount()); break;
 				case Screen.Gambits: UpdateGambits(input); break;
 				case Screen.Abilities:
 					if (Ff4MenuHud.Available) { UpdateAbilities(input); break; }
