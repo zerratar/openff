@@ -408,6 +408,38 @@ its pause menu's texts in eight languages (Resume / Quit / Yes / No / skip-scene
 Steam-only additions (keyboard hints, auto-battle, the pause menu) are not in the phone
 binary. Client: `Ff4Ui` uses window.png and point.png when the content is a Steam install.
 
+### Saving: where it is allowed, save points, the slots
+
+Read from libff4 for the client's Save screen (not built yet; `Ff4Menu.SaveAllowed` is a stand-in: any map starting `f`).
+
+- **When Save is offered.** `WSMenu::wsInitialize` turns the menu's Save on (`WSCMenu::setMenuSubActivity(5, true)`) when the
+  menu context's +0x50 is 3 or 4, and save-point mode is a flag on the same context: `world::enableSPSetting` clears +0x69,
+  `disableSPSetting` sets it (Suspend's twin at +0x68). `WSPrepare::wsProcessSetupStage` calls `disableSPSetting` for a town or
+  dungeon stage (the map name's first letter, context +0x168: `d`/`t`) and `enableSPSetting` for a field stage (`f`, the world
+  map); `WSVehicleLanding::wsInitialize` enables it too. Steam's help line (babil_menu.msd 50903) says the same: Save from the
+  menu "on the field map and at save points".
+- **Save points.** `WSMove::wsProcessCheckSavePoint`, every step: the land form under the hero (`PCObject` +0x340) looked up in
+  the map's land-form parameter (chain 0 of its MAPPARAMETER pack, the twelve u16 encounter rates at 0, one per land form) -
+  a rate of **0xFF marks a save point**. Stepping onto one: `WSCMenu` +0x60 = 1, `enableSPSetting`; the first time ever (flag
+  0:3 clear) the states "1stsp" then "world move" are scheduled and flag 0:3 set (the first save point's explanation).
+  Stepping off: +0x60 = 0, `disableSPSetting`. (The world map is a field stage, where saving is on anyway.)
+- **The land form under the hero.** `PCObject::checkLandForm(CollisionResult&)`: the ground triangle's attribute word
+  (CollisionResult +0x44), the highest of bits 11..22 set naming land form 0..11, none -1 - FF4's numbering, from 0 (FF3's
+  `CCharacterEureka.checkLandForm` reads flags 8.. and counts from 1). Written to +0x340 by `VOHover` / `VOEp::dgsredAccept`
+  each step. The client's `Ff4Encounters` still takes land form 0 for everything; reading it as here serves both the
+  encounters' rates per terrain and the save points.
+- **The place the root names** (`WSMenu::wsmGetSavePointIndex` → `WorldSavePointManager::findSavePoint`, babil_savepoint.bbd:
+  16-byte records, a 12-byte map name and a babil_menu.msd message at 12) - read and used (`Ff4Menu.PlaceName`). The world
+  map's areas come from `MSSGetFieldAreaMessageNo` (the chip's name against tables compiled into the binary, messages from
+  57000/58000/59000) - not read.
+- **The slots.** `MSSSave::mssInitialize`: three `card::SaveHeader`s (0x94 bytes each) and the last slot used
+  (`GameParameterWatcher::gpwLastAccessSlot`); `MSSSaveDataPlane` draws a slot's face, status, money, place, play time and the
+  clear count. Steam's words (babil_menu.msd): 50800-50802 "Slot 1".."Slot 3", 50803 "Quicksave", 50804 "Save data to
+  %SCC30%?", 50805 "Saved data to %SCC30%.", 50810 "No save data found.", 50811 "Save data is corrupted.", 50813 "Overwrite
+  this data?", 50806/50807 the Load pair. Steam's Save screen itself has not been captured: Baron Castle, where the Steam save
+  stands, allows no saving, and `MapWarp`'s map name (a String operand) cannot be given through ff4hook's `exec` yet - a
+  capture needs the Steam save moved to the world map or a save point first.
+
 ### The phone UI's space
 
 The Steam window (2000 x 1122 in the reference shots) is the phone's 1136 x 640 UI space: the glove
