@@ -35,6 +35,8 @@ namespace OpenFF.Client
 			{ "jumpByLocale", Ff4FieldCommands.JumpByLocale },                // (locale, ?, label)
 			{ "setRewardMessage", Ff4FieldCommands.SetRewardMessage },        // (textId, 0, icon, 0, 0, 0)
 			{ "setRewardMessageInterval", Ff4FieldCommands.SetRewardMessageInterval }, // (frames)
+			{ "navimapFullDisclosure", Ff4NaviMap.FullDisclosure },				 // (?, ?): the map's whole floor seen
+			{ "navimapSetDisclosureRateVisibility", Ff4NaviMap.SetDisclosureRateVisibility }, // (shown, ?, ?): the explored percentage
 			{ "executeRewardMessageWindow", Ff4FieldCommands.ExecuteRewardMessageWindow }, // ()
 			{ "setPlayerLevel", Ff4FieldCommands.SetPlayerLevel },            // (playerType, level)
 			{ "setSymbolCharacter", SetSymbolCharacter },                     // (symbol, ?): whose thoughts the menu's balloon shows

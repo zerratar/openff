@@ -41,6 +41,9 @@ namespace OpenFF.Client
 		private readonly List<Icon> _icons = new List<Icon>();
 		private bool _open;
 		private int _frame, _idle;
+		// showMapPercent: the explored percentage on a dungeon's map, as the stage's script leaves it (on for each new stage).
+		private static bool _showPercent = true;
+		private static string _percentStage;
 		private Vector3 _lastAt;
 		private readonly Ff4MenuHud.Data _hud = new Ff4MenuHud.Data();
 
@@ -113,6 +116,7 @@ namespace OpenFF.Client
 		private void Load(string stage)
 		{
 			_stage = stage;
+			if (!string.Equals(_percentStage, stage, StringComparison.OrdinalIgnoreCase)) _showPercent = true;
 			_name = NaviName(stage, out _showPlayer);
 			_icons.Clear();
 			_completeFlag = -1;
@@ -233,6 +237,41 @@ namespace OpenFF.Client
 			_seen[_name] = rows;
 		}
 
+		// ---- the scripts' commands ----
+
+		/// <summary>babilCommand_NavimapFullDisclosure(?, ?): the current stage's map all seen, kept.</summary>
+		public static void FullDisclosure(GlobalScope.ScriptEngine engine)
+		{
+			engine.getDword();
+			engine.getDword();
+			string name = NaviName(Game.Field.Map, out _);
+			if (name == null || name[0] == 't') return;
+			uint[] rows = new uint[24];
+			for (int r = 0; r < 24; r++) rows[r] = 0xFFFFFFFF;
+			_seen[name] = rows;
+			if (Instance != null && string.Equals(Instance._name, name, StringComparison.OrdinalIgnoreCase)) Instance._stage = null;   // read again
+			Log.Write(LogChannel.File, "navimap: " + name + " fully disclosed");
+		}
+
+		/// <summary>babilCommand_NavimapSetDisclosureRateVisibility(shown, ?, ?): showMapPercent.</summary>
+		public static void SetDisclosureRateVisibility(GlobalScope.ScriptEngine engine)
+		{
+			uint shown = engine.getDword();
+			engine.getDword();
+			engine.getDword();
+			_showPercent = shown != 0;
+			_percentStage = Game.Field.Map;
+		}
+
+		/// <summary>MapPercentUpDate: the walkable cells seen of all of them, 0..100.</summary>
+		private int Percent()
+		{
+			if (_total <= 0) return 0;
+			int seen = 0;
+			for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) if (_cells[r, c]) seen++;
+			return Math.Min(100, seen * 100 / _total);
+		}
+
 		// ---- each step ----
 
 		private static bool FreeToWalk() => EngineApi.InWorld && Game.Hero.Present && !Ff4Battle.Active && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen
@@ -316,6 +355,16 @@ namespace OpenFF.Client
 					if (k == 2) y -= 2 * Px;
 				}
 				Ff4Ui.Cell(d, icon.Bank + ".NCER", icon.Bank + ".NCGR", cell, X(MapLeft + icon.Fx * 512 * Px), Y(y), Ff4Ui.Scale);
+			}
+			if (_kind == 'd' && _showPercent && _total > 0)
+			{
+				// d_map_obj's glyphs (3..12 the digits, 13 %, 2 blank) at libff4's (326 / 334 / 342 / 353, 224) on its 480 x 320,
+				// Steam's: x 960 + (x - 240) * 3.375, y 540.85 + (y - 160) * 3.375 (the "6 %" traced on the Waterway's next floor).
+				int pct = Percent();
+				int[] cells = { pct >= 100 ? 4 : 2, pct >= 10 ? 3 + pct / 10 % 10 : 2, 3 + pct % 10, 13 };
+				int[] xs = { 326, 334, 342, 353 };
+				for (int k = 0; k < 4; k++)
+					Ff4Ui.Cell(d, "d_map_obj.NCER", "d_map_obj.NCGR", cells[k], X(960f + (xs[k] - 240) * 3.375f), Y(540.85f + (224 - 160) * 3.375f), Ff4Ui.Scale);
 			}
 			if (_showPlayer)
 			{
