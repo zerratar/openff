@@ -60,7 +60,7 @@ screens = []
 # Every full screen: the wallpaper, the title bar, the footer.
 common = '\n'.join([
     frame('wallpaper', 0, 0, 1920, 1080, 'm-wallpaper'),
-    window('titlebar', 155.5, 6.75, 1609, 67.5, 'm-title', 'bind-display="!menu.party"', frame('title', 0, 0, 1609, 67.5, 'm-text m-centre', 'bind-text="{menu.title}"')),
+    window('titlebar', 155.5, 6.75, 1609, 67.5, 'm-title', 'bind-display="!menu.noTitle"', frame('title', 0, 0, 1609, 67.5, 'm-text m-centre', 'bind-text="{menu.title}"')),
     window('footer', 155.5, 965.25, 1609, 108, 'm-pane'),
 ])
 screens.append(frame('full', 0, 0, 1920, 1080, None, 'bind-display="menu.full"', indent(common, 1)))
@@ -341,3 +341,52 @@ st_screen = '\n'.join([
     keys('settingsConfirm', 'menu.settingConfirm', [(43, 1348.7, '{menu.confirm}')]),
 ])
 screens.append(frame('settings', 0, 0, 1920, 1080, None, 'bind-display="menu.settings"', indent(st_screen, 1)))
+
+# Save (Steam's, captured at a save point): what the lit slot holds on the left - its party by places, 162 high (face,
+# name, level, HP, MP), the place, the play time and the gil - or "No save data found."; Slot 1..3 and Title Menu down
+# the right as the root's commands.
+save_members = []
+for k in range(5):
+    inner = '\n'.join([
+        frame('edge', 0, 0, 960, 162, 'm-edge'),
+        frame('face', 13.5, 13.5, 135, 135, 'm-face', 'bind-display="present" bind-style="-ff-cell: face {face}"'),
+        frame('name', 189.3, 16.9, 400, 60.75, 'm-text', 'bind-text="{name}"'),
+        frame('lv', 189.3, 70.9, 120, 60.75, 'm-text', 'bind-display="present" bind-text="{menu.lvLabel}"'),
+        frame('level', 324.5, 70.9, 120, 60.75, 'm-text', 'bind-text="{level}"'),
+        frame('hpLabel', 540.8, 16.9, 120, 60.75, 'm-text', 'bind-display="present" bind-text="{menu.hpLabel}"'),
+        frame('hp', 600, 16.9, 166, 60.75, 'm-text m-right m-hp', 'bind-text="{hp}"'),
+        frame('hpSlash', 774.1, 16.9, 30, 60.75, 'm-text', 'bind-display="present" bind-text="/"'),
+        frame('maxHp', 797.7, 16.9, 140, 60.75, 'm-text', 'bind-text="{maxHp}"'),
+        frame('mpLabel', 540.8, 70.9, 120, 60.75, 'm-text', 'bind-display="present" bind-text="{menu.mpLabel}"'),
+        frame('mp', 600, 70.9, 166, 60.75, 'm-text m-right', 'bind-text="{mp}"'),
+        frame('mpSlash', 774.1, 70.9, 30, 60.75, 'm-text', 'bind-display="present" bind-text="/"'),
+        frame('maxMp', 797.7, 70.9, 140, 60.75, 'm-text', 'bind-text="{maxMp}"'),
+    ])
+    save_members.append(frame('member%d' % k, 0, 162 * k, 960, 162, 'm-member',
+                              'data-source="menu.saveMember[%d]" bind-class="dim: dim; low: low; back: back"' % k, indent(inner, 1)))
+save_info = '\n'.join([
+    frame('edge', 0, 0, 960, 135, 'm-edge'),
+    frame('savedPlace', 67.6, 2.9, 860, 60.75, 'm-text', 'bind-text="{menu.savePlace}"'),
+    frame('time', 0, 70.9, 486.8, 60.75, 'm-text m-right', 'bind-text="{menu.saveTime}"'),
+    frame('gil', 0, 70.9, 882.3, 60.75, 'm-text m-right', 'bind-text="{menu.saveGil}"'),
+])
+save_rows = []
+for k in range(4):
+    inner = '\n'.join([
+        frame('band', 0, 0, 635.5, 135, 'lit-band', 'bind-visible="lit"'),
+        frame('edge', 0, 0, 635.5, 135, 'm-edge'),
+        frame('name', 0, 0, 635.5, 135, 'm-label', 'bind-text="{name}"'),
+        frame('hand', 87.8, 0, 1, 135, 'hand', 'bind-visible="lit"'),
+    ])
+    save_rows.append(frame('slot%d' % k, 0, 135 * k, 635.5, 135, 'm-command',
+                           'data-source="menu.saveRow[%d]" bind-display="present" bind-class="lit: lit"' % k, indent(inner, 1)))
+sv = '\n'.join([
+    window('savePanel', 155.5, 6.75, 960, 945, 'm-pane', '', '\n'.join([
+        frame('empty', 0, 0, 960, 945, 'm-text m-centre', 'bind-display="!menu.slotFilled" bind-text="{menu.noDataLabel}"'),
+        frame('held', 0, 0, 960, 945, None, 'bind-display="menu.slotFilled"', indent('\n'.join(save_members + [
+            frame('info', 0, 810, 960, 135, None, '', indent(save_info, 1))]), 1)),
+    ])),
+    window('saveSlots', 1129, 6.75, 635.5, 540, 'm-pane', '', '\n'.join(save_rows)),
+    keys('saveKeys', 'menu.save', [(43, 1348.7, '{menu.confirm}'), (15, 1568.5, '{menu.back}')]),
+])
+screens.append(frame('save', 0, 0, 1920, 1080, None, 'bind-display="menu.save"', indent(sv, 1)))

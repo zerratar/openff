@@ -106,6 +106,12 @@ namespace OpenFF.Client
 			// Party: the two pills (Swap Rows, Party Formation), the hand on one of them or on the member panel's places.
 			public bool Party, SwapRowsLit, FormationLit;
 			public string SwapRowsLabel = "Swap Rows", FormationLabel = "Party Formation";
+			// Save: the slots and Title Menu, the hand on one; what the lit slot holds (its party by places, place, time, gil),
+			// or "No save data found."; NoTitle: a full screen without the title bar (Party, Save).
+			public bool Save, NoTitle, SlotFilled;
+			public List<CommandRow> SaveRow = new List<CommandRow> { new CommandRow(), new CommandRow(), new CommandRow(), new CommandRow() };
+			public List<MemberRow> SaveMember = Rows<MemberRow>(5);
+			public string SavePlace = "", SaveTime = "", SaveGil = "", NoDataLabel = "No save data found.";
 			// Settings: five of its nine lines in view, and the scroll bar; Design the window design (1..6) the screens wear.
 			public bool Settings, SettingConfirm;
 			public List<SettingRow> Setting = Rows<SettingRow>(5);

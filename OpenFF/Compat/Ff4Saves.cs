@@ -31,6 +31,9 @@ namespace OpenFF.Client
 			public List<string> Flags = new List<string>();
 			/// <summary>One line for the menu's slot list.</summary>
 			public string Summary;
+			/// <summary>The place as the menu named it when saved (the Save screen shows it), and the play time in seconds.</summary>
+			public string Place;
+			public long PlaySeconds;
 		}
 
 		public string ChunkId => "ff4/field";
@@ -56,6 +59,8 @@ namespace OpenFF.Client
 			}
 			Character leader = Ff4Party.Party.Leader;
 			d.Summary = (leader != null ? leader.Name + " L" + leader.Level : "nobody") + " - " + (d.Map ?? "?") + ", " + Ff4Party.Party.Gil + " gil";
+			d.Place = Ff4Menu.PlaceName();
+			d.PlaySeconds = Ff4Saves.PlaySeconds;
 			Log.Write(LogChannel.General, "save: field - " + d.Map + " at " + d.X.ToString("0") + "," + d.Y.ToString("0") + "," + d.Z.ToString("0") + " rot " + d.Rotation + ", " + d.Flags.Count + " flag(s)");
 			return d;
 		}
@@ -79,6 +84,7 @@ namespace OpenFF.Client
 				}
 			}
 			Ff4Saves.Pending = d;
+			Ff4Saves.PlayFrames = d.PlaySeconds * 60;
 			Log.Write(LogChannel.General, "load: field - " + (d.Map ?? "?") + " at " + d.X.ToString("0") + "," + d.Y.ToString("0") + "," + d.Z.ToString("0") + ", " + d.Flags.Count + " flag(s)");
 		}
 	}
@@ -157,9 +163,33 @@ namespace OpenFF.Client
 			return true;
 		}
 
+		/// <summary>The game's play time, in steps (60 a second): counted while the party is in the field or a fight, set back
+		/// to nothing by New Game and to a save's by loading it.</summary>
+		public static long PlayFrames;
+		public static long PlaySeconds => PlayFrames / 60;
+
+		/// <summary>A play time as the Save screen writes it: hours, then minutes ("0 : 13").</summary>
+		public static string PlayTimeText(long seconds) => (seconds / 3600) + " : " + (seconds / 60 % 60).ToString("00");
+
+		/// <summary>What a slot holds for the Save screen: the party (by its places), the place, the play time and the gil; null
+		/// for an empty slot.</summary>
+		public static (Ff4Party.Saved Party, Ff4FieldState.Data Field)? Peek(int slot)
+		{
+			if (!Exists(slot)) return null;
+			try
+			{
+				JsonElement? party = Game.Saves.Peek(slot, "ff4/party"), field = Game.Saves.Peek(slot, "ff4/field");
+				Ff4Party.Saved p = party.HasValue ? JsonSerializer.Deserialize<Ff4Party.Saved>(party.Value.GetRawText(), Json) : null;
+				Ff4FieldState.Data f = field.HasValue ? JsonSerializer.Deserialize<Ff4FieldState.Data>(field.Value.GetRawText(), Json) : null;
+				return (p, f);
+			}
+			catch (Exception) { return null; }
+		}
+
 		/// <summary>Once the party has landed after a load, say where; the pending state is done with then.</summary>
 		public static void Tick()
 		{
+			if (GameProfile.IsFf4 && (EngineApi.InWorld || Ff4Battle.Active)) PlayFrames++;
 			if (Pending == null || !EngineApi.InWorld || !Game.Hero.Present) return;
 			Vector3 at = Game.Hero.Position;
 			Log.Write(LogChannel.General, "load: landed on " + (Game.Field.Map ?? "?") + " at " + at.X.ToString("0") + "," + at.Y.ToString("0") + "," + at.Z.ToString("0")

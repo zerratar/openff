@@ -50,7 +50,7 @@ namespace OpenFF.Client
 				}
 				return;
 			}
-			if (input.Pressed(Pad.A) && line == SettingLine.Quit) { _question = true; _questionQuit = true; _questionYes = false; }
+			if (input.Pressed(Pad.A) && line == SettingLine.Quit) { _question = true; _questionQuit = true; _questionSlot = 0; _questionTitle = false; _questionYes = false; }
 		}
 
 		private void FillSettings(Ff4MenuHud.Data h)

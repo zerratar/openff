@@ -192,6 +192,8 @@ namespace OpenFF.Client
 					if (Ff4MenuHud.Available) { UpdatePartyLayout(input); break; }
 					UpdateParty(input); break;
 				case Screen.Save:
+					if (Ff4MenuHud.Available) { UpdateSaveLayout(input); break; }
+					UpdateSlots(input); break;
 				case Screen.Load: UpdateSlots(input); break;
 			}
 			if (_open) Draw();
@@ -226,7 +228,7 @@ namespace OpenFF.Client
 			{
 				Command c = _commands[_command];
 				if (c.Later) { Notice(Ff4Layouts.Text(c.Text) + " comes later."); return; }
-				if (c.Screen == Screen.Quicksave) { _question = true; _questionQuit = false; _questionYes = false; return; }   // "Quicksave game and quit?", the hand on No
+				if (c.Screen == Screen.Quicksave) { _question = true; _questionQuit = false; _questionSlot = 0; _questionTitle = false; _questionYes = false; return; }   // "Quicksave game and quit?", the hand on No
 				if (c.Screen == Screen.Save && !SaveAllowed) return;
 				if (c.NeedsMember) { _mode = Mode.PickMember; return; }
 				OpenScreen(c.Screen);
@@ -241,6 +243,7 @@ namespace OpenFF.Client
 			if (!input.Pressed(Pad.A)) return;
 			_question = false;
 			if (!_questionYes) return;
+			if (AnswerSaveQuestion()) return;
 			if (_questionQuit)
 			{
 				// Settings' Quit: "Do you wish to quit the game ?" - the title, nothing saved.
@@ -721,6 +724,8 @@ namespace OpenFF.Client
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawParty(d); break;
 				case Screen.Save:
+					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
+					DrawSlots(d); break;
 				case Screen.Load: DrawSlots(d); break;
 			}
 			if (Ff4Saves.NoticeFrames > 0 && !string.IsNullOrEmpty(Ff4Saves.Notice))
@@ -826,6 +831,9 @@ namespace OpenFF.Client
 			h.Abilities = _screen == Screen.Abilities;
 			h.Gambits = _screen == Screen.Gambits;
 			h.Party = _screen == Screen.Party;
+			h.Save = _screen == Screen.Save;
+			h.NoTitle = h.Party || h.Save;
+			if (h.Save) FillSave(h);
 			h.Settings = _screen == Screen.Settings;
 			if (h.Settings) FillSettings(h);
 			if (h.Party)
@@ -1102,7 +1110,7 @@ namespace OpenFF.Client
 
 		/// <summary>The place, as the root shows it (WSMenu::wsmGetSavePointIndex): babil_savepoint.bbd's name for the map; on the
 		/// world map, the name its own plate last showed (its areas' tables are compiled into the game), else the map's id.</summary>
-		private static string PlaceName()
+		internal static string PlaceName()
 		{
 			string map = Game.Field.Map ?? "";
 			if (!map.StartsWith("f", StringComparison.OrdinalIgnoreCase) && SavePointMessage(map) is uint message) return T(message);

@@ -56,7 +56,7 @@ scene engine, which is ours from the binary's disassembly.
 | --- | --- |
 | Characters, growth, magic, equipment, items | FF4's tables read from the binary and its files onto the unified data layer (`Shared/Data`), the same layer FF3's jobs and spells sit on. |
 | Logos and title | Steam's, read from FF4.exe (Ff4Title): the Square Enix and Matrix logos, then the title - background, logo, CONTINUE / NEW GAME / LOAD GAME / QUIT GAME by the same rules and in the same places, the glove, the Prelude. New Game fades to white and starts in t00_00, whose event calls the opening scene with no fade, so the scene fades in from white as on Steam; maps are left and entered with FF4's 15-frame fades, not FF3's shutter (Ff4MapChange). Load Game opens a file list (the port's; Steam's load screen is not read yet). CONTINUE shows when there is a quicksave and resumes it at once, as Steam's (the quicksave is kept, as libff4 keeps its suspend data). The opening movie (opening.mkv) is not played; the title's mouse widgets are not there. |
-| Saves | On the unified layer (a save slot loads into the field from the title's Load Game or `--load`); FF4's own save format is not written. |
+| Saves | On the unified layer: three slots, written from the menu's Save screen (Steam's) with the place and the play time; a slot loads into the field from the title's Load Game or `--load`. FF4's own save format is not written. |
 | Open | Growth curves and monster records in part; the details of each are in FF4-Internals. |
 
 ## Encounters, shops, inns - 40%
@@ -136,7 +136,8 @@ game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rule
 | Gambits | OpenFF's auto-battle rules (as FF3's) in the FF4 menu's style: twelve rules with ON / OFF, condition and action, and the picker for both. |
 | Party | MSSFormation's: Swap Rows turns the formation over, Party Formation trades two places (either may be empty); back-row faces stand further in, as on every member panel. |
 | Settings | Steam's nine lines: Music, Sound Effects, Voices (0..10), Battle Mode (Active / Wait), Battle Speed (1..6), Subtitles, Window Design (MENU_Common's six sets: frames, scroll bars, buttons, wallpaper - the layout's design-N class), Help, Quit (to the title). Kept in %LocalAppData%\OpenFF\ff4-settings.json; the volumes and the battle's mode and speed follow them. Not yet checked on screen against Steam's captures; Help has no screen, Voices and Subtitles are not used yet. |
-| Open | Steam's Save screen and the save points (babil_savepoint.bbd); the lead's 3D model on the root; Abilities' auto-battle list. |
+| Save | Steam's: offered on the world map and at save points (land forms whose encounter rate is 0xFF, read under the hero as checkLandForm does). Slot 1..3 and Title Menu down the right; the lit slot's party by places, the place, the play time and the gil on the left, or "No save data found."; "Save data to Slot N?" / "Return to the title menu?". |
+| Open | The first save point's explanation; Load Game in the same screen; the lead's 3D model on the root; Abilities' auto-battle list. |
 
 ## The Steam shell - 0%
 
