@@ -34,6 +34,8 @@ namespace OpenFF.Client
 			/// <summary>The place as the menu named it when saved (the Save screen shows it), and the play time in seconds.</summary>
 			public string Place;
 			public long PlaySeconds;
+			/// <summary>The field map's seen cells by map name: 24 rows of 32 bits (NavimapSaveData).</summary>
+			public Dictionary<string, uint[]> Navi;
 		}
 
 		public string ChunkId => "ff4/field";
@@ -61,6 +63,7 @@ namespace OpenFF.Client
 			d.Summary = (leader != null ? leader.Name + " L" + leader.Level : "nobody") + " - " + (d.Map ?? "?") + ", " + Ff4Party.Party.Gil + " gil";
 			d.Place = Ff4Menu.PlaceName();
 			d.PlaySeconds = Ff4Saves.PlaySeconds;
+			d.Navi = Ff4NaviMap.SeenForSave();
 			Log.Write(LogChannel.General, "save: field - " + d.Map + " at " + d.X.ToString("0") + "," + d.Y.ToString("0") + "," + d.Z.ToString("0") + " rot " + d.Rotation + ", " + d.Flags.Count + " flag(s)");
 			return d;
 		}
@@ -85,6 +88,7 @@ namespace OpenFF.Client
 			}
 			Ff4Saves.Pending = d;
 			Ff4Saves.PlayFrames = d.PlaySeconds * 60;
+			Ff4NaviMap.Restore(d.Navi);
 			Log.Write(LogChannel.General, "load: field - " + (d.Map ?? "?") + " at " + d.X.ToString("0") + "," + d.Y.ToString("0") + "," + d.Z.ToString("0") + ", " + d.Flags.Count + " flag(s)");
 		}
 	}

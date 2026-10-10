@@ -207,6 +207,23 @@
       <frame class="key-cap" style="-ff-cell: key 15"><id>backKey</id><x>219.7</x><y>0</y><width>60.75</width><height>60.75</height></frame>
       <frame class="m-key-label" bind-text="{menu.back}"><id>back</id><x>280.5</x><y>0</y><width>200</width><height>60.75</height></frame>
     </frame>
+    <!-- The field's key hints (Ff4NaviMap draws them): M Map / Quit Map, Tab Menu over a dark bar. -->
+    <frame bind-display="menu.fieldKeys">
+    <id>fieldKeys</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+      <frame class="m-key-bar"><id>bar</id><x>0</x><y>972</y><width>1920</width><height>108</height></frame>
+      <frame bind-display="menu.mapClosed">
+      <id>mapClosed</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+        <frame class="key-cap" style="-ff-cell: key 52"><id>mapKey</id><x>1548.2</x><y>995.6</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.mapLabel}"><id>mapLabel</id><x>1609</x><y>995.6</y><width>300</width><height>60.75</height></frame>
+      </frame>
+      <frame bind-display="menu.mapOpen">
+      <id>mapOpen</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+        <frame class="key-cap" style="-ff-cell: key 52"><id>mapKey</id><x>1470.5</x><y>995.6</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.mapLabel}"><id>mapLabel</id><x>1531.3</x><y>995.6</y><width>300</width><height>60.75</height></frame>
+      </frame>
+      <frame class="key-cap" style="-ff-cell: key 16"><id>menuKey</id><x>1710.4</x><y>995.6</y><width>60.75</width><height>60.75</height></frame>
+      <frame class="m-key-label" bind-text="{menu.menuLabel}"><id>menuLabel</id><x>1771.3</x><y>995.6</y><width>300</width><height>60.75</height></frame>
+    </frame>
     <!-- The full screens: the wallpaper, a title bar and a footer of key hints round each screen's windows. -->
     <frame bind-display="menu.full">
     <id>full</id><x>0</x><y>0</y><width>1920</width><height>1080</height>

@@ -457,6 +457,42 @@ is 85 px tall there (48 x 640/... ), text about 40 px. The client draws at 800 x
 every piece by 800/1136. Fonts: the phone build has `BABIL_SYMBOL.NFTR`; Steam draws text with
 `arial.ttf` through SDL2_ttf.
 
+### The field map (map2d::NaviMap)
+
+Steam's "M Map" (libff4's DS R button; Android's Map widget, babil_menu.msd 50030; Steam's hint lines 60204 "Map",
+60213 "Quit Map", 60205 "Menu"). Read for the client (`Ff4NaviMap`); addresses are Ghidra's.
+
+- **Files.** `NAVIMAP.dat` is only the Android index; Steam ships its 947 entries loose in `files/`, uncompressed. Per
+  map: `<map>.NCGR` (a PNG, 512 x 384), `<map>_00.NSCR` (a one-cell bank, the picture from (-256,-192)), `<map>.nmi`,
+  and for dungeons and the world `<map>.nmd`. The blank parchment where nothing is seen: `dxx` (dungeons), `field_xx`
+  (the world). Sprites: `mapwaku` (the frame, 952 x 560 from (-476,-316), its hole the picture's), `w_map_mark` (the
+  party's pin, cells 0..3 seven frames each), `map_mark_common` (chest 1 closed, 2 opened), `d_map_obj` (0 the save
+  point's ring, 14..17 the exit's bobbing arrow six frames each - the third 2 px up, 3..12 digits, 13 %), `t_map_obj`
+  (shops), `w_map_obj` (world places), `w_map_vehicle_00..05`.
+- **Which picture** (`ws_prepare_setup_navimap` @004c8a3c, `SetMapData` @004fd95c): `dNN_MM` its own (`d12_17` after
+  flag 0:0xFF: `d12_99`); `fNN..` the world's `field_NN_00`; `tNN_00` its own; another town floor its own when the
+  town is in mask 0x15a31 (towns 0,4,5,9,11,13,14,16), else the town's `tNN_00` with no pin (`t14_xx` but 01/02:
+  `t14_02`); `t23_xx` no Map. libff4 falls back to d00_00's picture when a map has none; the client offers no Map there.
+- **.nmi** (s16 little-endian). Dungeon (316 bytes): 0 chests, 2 gated chests, 4 exits, 6/8 stage width/height,
+  0xA/0xC correction x/z, 0xE/0x10 save point (none when both 0), 0x14 complete flag (group 1), 0x16 keep the sight
+  (1; d04_04 0), 0x18 chests[30] {x, z, flag 1:id}, 0xCC exits[20] {x, z}, 0x11C gated[4]. Town (38 + 8n): 0 n,
+  2..0xC slot x[6], 0xE..0x18 slot z[6] (inn, weapons, both, armour, -, items), 0x1A hide mask, 0x1E/0x20 stage,
+  0x22/0x24 correction, 0x26 items {x, z, flag, kind} (kind 0 a chest; else a hidden item, never drawn). World (10 +
+  8n): 0 n, 2/4 stage, 6/8 correction, 10 places {x, z, kind (cell [2,0,3,4]), flag 0:id to show}.
+- **.nmd** (1540 bytes): s16 walkable count, s16 cell[24][32] (1 counts), 2 pad.
+- **Places.** A field position as the picture's fraction: f = (pos + correction + stage/2) / stage, x across and z down;
+  its cell (f.x * 32, f.z * 24). Steam at 1080p (ff4hook): the picture 864 x 648 from (528.2, 155.2) - a sheet pixel
+  1.6875 - centred on the frame, whose cell hangs from the screen's middle; frame and picture at 24/31 alpha
+  (`setAlpha(24)`), the icons whole.
+- **Seen.** Every frame the party walks (`wtUpdateTask` @004ffe04 -> `PassagePointChange` @004ff448) the 31 cells about
+  its cell (rows -2/+2 five wide, -1..1 seven) are seen where the .nmd counts them, clamped at the edges (wrapped on the
+  overworld and the moon); a town is all seen. Kept at once per map (`NavimapSaveData`: 150 slots of 24 u32 rows, cell
+  c = bit 31 - c, by a hash of the name). `MapPercentUpDate` @004fedd0: seen / walkable; at 100 % the whole picture
+  shows and a dungeon's flag 1:<complete flag> is set (`wsmNaviMapComp`). The picture draws a 16 x 16 cell at a time
+  where seen, the parchment elsewhere; icons only on seen cells (shops always; world places once their flag is set).
+- **Keys.** Opened and shut by M only in free walking (`WSMove`, `WSVehicleMove`); the party walks on with it up.
+  Steam's hint bar over the field ("M Map", "Tab Menu"; "M Quit Map") goes while the party walks.
+
 ## The Steam shell (FF4.exe), from the Babil Decompilation Project
 
 A pointer to `D:\Git\Babil-Decompilation-Project` (GlitchedDeveloper on GitHub): an early

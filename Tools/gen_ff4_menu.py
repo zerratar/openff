@@ -139,6 +139,24 @@ out.append(indent('<!-- The key hints: Enter Confirm, Backspace Back. -->', 1))
 out.append(indent(frame('keyBar', 0, 972, 1920, 108, 'm-key-bar', 'bind-display="menu.root"'), 1))
 out.append(indent(frame('keys', 1497.5, 995.6, 480, 60.75, None, 'bind-display="menu.root"', indent(keys, 1)), 1))
 
+# The field's key hints (Steam's own overlay over the field, measured off its draws and pixels): the bar, "M Map" and
+# "Tab Menu" - with the field map up "M Quit Map", the M pair further left; no Map on this stage: Tab Menu alone.
+field_keys = '\n'.join([
+    frame('bar', 0, 972, 1920, 108, 'm-key-bar'),
+    frame('mapClosed', 0, 0, 1920, 1080, None, 'bind-display="menu.mapClosed"', indent('\n'.join([
+        frame('mapKey', 1548.2, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 52'),
+        frame('mapLabel', 1609, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.mapLabel}"'),
+    ]), 1)),
+    frame('mapOpen', 0, 0, 1920, 1080, None, 'bind-display="menu.mapOpen"', indent('\n'.join([
+        frame('mapKey', 1470.5, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 52'),
+        frame('mapLabel', 1531.3, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.mapLabel}"'),
+    ]), 1)),
+    frame('menuKey', 1710.4, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 16'),
+    frame('menuLabel', 1771.3, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.menuLabel}"'),
+])
+out.append(indent("<!-- The field's key hints (Ff4NaviMap draws them): M Map / Quit Map, Tab Menu over a dark bar. -->", 1))
+out.append(indent(frame('fieldKeys', 0, 0, 1920, 1080, None, 'bind-display="menu.fieldKeys"', indent(field_keys, 1)), 1))
+
 # The Yes / No question (Quicksave's): the screen dimmed, a window, the question, two pills (button_00), the hand on one.
 def pill(id_, x):
     inner = '\n'.join([

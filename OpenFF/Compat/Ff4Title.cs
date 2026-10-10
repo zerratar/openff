@@ -366,6 +366,7 @@ namespace OpenFF.Client
 				// in it) is not this game's. FF4's initForNewgame: Cecil alone, no flags.
 				Ff4Saves.Pending = null;
 				Ff4Saves.PlayFrames = 0;
+				Ff4NaviMap.NewGame();
 				Ff4Party.NewGame();
 				if (GlobalScope.flags != null) Array.Clear(GlobalScope.flags);
 				Leave(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_WHITE);

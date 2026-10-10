@@ -114,6 +114,9 @@ namespace OpenFF.Client
 			// Abilities' auto-battle list (MSSAbility state 5, readyEquipableAutoIDList): two columns of commands, or three of a
 			// command's spells or items (state 7), in the window the auto and command rows had.
 			public bool AutoPicking, AutoPair, AutoTriple;
+			// The field's key hints (Steam's: "M Map", "Tab Menu"; "M Quit Map" with the field map up), drawn by Ff4NaviMap.
+			public bool FieldKeys, MapOpen, MapClosed, HasMap;
+			public string MapLabel = "Map", MenuLabel = "Menu";
 			public List<CellRow> AutoPick = Rows<CellRow>(12);
 			public ScrollData AutoScroll = new ScrollData();
 			public string DifficultyText = "", NormalLabel = "Normal", HardLabel = "Hard", DifficultyNote1 = "", DifficultyNote2 = "";

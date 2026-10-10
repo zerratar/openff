@@ -137,7 +137,7 @@ game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rule
 | Party | MSSFormation's: Swap Rows turns the formation over, Party Formation trades two places (either may be empty); back-row faces stand further in, as on every member panel. |
 | Settings | Steam's nine lines: Music, Sound Effects, Voices (0..10), Battle Mode (Active / Wait), Battle Speed (1..6), Subtitles, Window Design (MENU_Common's six sets: frames, scroll bars, buttons, wallpaper - the layout's design-N class), Help, Quit (to the title). Kept in %LocalAppData%\OpenFF\ff4-settings.json; the volumes and the battle's mode and speed follow them. Not yet checked on screen against Steam's captures; Help has no screen, Voices and Subtitles are not used yet. |
 | Save | Steam's: offered on the world map and at save points (land forms whose encounter rate is 0xFF, read under the hero as checkLandForm does). Slot 1..3 and Title Menu down the right; the lit slot's party by places, the place, the play time and the gil on the left, or "No save data found."; "Save data to Slot N?" / "Return to the title menu?". The first save point ever explains itself (WS1stSPDirection: babil_common.msd 1000130, flag 0:3). |
-| Open | The field map (M). |
+| Field map | Steam's (M): the parchment frame over the field, the floor's picture where the party has been and the blank sheet elsewhere, the pin, chests, the save point, exits, shops, world places; what has been seen kept per map in the save, a floor all seen setting its flag; Steam's hint bar over the field (M Map / Tab Menu, M Quit Map). Open: vehicles on the world map, the explored percentage, Sight's map. |
 
 ## The Steam shell - 0%
 

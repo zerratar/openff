@@ -89,7 +89,7 @@ namespace OpenFF.Client
 
 		/// <summary>A field event running or its message up (the game's own test before its menu: CStateWorldMove's isEvent and
 		/// isMadeWindow) - the menu stays shut, as Steam's does through a scene's lines.</summary>
-		private static bool EventBusy()
+		internal static bool EventBusy()
 		{
 			try
 			{
@@ -167,7 +167,7 @@ namespace OpenFF.Client
 			if (!_open)
 			{
 				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !EventBusy() && !Game.Battle.InBattle && !Ff4Battle.Active
-					&& !(Ff4Shop.Instance?.IsOpen ?? false) && (input.KeyPressed("Tab") || input.Pressed(Pad.X) || input.KeyPressed("M")))
+					&& !(Ff4Shop.Instance?.IsOpen ?? false) && !(Ff4NaviMap.Instance?.IsOpen ?? false) && (input.KeyPressed("Tab") || input.Pressed(Pad.X)))
 				{
 					Open();
 				}
@@ -183,7 +183,7 @@ namespace OpenFF.Client
 			}
 			// The menu key closes it from the main menu; in a screen C and M are the screen's (Key Items, the next member).
 			bool atRoot = _screen == Screen.Root && _mode == Mode.Browse && !_question;
-			if (input.KeyPressed("Escape") || (atRoot && (input.KeyPressed("Tab") || input.Pressed(Pad.X) || input.KeyPressed("M")))) { Close(); return; }
+			if (input.KeyPressed("Escape") || (atRoot && (input.KeyPressed("Tab") || input.Pressed(Pad.X)))) { Close(); return; }
 			if (Ff4Party.Party.Members.Count == 0) { Close(); return; }
 			_member = Math.Clamp(_member, 0, Ff4Party.Party.Members.Count - 1);
 			switch (_screen)
@@ -396,7 +396,7 @@ namespace OpenFF.Client
 		};
 
 		/// <summary>A key hint's word without the "%key_assign12%" naming the key (the layout draws the key's own cap).</summary>
-		private static string KeyText(uint id, string fallback) => System.Text.RegularExpressions.Regex.Replace(T(id, fallback), "%[A-Za-z_0-9]+%", "");
+		internal static string KeyText(uint id, string fallback) => System.Text.RegularExpressions.Regex.Replace(T(id, fallback), "%[A-Za-z_0-9]+%", "");
 
 		// ---- inventory ----
 
