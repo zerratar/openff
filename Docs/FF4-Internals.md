@@ -181,8 +181,10 @@ chain 3  (8 bytes, unnamed)
 `WSEncountSetting::wsProcess` reads the rate at `chain0 + 2 x landForm`. The overworld's
 `f00.pak` holds 256 chip records of 192 bytes, each its own four-chain pack; the chip under
 the party (`stageMng.getChipName()`, "f00_48" -> 0x48) picks it. The land form under the
-party (`PCObject + 0x340/0x348`, from the ground polygon's attribute) is not read by the
-client yet - it uses the first land form with a rate. Client: `Compat/Ff4Encounters.cs`.
+party (`PCObject + 0x340`, from the ground polygon's attribute, see "Saving" below) is read by the
+client each step (`CCharacterEureka.ff4LandForm`) and picks the rate, the battle stage and the
+encounter set; where it cannot be told, the first land form with a rate stands in. Client:
+`Compat/Ff4Encounters.cs`.
 
 ### The field camera (`WSPrepare::wsProcessSetupCamera`, `world::WorldCamera::initialize_usr`)
 
@@ -410,7 +412,8 @@ binary. Client: `Ff4Ui` uses window.png and point.png when the content is a Stea
 
 ### Saving: where it is allowed, save points, the slots
 
-Read from libff4 for the client's Save screen (not built yet; `Ff4Menu.SaveAllowed` is a stand-in: any map starting `f`).
+Read from libff4 for the client's Save screen (not built yet). `Ff4Menu.SaveAllowed` follows it: a field stage, or a
+save point under the hero.
 
 - **When Save is offered.** `WSMenu::wsInitialize` turns the menu's Save on (`WSCMenu::setMenuSubActivity(5, true)`) when the
   menu context's +0x50 is 3 or 4, and save-point mode is a flag on the same context: `world::enableSPSetting` clears +0x69,
@@ -426,8 +429,12 @@ Read from libff4 for the client's Save screen (not built yet; `Ff4Menu.SaveAllow
 - **The land form under the hero.** `PCObject::checkLandForm(CollisionResult&)`: the ground triangle's attribute word
   (CollisionResult +0x44), the highest of bits 11..22 set naming land form 0..11, none -1 - FF4's numbering, from 0 (FF3's
   `CCharacterEureka.checkLandForm` reads flags 8.. and counts from 1). Written to +0x340 by `VOHover` / `VOEp::dgsredAccept`
-  each step. The client's `Ff4Encounters` still takes land form 0 for everything; reading it as here serves both the
-  encounters' rates per terrain and the save points.
+  each step. Read so by the client (`CCharacterEureka.ff4LandForm`; the log names it, with the ground's flags, as it
+  changes) for the encounters' rates per terrain and the save points. Checked on d01_03 (the Underground Waterway's
+  camp): its collision has three materials - the floor 0x00000802 (land 0), the walls 0x00000004, the save circle
+  0x00400002 (land 11, x -11..11, z -49..-27); standing on the circle the menu's Save is offered. The 20 maps with a
+  save point (land 11 at 0xFF) are d01_03, d02_03, d03_01, d04_03, d04_04, d05_05, d06_04, d06_08, d07_04, d08_09,
+  d08_13, d08_18, d09_06, d10_00, d12_12, d12_19, d16_04, d17_07, d17_16 and t14_03.
 - **The place the root names** (`WSMenu::wsmGetSavePointIndex` → `WorldSavePointManager::findSavePoint`, babil_savepoint.bbd:
   16-byte records, a 12-byte map name and a babil_menu.msd message at 12) - read and used (`Ff4Menu.PlaceName`). The world
   map's areas come from `MSSGetFieldAreaMessageNo` (the chip's name against tables compiled into the binary, messages from

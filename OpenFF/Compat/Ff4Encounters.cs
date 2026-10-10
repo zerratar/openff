@@ -10,9 +10,11 @@
 // the party's land form names is rolled among its groups, re-rolled up to five times when
 // it repeats the last fight); chain 2 the encounter parameter (16 bytes: an s16 for
 // world::attackType - back attacks and the like - and three floats); chain 3 eight bytes.
-// The land form under the party is not read yet, so land form 0 stands for all: the Watery
-// Pass (d01_00) gives Sword Rat + Goblin, Tiny Mages, Fangshells at rate 9; the Baron plain
-// chip (f00_48) Floating Eye, Helldiver, three Goblins at rate 1. The overworld's pack holds
+// The land form under the party (PCObject::checkLandForm: the ground's bits 11..22, read by the hero's
+// character each step - CCharacterEureka.ff4LandForm) names the rate, the stage and the set; where it
+// cannot be told, the first land form with fights stands in. The Watery Pass (d01_00) gives Sword Rat +
+// Goblin, Tiny Mages, Fangshells at rate 9; the Baron plain chip (f00_48) Floating Eye, Helldiver, three
+// Goblins at rate 1. A land form whose rate is 0xFF is a save point (WSMove::wsProcessCheckSavePoint). The overworld's pack holds
 // one such four-chain pack per chip (256 x 192 bytes); the chip under the party picks it.
 
 using System;
@@ -28,7 +30,9 @@ namespace OpenFF.Client
 			public string Map;
 			/// <summary>The rate for the land form in use (0 for a dungeon, the first with fights on an overworld chip); 0 means no fights.</summary>
 			public int Rate;
-			/// <summary>Every land form's rate (the twelve u16s at 0).</summary>
+			/// <summary>Every land form's rate as the file has it (0xFF: a save point).</summary>
+			public int[] RawRates = new int[12];
+			/// <summary>Every land form's rate (the twelve u16s at 0; over 100 - a save point's 0xFF - none).</summary>
 			public int[] Rates = new int[12];
 			/// <summary>The battle stage (b00..b30) for the land form in use, -1 for none.</summary>
 			public int BattleMap = -1;
@@ -38,21 +42,42 @@ namespace OpenFF.Client
 			public List<int[]> Sets = new List<int[]>();
 			/// <summary>The groups of set 0 that exist in the tables, for the log and the roll.</summary>
 			public List<int> Parties = new List<int>();
+			/// <summary>Each set's groups (chain 1's entries in order, one per land form), those with a party record.</summary>
+			public List<List<int>> SetParties = new List<List<int>>();
 			/// <summary>Chain 2: the area's level (encountParameter[0], "AREA LV" - world::attackType weighs the party's average
 			/// against it) and the three step revises the encounter count picks by that difference (not applied yet).</summary>
 			public int AreaLevel;
 			public float[] Thresholds = new float[3];
 			private int _last = -1;
 
-			/// <summary>A group from set 0 (the land form is not read yet), not the last one when there is a choice.</summary>
-			public int Roll(Random random)
+			/// <summary>The rate on a land form (-1: unknown - the stand-in's), 0 for no fights.</summary>
+			public int RateOn(int land) => land >= 0 && land < 12 ? Rates[land] : Rate;
+
+			/// <summary>The battle stage on a land form (-1: unknown - the stand-in's).</summary>
+			public int StageOn(int land) => land >= 0 && land < 12 ? BattleMaps[land] : BattleMap;
+
+			/// <summary>Whether a land form is a save point (its rate 0xFF).</summary>
+			public bool SavePointOn(int land) => land >= 0 && land < 12 && RawRates[land] == 0xFF;
+
+			/// <summary>The groups for a land form: the set it names, else set 0's.</summary>
+			public List<int> PartiesOn(int land) => land >= 0 && land < SetParties.Count && SetParties[land].Count > 0 ? SetParties[land] : Parties;
+
+			/// <summary>A group of the land form's set, not the last one when there is a choice (re-rolled up to five times).</summary>
+			public int Roll(Random random, int land = -1)
 			{
-				if (Parties.Count == 0) return -1;
-				int pick = Parties[random.Next(Parties.Count)];
-				for (int tries = 0; tries < 5 && pick == _last && Parties.Count > 1; tries++) pick = Parties[random.Next(Parties.Count)];
+				List<int> parties = PartiesOn(land);
+				if (parties.Count == 0) return -1;
+				int pick = parties[random.Next(parties.Count)];
+				for (int tries = 0; tries < 5 && pick == _last && parties.Count > 1; tries++) pick = parties[random.Next(parties.Count)];
 				_last = pick;
 				return pick;
 			}
+		}
+
+		/// <summary>The land form under the hero (0..11) as its last step found it, -1 when it cannot be told.</summary>
+		public static int LandUnderHero()
+		{
+			try { return EngineApi.HeroPlayer?.ff4LandForm() ?? -1; } catch (Exception) { return -1; }
 		}
 
 		private static readonly Dictionary<string, Table> _cache = new Dictionary<string, Table>(StringComparer.OrdinalIgnoreCase);
@@ -107,12 +132,13 @@ namespace OpenFF.Client
 						for (int i = 0; i < 12; i++)
 						{
 							int rate = ChainPack.U16(pack.Data, land + 2 * i);
+							table.RawRates[i] = rate;
 							table.Rates[i] = rate > 100 ? 0 : rate;
 							int stageNo = ChainPack.U16(pack.Data, land + 0x18 + 2 * i);
 							table.BattleMaps[i] = stageNo > 30 ? -1 : stageNo;
 							if (use < 0 && table.Rates[i] > 0) use = i;
 						}
-						// The land form under the party is not read yet: a dungeon's is 0, an overworld
+						// Where the land form under the party cannot be told: a dungeon's is 0, an overworld
 						// chip's first land form is the sea (no fights), so the first with fights stands in.
 						if (use < 0) use = 0;
 						table.Rate = table.Rates[use];
@@ -129,14 +155,17 @@ namespace OpenFF.Client
 							table.Sets.Add(set);
 						}
 						GameTables tables = Ff4Party.Tables;
-						if (table.Sets.Count > 0)
+						foreach (int[] set in table.Sets)
 						{
-							foreach (int id in table.Sets[0])
+							List<int> groups = new List<int>();
+							foreach (int id in set)
 							{
 								MonsterParty party = id > 0 && tables != null ? tables.MonsterParty(id) : null;
-								if (party != null && party.Slots.Count > 0 && !table.Parties.Contains(id)) table.Parties.Add(id);
+								if (party != null && party.Slots.Count > 0 && !groups.Contains(id)) groups.Add(id);
 							}
+							table.SetParties.Add(groups);
 						}
+						if (table.SetParties.Count > 0) table.Parties.AddRange(table.SetParties[0]);
 						if (pack.Size(2) >= 16)
 						{
 							int at = pack.Offset(2);
@@ -144,7 +173,7 @@ namespace OpenFF.Client
 							for (int i = 0; i < 3; i++) table.Thresholds[i] = BitConverter.ToSingle(pack.Data, at + 4 + 4 * i);
 						}
 					}
-					Log.Write(LogChannel.File, "encounters: " + key + " rate " + table.Rate + " (by land form " + string.Join("/", table.Rates) + "), battle stage b" + table.BattleMap.ToString("00") + " (" + string.Join("/", table.BattleMaps) + "), set 0 groups " + string.Join(",", table.Parties) + " of " + table.Sets.Count + " set(s); area level " + table.AreaLevel + ", step revises " + string.Join("/", table.Thresholds));
+					Log.Write(LogChannel.File, "encounters: " + key + " rate " + table.Rate + " (by land form " + string.Join("/", table.RawRates) + "), battle stage b" + table.BattleMap.ToString("00") + " (" + string.Join("/", table.BattleMaps) + "), set 0 groups " + string.Join(",", table.Parties) + " of " + table.Sets.Count + " set(s); area level " + table.AreaLevel + ", step revises " + string.Join("/", table.Thresholds));
 				}
 			}
 			catch (Exception ex)

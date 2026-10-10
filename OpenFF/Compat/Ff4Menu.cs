@@ -86,6 +86,18 @@ namespace OpenFF.Client
 			Log.Write(LogChannel.File, "menu: open - " + Ff4Party.Party.Describe().Replace("\n", " | "));
 		}
 
+		/// <summary>A field event running or its message up (the game's own test before its menu: CStateWorldMove's isEvent and
+		/// isMadeWindow) - the menu stays shut, as Steam's does through a scene's lines.</summary>
+		private static bool EventBusy()
+		{
+			try
+			{
+				if (GlobalScope.evt.CEventManager.getInstance().isEvent()) return true;
+				return GlobalScope.CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().isMadeWindow();
+			}
+			catch (Exception) { return false; }
+		}
+
 		private void Close()
 		{
 			_open = false;
@@ -133,7 +145,17 @@ namespace OpenFF.Client
 
 		/// <summary>Whether Save may be chosen: FF4 saves on the world map and at save points (the points not read yet: the
 		/// world map only), Save greyed elsewhere and choosing it does nothing - as Steam's menu does away from a point.</summary>
-		private static bool SaveAllowed => (Game.Field.Map ?? "").StartsWith("f", StringComparison.OrdinalIgnoreCase);
+		/// <summary>Save is offered on the world map (a field stage: enableSPSetting) and on a save point - a land form whose
+		/// encounter rate is 0xFF (WSMove::wsProcessCheckSavePoint); greyed elsewhere.</summary>
+		private static bool SaveAllowed
+		{
+			get
+			{
+				string map = Game.Field.Map ?? "";
+				if (map.StartsWith("f", StringComparison.OrdinalIgnoreCase)) return true;
+				try { return Ff4Encounters.For(map)?.SavePointOn(Ff4Encounters.LandUnderHero()) ?? false; } catch (Exception) { return false; }
+			}
+		}
 
 		public override void OnUpdate()
 		{
@@ -141,7 +163,7 @@ namespace OpenFF.Client
 			ApplySettingsOnce();
 			if (!_open)
 			{
-				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !Game.Battle.InBattle && !Ff4Battle.Active
+				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !EventBusy() && !Game.Battle.InBattle && !Ff4Battle.Active
 					&& !(Ff4Shop.Instance?.IsOpen ?? false) && (input.Pressed(Pad.X) || input.KeyPressed("M")))
 				{
 					Open();

@@ -36,6 +36,17 @@ internal static partial class GlobalScope
 			protected bool m_TargetLookFlag;
 
 			protected sbyte m_LandFormIndex;
+			// PORT: FF4's land form under the character (PCObject +0x340, object::PCObject::checkLandForm): 0..11, -1 for none.
+			protected sbyte m_Ff4LandForm = -1;
+			// PORT: the ground attribute word under the character (its first 32 flags), for the log.
+			protected uint m_Ff4GroundFlags;
+			public uint ff4GroundFlags() => m_Ff4GroundFlags;
+			private static uint GroundFlags(mcl.CollisionResult r)
+			{
+				uint w = 0;
+				for (uint b = 0; b < 32; b++) if (r.material.getAttribute().isEnableFlag(b)) w |= 1u << (int)b;
+				return w;
+			}
 
 			protected int m_TargetLookFrame;
 
@@ -307,6 +318,7 @@ internal static partial class GlobalScope
 						}
 					}
 					num3 = checkLandForm(chr_reuse_result);
+					if (OpenFF.Client.GameProfile.IsFf4) { m_Ff4LandForm = (sbyte)checkFf4LandForm(chr_reuse_result); m_Ff4GroundFlags = GroundFlags(chr_reuse_result); }
 					num2 = getMonsterGroupId(chr_reuse_result);
 					flag = isSkyMonsterEncount(chr_reuse_result);
 				}
@@ -453,6 +465,21 @@ internal static partial class GlobalScope
 			public bool getBottomPolygon(dgs.CRestrictor ror, mcl.CollisionResult ret, int attr, VecFx32 pt, int length)
 			{
 				return ror.rorEvaluateArrow(pt, normDir, length, attr, ret);
+			}
+
+			/// <summary>PORT: object::PCObject::checkLandForm, FF4's: the ground's attribute bits 11..22 name land form 0..11 (the highest
+			/// set wins), none -1 - FF3's (below) reads bits 8..19 and counts from 1.</summary>
+			public static short checkFf4LandForm(mcl.CollisionResult col_result)
+			{
+				short result = -1;
+				for (uint bit = 11; bit <= 22; bit++)
+				{
+					if (col_result.material.getAttribute().isEnableFlag(bit))
+					{
+						result = (short)(bit - 11);
+					}
+				}
+				return result;
 			}
 
 			public short checkLandForm(mcl.CollisionResult col_result)
@@ -850,6 +877,12 @@ internal static partial class GlobalScope
 			public void setTargetLookFrame(int _TargetLookFrame)
 			{
 				m_TargetLookFrame = _TargetLookFrame;
+			}
+
+			/// <summary>PORT: FF4's land form under the character as the last step found it (0..11), -1 for none.</summary>
+			public sbyte ff4LandForm()
+			{
+				return m_Ff4LandForm;
 			}
 
 			public sbyte getLandFormIndex()

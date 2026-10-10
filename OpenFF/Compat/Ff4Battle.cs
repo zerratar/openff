@@ -2155,6 +2155,8 @@ namespace OpenFF.Client
 		private string _noTableLogged;
 		private float _walked;
 		private int _sinceBattle;
+		private int _lastLand = -2;
+		private uint _lastGround;
 
 		private void Encounters()
 		{
@@ -2166,8 +2168,17 @@ namespace OpenFF.Client
 			_lastStep = at;
 			if (step <= 0.01f || step > 20f) return;
 			Ff4Encounters.Table table = Ff4Encounters.For(Game.Field.Map);
+			int land = Ff4Encounters.LandUnderHero();
+			uint ground = 0;
+			try { ground = EngineApi.HeroPlayer?.ff4GroundFlags() ?? 0; } catch (Exception) { }
+			if (land != _lastLand || ground != _lastGround)
+			{
+				_lastLand = land;
+				_lastGround = ground;
+				Log.Write(LogChannel.File, "field: land form " + land + " under the hero (ground flags " + ground.ToString("X8") + ")" + (table != null && table.SavePointOn(land) ? " - a save point" : ""));
+			}
 			if (Ff4Augments.PartyHas(Ff4Augments.SafeTravel)) return;   // wsmEncount: Safe Travel in anyone's slots - no random fights
-			if (table == null || table.Rate <= 0 || table.Parties.Count == 0)
+			if (table == null || table.RateOn(land) <= 0 || table.PartiesOn(land).Count == 0)
 			{
 				if (_noTableLogged != Game.Field.Map) { _noTableLogged = Game.Field.Map; Log.Write(LogChannel.File, "encounters: map '" + Game.Field.Map + "' has no encounter table here"); }
 				return;
@@ -2177,9 +2188,9 @@ namespace OpenFF.Client
 			_walked -= 1f;
 			// The rate is the map's own per-land-form number (1 on the Baron plain, 9 in the Watery Pass);
 			// one unit here is a small stride, so about one fight in a few hundred units at rate 9.
-			if (_random.Next(4096) < table.Rate * 3)
+			if (_random.Next(4096) < table.RateOn(land) * 3)
 			{
-				int party = table.Roll(_random);
+				int party = table.Roll(_random, land);
 				if (party > 0 && Ff4Party.Tables?.MonsterParty(party) != null)
 				{
 					// WSEncountDirection1: the field stops and the encounter's zoom plays to white; the fight then.
@@ -2187,7 +2198,7 @@ namespace OpenFF.Client
 					Game.Hero.Freeze();
 					Game.Input.Capture = true;
 					try { Game.Hero.PlayMotion(1000, true); } catch (Exception) { }
-					int battleMap = table.BattleMap;
+					int battleMap = table.StageOn(land);
 					// world::attackType: the opening by the party's dash and its level against the area's. OpenFF's hero
 					// moves at the dash (WSMove's 1002), as Steam's does on the keys and a full tilt.
 					int opening = RollOpening(true, AverageLevel(), table.AreaLevel, _random);
