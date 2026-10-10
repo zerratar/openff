@@ -165,7 +165,7 @@ namespace OpenFF.Client
 			if (!_open)
 			{
 				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !EventBusy() && !Game.Battle.InBattle && !Ff4Battle.Active
-					&& !(Ff4Shop.Instance?.IsOpen ?? false) && (input.Pressed(Pad.X) || input.KeyPressed("M")))
+					&& !(Ff4Shop.Instance?.IsOpen ?? false) && (input.KeyPressed("Tab") || input.Pressed(Pad.X) || input.KeyPressed("M")))
 				{
 					Open();
 				}
@@ -181,7 +181,7 @@ namespace OpenFF.Client
 			}
 			// The menu key closes it from the main menu; in a screen C and M are the screen's (Key Items, the next member).
 			bool atRoot = _screen == Screen.Root && _mode == Mode.Browse && !_question;
-			if (input.KeyPressed("Escape") || (atRoot && (input.Pressed(Pad.X) || input.KeyPressed("M")))) { Close(); return; }
+			if (input.KeyPressed("Escape") || (atRoot && (input.KeyPressed("Tab") || input.Pressed(Pad.X) || input.KeyPressed("M")))) { Close(); return; }
 			if (Ff4Party.Party.Members.Count == 0) { Close(); return; }
 			_member = Math.Clamp(_member, 0, Ff4Party.Party.Members.Count - 1);
 			switch (_screen)

@@ -406,7 +406,9 @@ namespace OpenFF.Client
 				GlobalScope.boost = 1;
 				return FramePacer.MostSpeed;
 			}
-			bool fast = _game != null && _game.IsActive && (Keyboard.GetState().IsKeyDown(Keys.Tab) || GamePadFast());
+			// FF4's field takes Tab for the menu, as Steam's ("Tab Menu"): held, it speeds a fight or a scene only.
+			bool tabFast = !(GameProfile.IsFf4 && EngineApi.InWorld && !Ff4Battle.Active && !Ff4Cutscene.Active);
+			bool fast = _game != null && _game.IsActive && ((tabFast && Keyboard.GetState().IsKeyDown(Keys.Tab)) || GamePadFast());
 			GlobalScope.boost = fast ? 1 : 0;
 			// The player's speed (quality of life, F8) under Tab's: that many of the game's steps each frame.
 			return ((fast && _fastForwardFactor > 1) ? _fastForwardFactor : 1) * Qol.Speed;
