@@ -29,7 +29,7 @@ namespace OpenFF.Client
 {
 	internal sealed partial class Ff4Menu : GameService
 	{
-		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Gambits, Party, Settings, Save, Load, Quicksave }
+		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Gambits, Party, Settings, Save, Load, Quicksave, Difficulty }
 		private enum Mode { Browse, PickMember, EquipSlot, EquipItem, ItemTarget, SwapMember }
 
 		private sealed class Command
@@ -172,9 +172,10 @@ namespace OpenFF.Client
 				return;
 			}
 			if (Ff4Saves.NoticeFrames > 0) Ff4Saves.NoticeFrames--;
-			if (_screen == Screen.Load && Ff4MenuHud.Available)
+			if ((_screen == Screen.Load || _screen == Screen.Difficulty) && Ff4MenuHud.Available)
 			{
-				UpdateLoadLayout(input);
+				if (_screen == Screen.Load) UpdateLoadLayout(input);
+				else UpdateDifficulty(input);
 				if (_open && !_fromTitle) Draw();
 				return;
 			}
@@ -734,6 +735,7 @@ namespace OpenFF.Client
 				case Screen.Save:
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawSlots(d); break;
+				case Screen.Difficulty: DrawDifficulty(); break;
 				case Screen.Load:
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawSlots(d); break;

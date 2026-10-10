@@ -1247,6 +1247,7 @@ namespace OpenFF.Client
 			if (targetCount > 1) value *= Math.Max(0.3, (90 - 10 * targetCount) / 100.0);
 			if (Augment(caster, Ff4Augments.Adrenaline) && LowHp(caster)) value *= 2;   // attackMagicDamage: Adrenaline
 			if (_whirlwind && (spell.Element & 0x20) != 0) value *= 1.5;   // flag 0xf: after Whirlwind, fire x1.5
+			value = NormalScale(caster, target, (long)value);
 			return Math.Max(1, (int)Math.Min(value, DamageLimit(caster)));
 		}
 
@@ -1379,7 +1380,7 @@ namespace OpenFF.Client
 			bool dark = Dark(attacker) && attacker != target;
 			if (elements != 1f || races != 1f) Note(attacker.Name + " on " + target.Name + ": elements x" + elements + ", races x" + races);
 			value = (long)(value * (fromAir ? 1f : BackRowFactor(attacker, target)) * elements * races);   // backPenalty: none from the air
-			value = value * (target.IsMonster ? 12 : 7) / 10;
+			value = NormalScale(attacker, target, value);
 			bool adrenaline = Augment(attacker, Ff4Augments.Adrenaline) && LowHp(attacker);
 			int chance = Math.Clamp((attacker.Agility - target.Agility + 5) * (adrenaline ? 2 : 1), 0, 25);   // calcCritical: Adrenaline doubles it
 			if (_random.Next(100) < chance)
@@ -2156,6 +2157,16 @@ namespace OpenFF.Client
 		private float _walked;
 		private int _sinceBattle;
 		private int _lastLand = -2;
+
+		/// <summary>Normal's difficulty (the preferences' bit 12 clear), as calcDamageValueForBabil, attackMagicDamage and
+		/// FangFormula::damage end: a member's damage onto a monster x12/10, a monster's onto a member x7/10; Hard leaves it.</summary>
+		private static long NormalScale(Fighter attacker, Fighter target, long value)
+		{
+			if (Ff4Settings.Current.Hard || attacker == null || target == null) return value;
+			if (!attacker.IsMonster && target.IsMonster) return value * 12 / 10;
+			if (attacker.IsMonster && !target.IsMonster) return value * 7 / 10;
+			return value;
+		}
 
 		/// <summary>WSMove::wsProcessCheckSavePoint's first time ever on a save point (flag 0:3 clear): the flag set and the state
 		/// "1stsp" (WS1stSPDirection) - babil_common.msd 1000130 in the message window, tapped past.</summary>

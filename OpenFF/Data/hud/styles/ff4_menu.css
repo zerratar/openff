@@ -58,6 +58,7 @@
 
 /* A Yes / No question: the screen dimmed by half, Steam's panel, two pills of button_00 (48-pixel caps kept). */
 .m-dim { background-color: #00000080; }
+.m-black { background-color: #000000; }
 .m-question-window { background-image: resource("shell/window.png"); -ff-slice: 6; }
 .m-pill-art {
   background-image: resource("files/MENU_Common.dat/button_00.NCGR");

@@ -109,6 +109,9 @@ namespace OpenFF.Client
 			// Save: the slots and Title Menu, the hand on one; what the lit slot holds (its party by places, place, time, gil),
 			// or "No save data found."; NoTitle: a full screen without the title bar (Party, Save).
 			public bool Save, NoTitle, SlotFilled;
+			// Difficulty (New Game's DifficultyPart): the line, Normal and Hard with the hand on one, the note under them.
+			public bool Difficulty, NormalLit, HardLit;
+			public string DifficultyText = "", NormalLabel = "Normal", HardLabel = "Hard", DifficultyNote1 = "", DifficultyNote2 = "";
 			public List<CommandRow> SaveRow = new List<CommandRow> { new CommandRow(), new CommandRow(), new CommandRow(), new CommandRow() };
 			public List<MemberRow> SaveMember = Rows<MemberRow>(5);
 			public string SavePlace = "", SaveTime = "", SaveGil = "", NoDataLabel = "No save data found.";

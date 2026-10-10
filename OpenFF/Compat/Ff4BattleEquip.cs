@@ -188,7 +188,7 @@ namespace OpenFF.Client
 				if ((a.Resists >> bit & 1) != 0) factor >>= 1;
 			}
 			long damage = factor * (Math.Max(0, who.Hp) / 2) >> 12;
-			if (who.Member != null && foe.IsMonster) damage = damage * 12 / 10;
+			damage = NormalScale(who, foe, damage);
 			if (Augment(who, Ff4Augments.ItemLore)) damage *= 2;   // calcItemDamage: Item Lore (mulValue 0x2000)
 			return (int)Math.Clamp(damage, 0, DamageLimit(who));
 		}

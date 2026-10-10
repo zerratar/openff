@@ -23,6 +23,9 @@ namespace OpenFF.Client
 		[JsonPropertyName("battleSpeed")] public int BattleSpeed { get; set; } = 3;
 		[JsonPropertyName("subtitles")] public bool Subtitles { get; set; } = true;
 		[JsonPropertyName("windowDesign")] public int WindowDesign { get; set; } = 1;
+		/// <summary>New Game's difficulty (DifficultyPart: the preferences' bit 12): Hard drops Normal's x1.2 onto monsters and
+		/// x0.7 onto the party from the damage formulas.</summary>
+		[JsonPropertyName("hard")] public bool Hard { get; set; }
 
 		private static Ff4Settings _current;
 

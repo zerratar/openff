@@ -153,6 +153,32 @@ q = '\n'.join([
 ])
 question_frame = frame('question', 0, 0, 1920, 1080, None, 'bind-display="menu.question"', indent(q, 1))
 
+# New Game's difficulty question (DifficultyPart, measured off Steam's draws): over black, the question window taller - the
+# line, Normal and Hard (button_00, the hand on one), the note's two lines under them; Confirm and Back at the foot.
+def choice(id_, x, label, lit):
+    inner = '\n'.join([
+        frame('art', 0, 0, 405.5, 121.5, 'm-pill-art'),
+        frame('label', 0, 30.4, 405.5, 60.75, 'm-text m-centre', 'bind-text="{%s}"' % label),
+        frame('hand', 81, 0, 1, 121.5, 'hand m-pill-hand', 'bind-visible="%s"' % lit),
+    ])
+    return frame(id_, x, 540, 405.5, 121.5, 'm-pill', '', indent(inner, 1))
+dq = '\n'.join([
+    frame('black', 0, 0, 1920, 1080, 'm-black'),
+    frame('window', 358.3, 243, 1203.4, 614.2, 'm-question-window'),
+    frame('text', 358.3, 347.6, 1203.4, 60.75, 'm-text m-centre', 'bind-text="{menu.difficultyText}"'),
+    choice('normal', 486.8, 'menu.normalLabel', 'menu.normalLit'),
+    choice('hard', 1027.6, 'menu.hardLabel', 'menu.hardLit'),
+    frame('note1', 358.3, 698.6, 1203.4, 60.75, 'm-text m-centre', 'bind-text="{menu.difficultyNote1}"'),
+    frame('note2', 358.3, 752.6, 1203.4, 60.75, 'm-text m-centre', 'bind-text="{menu.difficultyNote2}"'),
+    frame('keys', 0, 995.6, 1920, 60.75, None, '', indent('\n'.join([
+        frame('key0', 1348.7, 0, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 43'),
+        frame('label0', 1409.5, 0, 360, 60.75, 'm-key-label', 'bind-text="{menu.confirm}"'),
+        frame('key1', 1568.5, 0, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 15'),
+        frame('label1', 1629.3, 0, 360, 60.75, 'm-key-label', 'bind-text="{menu.back}"'),
+    ]), 1)),
+])
+difficulty_frame = frame('difficulty', 0, 0, 1920, 1080, None, 'bind-display="menu.difficulty"', indent(dq, 1))
+
 # The full screens (Inventory, Magic, ...): gen_menu_screens.py, with this file's helpers.
 _scope = {'frame': frame, 'indent': indent, 'f': f, 'member_panel': panel, 'pill': pill}
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gen_ff4_menu_screens.py'), encoding='utf-8').read(), _scope)
@@ -161,6 +187,8 @@ for sc in _scope['screens']: out.append(indent(sc, 1))
 # The question over everything (Quicksave's, Settings' Quit).
 out.append(indent('<!-- A Yes / No question over the menu (Quicksave: "Quicksave game and quit?"; Settings: Quit). -->', 1))
 out.append(indent(question_frame, 1))
+out.append(indent("<!-- New Game's difficulty question (DifficultyPart): Normal / Hard over black. -->", 1))
+out.append(indent(difficulty_frame, 1))
 
 # Everything inside one frame that carries the window design the settings chose (design-1 .. design-6): a sheet's
 # .design-N rules put MENU_Common's set N - 1 on the windows, scroll bars, buttons and wallpaper.

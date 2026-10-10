@@ -24,7 +24,8 @@
 //   resumes the quicksave (Ff4Saves.SuspendSlot) at once, as Steam's does.
 //   The title's BGM is 1.
 // - TitleContents::update (FUN_00528120): Up/Down move through the shown commands, wrapping, with SE 0:3;
-//   NEW GAME plays SE 0:1, stops the BGM over 20 frames and fades out over 30 to the new game; LOAD GAME
+//   NEW GAME plays SE 0:1 and asks the difficulty (DifficultyPart: Normal / Hard, the menu's layout over black); a
+//   pick stops the BGM over 20 frames and fades out over 30 to the new game, Back returns to the commands; LOAD GAME
 //   opens the load screen; QUIT GAME quits.
 //
 // Places: the Steam shell's logical screen is 480 x 320 (the phone's; the sheets are at 2x), widened for
@@ -65,6 +66,7 @@ namespace OpenFF.Client
 		private static readonly float[] _rowY = new float[4];
 		private static int _cursor = -1;
 		private static bool _loadOpen;
+		private static bool _difficultyOpen;   // NEW GAME's difficulty question (DifficultyPart) up, over black
 		/// <summary>Whether the Load screen is the menu's layout (Steam's) rather than the port's slot windows.</summary>
 		private static bool MenuLoad => Ff4Menu.Instance != null && Ff4MenuHud.Available;
 		private static int _loadCursor;
@@ -246,6 +248,7 @@ namespace OpenFF.Client
 				}
 				_cursor = Array.IndexOf(_shown, true);
 				_loadOpen = false;
+				_difficultyOpen = false;
 				_showing = Showing.Title;
 				_state = State.FadingIn;
 				try
@@ -260,6 +263,7 @@ namespace OpenFF.Client
 			{
 				_showing = Showing.Nothing;
 				_loadOpen = false;
+				_difficultyOpen = false;
 			}
 
 			private static bool AnySave()
@@ -280,7 +284,8 @@ namespace OpenFF.Client
 						if (Faded) { FadeIn(DefaultFade); _state = State.Menu; }
 						break;
 					case State.Menu:
-						if (_loadOpen) LoadInput();
+						if (_difficultyOpen) DifficultyInput();
+						else if (_loadOpen) LoadInput();
 						else MenuInput();
 						break;
 					case State.Leaving:
@@ -317,13 +322,14 @@ namespace OpenFF.Client
 						break;
 					case NewGame:
 						Se(1);
-						// A new game starts from nothing: the save file the engine read at boot (its last slot, a test's party
-						// in it) is not this game's. FF4's initForNewgame: Cecil alone, no flags.
-						Ff4Saves.Pending = null;
-						Ff4Saves.PlayFrames = 0;
-						Ff4Party.NewGame();
-						if (GlobalScope.flags != null) Array.Clear(GlobalScope.flags);
-						Leave(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_WHITE);
+						// Steam asks the difficulty first (DifficultyPart); the game starts once one is picked.
+						if (MenuLoad)
+						{
+							_difficultyOpen = true;
+							Ff4Menu.Instance.OpenDifficulty();
+							break;
+						}
+						StartNewGame();
 						break;
 					case Load:
 						Se(1);
@@ -338,6 +344,31 @@ namespace OpenFF.Client
 						try { GlobalScope.m_Graphics.getGame().Exit(); } catch (Exception) { Environment.Exit(0); }
 						break;
 				}
+			}
+
+			/// <summary>The difficulty question's answer: Normal or Hard kept in the settings (the preferences' bit 12) and the new
+			/// game started, as DifficultyPart does; Back to the commands.</summary>
+			private void DifficultyInput()
+			{
+				int chosen = Ff4Menu.Instance.DifficultyChosen;
+				if (chosen == 0) return;
+				if (chosen < 0) { _difficultyOpen = false; Se(2); return; }
+				Ff4Settings.Current.Hard = chosen == 2;
+				Ff4Settings.Current.Save();
+				Log.Write(LogChannel.General, "ff4 title: difficulty " + (chosen == 2 ? "Hard" : "Normal"));
+				Se(1);
+				StartNewGame();
+			}
+
+			private void StartNewGame()
+			{
+				// A new game starts from nothing: the save file the engine read at boot (its last slot, a test's party
+				// in it) is not this game's. FF4's initForNewgame: Cecil alone, no flags.
+				Ff4Saves.Pending = null;
+				Ff4Saves.PlayFrames = 0;
+				Ff4Party.NewGame();
+				if (GlobalScope.flags != null) Array.Clear(GlobalScope.flags);
+				Leave(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_WHITE);
 			}
 
 			private void LoadInput()
@@ -415,6 +446,13 @@ namespace OpenFF.Client
 
 			private static void DrawTitle(DrawList d)
 			{
+				if (_difficultyOpen)
+				{
+					// DifficultyPart's own screen: black, the question (the menu's layout) over it.
+					d.Rect(0, 0, DrawList.ScreenWidth, DrawList.ScreenHeight, Color.Black);
+					if (MenuLoad) Ff4Menu.Instance.DrawOverTitle();
+					return;
+				}
 				Ff4Ui.Cell(d, BgBank, BgSheet, 0, X(240), Y(160));
 				Ff4Ui.Cell(d, ObjBank, ObjSheet, 2, X(240), Y(94));
 				Ff4Ui.Cell(d, ObjBank, ObjSheet, 4, X(240), Y(320 / 2 + 148));

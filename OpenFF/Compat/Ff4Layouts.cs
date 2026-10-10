@@ -18,8 +18,7 @@ namespace OpenFF.Client
 		private static readonly Dictionary<string, Layout> _layouts = new Dictionary<string, Layout>(StringComparer.OrdinalIgnoreCase);
 		private static Dictionary<uint, string> _texts;
 		private static bool _textsLooked;
-		private static Dictionary<uint, string> _common;
-		private static bool _commonLooked;
+		private static readonly Dictionary<string, Dictionary<uint, string>> _pages = new Dictionary<string, Dictionary<uint, string>>();
 
 		/// <summary>MenuLayout_&lt;name&gt;.xbn, or null when the content lacks it.</summary>
 		public static Layout Get(string name)
@@ -59,26 +58,32 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>A line of babil_common.msd (the field's system messages), its line breaks kept; the fallback when unknown.</summary>
-		public static string CommonText(uint id, string fallback = null)
+		public static string CommonText(uint id, string fallback = null) => PageText("babil_common.msd", id, fallback);
+
+		/// <summary>A babil_menu.msd text with its line breaks (Text joins them into one line).</summary>
+		public static string MenuPage(uint id, string fallback = null) => PageText("babil_menu.msd", id, fallback);
+
+		/// <summary>A message's first page whole: ReadNames' plain text drops the line breaks a window keeps.</summary>
+		private static string PageText(string file, uint id, string fallback)
 		{
-			if (!_commonLooked)
+			if (!_pages.TryGetValue(file, out Dictionary<uint, string> pages))
 			{
-				_commonLooked = true;
+				pages = null;
 				try
 				{
-					// Its pages whole: ReadNames' plain text drops the line breaks the window keeps.
-					if (TableFiles.ReadAny(GameArchive.Chain, "babil_common.msd", out byte[] raw))
+					if (TableFiles.ReadAny(GameArchive.Chain, file, out byte[] raw))
 					{
-						_common = new Dictionary<uint, string>();
+						pages = new Dictionary<uint, string>();
 						foreach (OpenFF.Content.MsdMessage m in OpenFF.Content.Msd.Read(raw).Messages)
 						{
-							if (m.Pages.Count > 0 && !_common.ContainsKey(m.Id)) _common[m.Id] = m.Pages[0];
+							if (m.Pages.Count > 0 && !pages.ContainsKey(m.Id)) pages[m.Id] = m.Pages[0];
 						}
 					}
 				}
-				catch (Exception ex) { Log.Write(LogChannel.General, "ff4 layouts: babil_common.msd: " + ex.Message); }
+				catch (Exception ex) { Log.Write(LogChannel.General, "ff4 layouts: " + file + ": " + ex.Message); }
+				_pages[file] = pages;
 			}
-			if (_common != null && _common.TryGetValue(id, out string s) && !string.IsNullOrEmpty(s)) return s.Trim();
+			if (pages != null && pages.TryGetValue(id, out string s) && !string.IsNullOrEmpty(s)) return s.Trim();
 			return fallback ?? ("#" + id);
 		}
 	}

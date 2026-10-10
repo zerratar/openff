@@ -2368,5 +2368,33 @@
         <frame class="hand m-pill-hand" bind-visible="menu.no"><id>hand</id><x>81</x><y>0</y><width>1</width><height>121.5</height></frame>
       </frame>
     </frame>
+    <!-- New Game's difficulty question (DifficultyPart): Normal / Hard over black. -->
+    <frame bind-display="menu.difficulty">
+    <id>difficulty</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+      <frame class="m-black"><id>black</id><x>0</x><y>0</y><width>1920</width><height>1080</height></frame>
+      <frame class="m-question-window"><id>window</id><x>358.3</x><y>243</y><width>1203.4</width><height>614.2</height></frame>
+      <frame class="m-text m-centre" bind-text="{menu.difficultyText}"><id>text</id><x>358.3</x><y>347.6</y><width>1203.4</width><height>60.75</height></frame>
+      <frame class="m-pill">
+      <id>normal</id><x>486.8</x><y>540</y><width>405.5</width><height>121.5</height>
+        <frame class="m-pill-art"><id>art</id><x>0</x><y>0</y><width>405.5</width><height>121.5</height></frame>
+        <frame class="m-text m-centre" bind-text="{menu.normalLabel}"><id>label</id><x>0</x><y>30.4</y><width>405.5</width><height>60.75</height></frame>
+        <frame class="hand m-pill-hand" bind-visible="menu.normalLit"><id>hand</id><x>81</x><y>0</y><width>1</width><height>121.5</height></frame>
+      </frame>
+      <frame class="m-pill">
+      <id>hard</id><x>1027.6</x><y>540</y><width>405.5</width><height>121.5</height>
+        <frame class="m-pill-art"><id>art</id><x>0</x><y>0</y><width>405.5</width><height>121.5</height></frame>
+        <frame class="m-text m-centre" bind-text="{menu.hardLabel}"><id>label</id><x>0</x><y>30.4</y><width>405.5</width><height>60.75</height></frame>
+        <frame class="hand m-pill-hand" bind-visible="menu.hardLit"><id>hand</id><x>81</x><y>0</y><width>1</width><height>121.5</height></frame>
+      </frame>
+      <frame class="m-text m-centre" bind-text="{menu.difficultyNote1}"><id>note1</id><x>358.3</x><y>698.6</y><width>1203.4</width><height>60.75</height></frame>
+      <frame class="m-text m-centre" bind-text="{menu.difficultyNote2}"><id>note2</id><x>358.3</x><y>752.6</y><width>1203.4</width><height>60.75</height></frame>
+      <frame>
+      <id>keys</id><x>0</x><y>995.6</y><width>1920</width><height>60.75</height>
+        <frame class="key-cap" style="-ff-cell: key 43"><id>key0</id><x>1348.7</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.confirm}"><id>label0</id><x>1409.5</x><y>0</y><width>360</width><height>60.75</height></frame>
+        <frame class="key-cap" style="-ff-cell: key 15"><id>key1</id><x>1568.5</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.back}"><id>label1</id><x>1629.3</x><y>0</y><width>360</width><height>60.75</height></frame>
+      </frame>
+    </frame>
   </frame>
 </menu>
