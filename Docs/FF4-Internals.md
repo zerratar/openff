@@ -424,7 +424,10 @@ save point under the hero.
 - **Save points.** `WSMove::wsProcessCheckSavePoint`, every step: the land form under the hero (`PCObject` +0x340) looked up in
   the map's land-form parameter (chain 0 of its MAPPARAMETER pack, the twelve u16 encounter rates at 0, one per land form) -
   a rate of **0xFF marks a save point**. Stepping onto one: `WSCMenu` +0x60 = 1, `enableSPSetting`; the first time ever (flag
-  0:3 clear) the states "1stsp" then "world move" are scheduled and flag 0:3 set (the first save point's explanation).
+  0:3 clear) the states "1stsp" then "world move" are scheduled and flag 0:3 set (the first save point's explanation:
+  `WS1stSPDirection` closes the map name and reward windows, stands the hero - motion 1000 - waits 6 frames, opens the event's
+  message window with babil_common.msd 1000130 "A protective field surrounds this area, ..." and ends when it is tapped
+  past; the client does the same, `Ff4Battle.FirstSavePoint`).
   Stepping off: +0x60 = 0, `disableSPSetting`. (The world map is a field stage, where saving is on anyway.)
 - **The land form under the hero.** `PCObject::checkLandForm(CollisionResult&)`: the ground triangle's attribute word
   (CollisionResult +0x44), the highest of bits 11..22 set naming land form 0..11, none -1 - FF4's numbering, from 0 (FF3's

@@ -2156,6 +2156,26 @@ namespace OpenFF.Client
 		private float _walked;
 		private int _sinceBattle;
 		private int _lastLand = -2;
+
+		/// <summary>WSMove::wsProcessCheckSavePoint's first time ever on a save point (flag 0:3 clear): the flag set and the state
+		/// "1stsp" (WS1stSPDirection) - babil_common.msd 1000130 in the message window, tapped past.</summary>
+		private static void FirstSavePoint()
+		{
+			byte[,] flags = GlobalScope.flags;
+			if (flags == null || flags.GetLength(1) <= 3 || flags[0, 3] != 0) return;
+			flags[0, 3] = 1;
+			Log.Write(LogChannel.General, "field: the first save point - its explanation");
+			// wsInitialize: the hero stands (Steam's motion 1000, blended over 2 - the port's field set stands on 1001); the line
+			// is babil_common.msd's, in the message window.
+			string text = Ff4Layouts.CommonText(1000130, "A protective field surrounds this area, allowing you to rest in tents or cottages, or even to save your progress.");
+			OpenFF.Game.Guard("FF4 first save point", () =>
+			{
+				GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+				int id = hero?.getCharacterId() ?? -1;
+				if (id >= 0) GlobalScope.characterMng.startMotion(id, GlobalScope.characterMng.isMotion(id, 1000) ? 1000 : 1001, true, 2u);
+				EngineApi.Dialogue.Say(text);
+			});
+		}
 		private uint _lastGround;
 
 		private void Encounters()
@@ -2176,6 +2196,7 @@ namespace OpenFF.Client
 				_lastLand = land;
 				_lastGround = ground;
 				Log.Write(LogChannel.File, "field: land form " + land + " under the hero (ground flags " + ground.ToString("X8") + ")" + (table != null && table.SavePointOn(land) ? " - a save point" : ""));
+				if (table != null && table.SavePointOn(land)) FirstSavePoint();
 			}
 			if (Ff4Augments.PartyHas(Ff4Augments.SafeTravel)) return;   // wsmEncount: Safe Travel in anyone's slots - no random fights
 			if (table == null || table.RateOn(land) <= 0 || table.PartiesOn(land).Count == 0)

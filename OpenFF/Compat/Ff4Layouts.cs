@@ -18,6 +18,8 @@ namespace OpenFF.Client
 		private static readonly Dictionary<string, Layout> _layouts = new Dictionary<string, Layout>(StringComparer.OrdinalIgnoreCase);
 		private static Dictionary<uint, string> _texts;
 		private static bool _textsLooked;
+		private static Dictionary<uint, string> _common;
+		private static bool _commonLooked;
 
 		/// <summary>MenuLayout_&lt;name&gt;.xbn, or null when the content lacks it.</summary>
 		public static Layout Get(string name)
@@ -53,6 +55,30 @@ namespace OpenFF.Client
 				catch (Exception ex) { Log.Write(LogChannel.General, "ff4 layouts: babil_menu.msd: " + ex.Message); }
 			}
 			if (_texts != null && _texts.TryGetValue(id, out string s) && !string.IsNullOrEmpty(s)) return s.Replace("\n", " ").Trim();
+			return fallback ?? ("#" + id);
+		}
+
+		/// <summary>A line of babil_common.msd (the field's system messages), its line breaks kept; the fallback when unknown.</summary>
+		public static string CommonText(uint id, string fallback = null)
+		{
+			if (!_commonLooked)
+			{
+				_commonLooked = true;
+				try
+				{
+					// Its pages whole: ReadNames' plain text drops the line breaks the window keeps.
+					if (TableFiles.ReadAny(GameArchive.Chain, "babil_common.msd", out byte[] raw))
+					{
+						_common = new Dictionary<uint, string>();
+						foreach (OpenFF.Content.MsdMessage m in OpenFF.Content.Msd.Read(raw).Messages)
+						{
+							if (m.Pages.Count > 0 && !_common.ContainsKey(m.Id)) _common[m.Id] = m.Pages[0];
+						}
+					}
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "ff4 layouts: babil_common.msd: " + ex.Message); }
+			}
+			if (_common != null && _common.TryGetValue(id, out string s) && !string.IsNullOrEmpty(s)) return s.Trim();
 			return fallback ?? ("#" + id);
 		}
 	}
