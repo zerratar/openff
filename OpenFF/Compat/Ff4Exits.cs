@@ -178,7 +178,8 @@ namespace OpenFF.Client
 				Trigger = trigger ?? "",
 				Destination = destination,
 				// babilCommand_SetInsideMapJump / SetOutsideMapJump take the arrival's z negated (the door's box as written).
-				ArrivalX = ax, ArrivalY = ay, ArrivalZ = -az,
+				// The world map is the exception here: the port mirrors its chips instead (FieldMirror), which comes to the same.
+				ArrivalX = ax, ArrivalY = ay, ArrivalZ = MirroredField(destination) ? az : -az,
 				Facing = facing & 7,
 				MinX = Math.Min(x1, x2), MaxX = Math.Max(x1, x2),
 				MinY = Math.Min(y1, y2), MaxY = Math.Max(y1, y2),
@@ -186,6 +187,10 @@ namespace OpenFF.Client
 				Armed = false
 			};
 		}
+
+		/// <summary>Whether a destination is the world map as the port lays it out mirrored (fNN, FieldMirror on).</summary>
+		internal static bool MirroredField(string map) => FieldMirror.WantsFieldMirror && map != null && map.Length >= 3
+			&& (map[0] == 'f' || map[0] == 'F') && char.IsDigit(map[1]) && char.IsDigit(map[2]);
 
 		/// <summary>
 		/// Every setInsideMapJump in a script's bytecode, decoded linearly with the FF4

@@ -192,6 +192,15 @@ namespace OpenFF.Client
 		/// <summary>A field position as the picture's fraction across and down (nmi_visit_update_position).</summary>
 		private (float Fx, float Fz) Fraction(float x, float z) => ((x + _corrX + _stageW / 2f) / _stageW, (z + _corrZ + _stageH / 2f) / _stageH);
 
+		/// <summary>The party's place in the game's own terms: the port's world map is FF4's mirrored in z (FieldMirror).</summary>
+		private (float Fx, float Fz) PartyFraction(Vector3 at)
+		{
+			bool mirrored = _kind == 'f' && Ff4Exits.MirroredField(_stage);
+			(float fx, float fz) = Fraction(at.X, mirrored ? -at.Z : at.Z);
+			if (_kind == 'f') { fx -= (float)Math.Floor(fx); fz -= (float)Math.Floor(fz); }   // the world wraps
+			return (fx, fz);
+		}
+
 		private Icon At(Icon icon, int x, int z)
 		{
 			(icon.Fx, icon.Fz) = Fraction(x, z);
@@ -290,7 +299,7 @@ namespace OpenFF.Client
 			_idle = moving ? 0 : _idle + 1;
 			if (_name != null && Game.Hero.Present && !Ff4Cutscene.Active)
 			{
-				(float fx, float fz) = Fraction(at.X, at.Z);
+				(float fx, float fz) = PartyFraction(at);
 				See(fx, fz);
 			}
 			InputState input = Game.Input;
@@ -368,7 +377,7 @@ namespace OpenFF.Client
 			}
 			if (_showPlayer)
 			{
-				(float fx, float fz) = Fraction(at.X, at.Z);
+				(float fx, float fz) = PartyFraction(at);
 				Ff4Ui.Cell(d, "w_map_mark.NCER", "w_map_mark.NCGR", _frame / 7 % 4, X(MapLeft + fx * 512 * Px), Y(MapTop + fz * 384 * Px), Ff4Ui.Scale);
 			}
 		}
