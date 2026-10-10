@@ -11740,7 +11740,8 @@ internal static partial class GlobalScope
 						{
 							// PORT: the debug overlay's free camera (F1, F7) takes the eye while it is on; the
 							// game's own values are left as they are, to be back the moment it is off.
-							OpenFF.Client.FreeCamera.Take(ref camPos, ref camUp, ref target);
+							// PORT: and FF4's menu moves it in on the lead, as Steam's does (Ff4MenuCamera).
+							if (!OpenFF.Client.FreeCamera.Take(ref camPos, ref camUp, ref target)) OpenFF.Client.Ff4MenuCamera.Take(ref camPos, ref target);
 							VecFx32 vecFx = nitro_reuse_x;
 							VecFx32 vecFx2 = nitro_reuse_y;
 							VecFx32 vecFx3 = nitro_reuse_z;

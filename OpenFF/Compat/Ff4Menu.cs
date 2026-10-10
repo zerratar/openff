@@ -162,6 +162,8 @@ namespace OpenFF.Client
 		{
 			InputState input = Game.Input;
 			ApplySettingsOnce();
+			// Steam's menu closes the field camera in on the lead, from the root and its question; the full screens cover it.
+			Ff4MenuCamera.Step(_open && !_fromTitle);
 			if (!_open)
 			{
 				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !EventBusy() && !Game.Battle.InBattle && !Ff4Battle.Active

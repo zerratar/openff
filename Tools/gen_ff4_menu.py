@@ -134,6 +134,9 @@ keys = '\n'.join([
     frame('back', 280.5, 0, 200, 60.75, 'm-key-label', 'bind-text="{menu.back}"'),
 ])
 out.append(indent('<!-- The key hints: Enter Confirm, Backspace Back. -->', 1))
+# Steam's bar under the key hints (its own overlay, not in the 2D draws: measured off the pixels - the bottom 108 rows from
+# 972, black at 0x7A over the field).
+out.append(indent(frame('keyBar', 0, 972, 1920, 108, 'm-key-bar', 'bind-display="menu.root"'), 1))
 out.append(indent(frame('keys', 1497.5, 995.6, 480, 60.75, None, 'bind-display="menu.root"', indent(keys, 1)), 1))
 
 # The Yes / No question (Quicksave's): the screen dimmed, a window, the question, two pills (button_00), the hand on one.

@@ -15,7 +15,7 @@
 //   SDL_RenderPresent   the same for the frames drawn with SDL's 2D renderer (the opening movie).
 //
 // Commands: lines appended to %TEMP%\ff4hook\cmd.txt, read every frame (Tools/ff4hook/ff4steam.py writes them):
-//   key <enter|back|tab|esc|up|down|left|right|space> [frames]   pressed, released after [frames] (4)
+//   key <enter|back|tab|esc|up|down|left|right|space|a..z> [frames]   pressed, released after [frames] (4)
 //   shot <path.bmp>                                             the next frame
 //   every <frames> <dir>                                        a frame every <frames> into <dir>\NNNNN.bmp (0 stops)
 //   exec <index> <hex>                                          a script command run now, its operands the bytes given
@@ -510,6 +510,15 @@ static void Command(char *line)
 			if (_stricmp(name, g_keys[i].name) != 0) continue;
 			Queue(SDL_KEYDOWN, g_keys[i].scancode, g_keys[i].sym, g_frame);
 			Queue(SDL_KEYUP, g_keys[i].scancode, g_keys[i].sym, g_frame + (frames > 0 ? frames : 1));
+			Log("frame %llu: key %s for %d frame(s)", g_frame, name, frames);
+			return;
+		}
+		if (name[0] && !name[1] && ((name[0] >= 'a' && name[0] <= 'z') || (name[0] >= 'A' && name[0] <= 'Z')))
+		{
+			// A letter: SDL's scancode 4 + n (A..Z), its symbol the lower-case character (M the map, Z, C, ...).
+			int n = (name[0] | 0x20) - 'a';
+			Queue(SDL_KEYDOWN, 4 + n, 'a' + n, g_frame);
+			Queue(SDL_KEYUP, 4 + n, 'a' + n, g_frame + (frames > 0 ? frames : 1));
 			Log("frame %llu: key %s for %d frame(s)", g_frame, name, frames);
 			return;
 		}

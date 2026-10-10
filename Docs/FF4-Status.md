@@ -126,7 +126,7 @@ game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rule
 
 | | State |
 | --- | --- |
-| Root | The nine commands in MENU_LAYOUT's order with the scroll bar, the place and the gil, the key hints, the member panel's five places, the lead's thought in its balloon (babil_speculation.bbd's line for where the story stands). The place as WSMenu::wsmGetSavePointIndex names it (babil_savepoint.bbd: "Baron Castle", not the plate's "- 1F"). Open: the lead's 3D model, the world map's area names (tables compiled into the game). |
+| Root | The nine commands in MENU_LAYOUT's order with the scroll bar, the place and the gil, the key hints, the member panel's five places, the lead's thought in its balloon (babil_speculation.bbd's line for where the story stands). The place as WSMenu::wsmGetSavePointIndex names it (babil_savepoint.bbd: "Baron Castle", not the plate's "- 1F"). The field camera closes in on the lead as Steam's (eye +8,-32,-36, target +9,-5,-10 from the field's, half the way each step - traced with ff4hook), Steam's dark bar under the key hints. Open: the world map's area names (tables compiled into the game). |
 | Inventory | Two columns with the items' symbols, greyed by the record's field-use flag as WSCMenu::checkItem (Red Fang); key items on C; using an item on the party's places; status cures cure; Sort (Tab) as MSSItem's - consumables, weapons or armour at the top in turn, each in its records' order. |
 | Magic | The member between arrows, the spell's cost and line from babil_ability.msd, three columns, C for the next school, Z / M to change member. Casting from the menu follows the old path. |
 | Equipment | The member's figures, the lit piece's line, the five slots and what in the bag fits the lit one; C removes, Tab optimizes. Open: the figures' before / after comparison. |
@@ -137,7 +137,7 @@ game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rule
 | Party | MSSFormation's: Swap Rows turns the formation over, Party Formation trades two places (either may be empty); back-row faces stand further in, as on every member panel. |
 | Settings | Steam's nine lines: Music, Sound Effects, Voices (0..10), Battle Mode (Active / Wait), Battle Speed (1..6), Subtitles, Window Design (MENU_Common's six sets: frames, scroll bars, buttons, wallpaper - the layout's design-N class), Help, Quit (to the title). Kept in %LocalAppData%\OpenFF\ff4-settings.json; the volumes and the battle's mode and speed follow them. Not yet checked on screen against Steam's captures; Help has no screen, Voices and Subtitles are not used yet. |
 | Save | Steam's: offered on the world map and at save points (land forms whose encounter rate is 0xFF, read under the hero as checkLandForm does). Slot 1..3 and Title Menu down the right; the lit slot's party by places, the place, the play time and the gil on the left, or "No save data found."; "Save data to Slot N?" / "Return to the title menu?". The first save point ever explains itself (WS1stSPDirection: babil_common.msd 1000130, flag 0:3). |
-| Open | The lead's 3D model on the root. |
+| Open | The field map (M). |
 
 ## The Steam shell - 0%
 

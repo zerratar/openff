@@ -199,6 +199,7 @@
       </frame>
     </frame>
     <!-- The key hints: Enter Confirm, Backspace Back. -->
+    <frame class="m-key-bar" bind-display="menu.root"><id>keyBar</id><x>0</x><y>972</y><width>1920</width><height>108</height></frame>
     <frame bind-display="menu.root">
     <id>keys</id><x>1497.5</x><y>995.6</y><width>480</width><height>60.75</height>
       <frame class="key-cap" style="-ff-cell: key 43"><id>confirmKey</id><x>0</x><y>0</y><width>60.75</width><height>60.75</height></frame>
