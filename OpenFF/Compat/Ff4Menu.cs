@@ -29,7 +29,7 @@ namespace OpenFF.Client
 {
 	internal sealed partial class Ff4Menu : GameService
 	{
-		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Gambits, Party, Save, Load, Quicksave }
+		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Gambits, Party, Settings, Save, Load, Quicksave }
 		private enum Mode { Browse, PickMember, EquipSlot, EquipItem, ItemTarget, SwapMember }
 
 		private sealed class Command
@@ -119,7 +119,8 @@ namespace OpenFF.Client
 					case 50010: _commands.Add(new Command { Text = id, Screen = Screen.Party }); break;
 					case 50007: _commands.Add(new Command { Text = id, Screen = Screen.Save }); break;
 					case 50009: _commands.Add(new Command { Text = id, Screen = Screen.Quicksave }); break;
-					default: _commands.Add(new Command { Text = id, Later = true }); break;   // Settings
+					case 50006: _commands.Add(new Command { Text = id, Screen = Screen.Settings }); break;
+					default: _commands.Add(new Command { Text = id, Later = true }); break;
 				}
 			}
 		}
@@ -137,6 +138,7 @@ namespace OpenFF.Client
 		public override void OnUpdate()
 		{
 			InputState input = Game.Input;
+			ApplySettingsOnce();
 			if (!_open)
 			{
 				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !Game.Battle.InBattle && !Ff4Battle.Active
@@ -163,6 +165,7 @@ namespace OpenFF.Client
 				case Screen.Abilities:
 					if (Ff4MenuHud.Available) { UpdateAbilities(input); break; }
 					UpdateMemberScreen(input, ListCount()); break;
+				case Screen.Settings: UpdateSettings(input); break;
 				case Screen.Party:
 					if (Ff4MenuHud.Available) { UpdatePartyLayout(input); break; }
 					UpdateParty(input); break;
@@ -201,7 +204,7 @@ namespace OpenFF.Client
 			{
 				Command c = _commands[_command];
 				if (c.Later) { Notice(Ff4Layouts.Text(c.Text) + " comes later."); return; }
-				if (c.Screen == Screen.Quicksave) { _question = true; _questionYes = false; return; }   // "Quicksave game and quit?", the hand on No
+				if (c.Screen == Screen.Quicksave) { _question = true; _questionQuit = false; _questionYes = false; return; }   // "Quicksave game and quit?", the hand on No
 				if (c.Screen == Screen.Save && !SaveAllowed) return;
 				if (c.NeedsMember) { _mode = Mode.PickMember; return; }
 				OpenScreen(c.Screen);
@@ -216,6 +219,14 @@ namespace OpenFF.Client
 			if (!input.Pressed(Pad.A)) return;
 			_question = false;
 			if (!_questionYes) return;
+			if (_questionQuit)
+			{
+				// Settings' Quit: "Do you wish to quit the game ?" - the title, nothing saved.
+				Ff4Settings.Current.Save();
+				Close();
+				try { GlobalScope.wld.CBaseSystem.setTitle(true); } catch (Exception ex) { Log.Write(LogChannel.General, "menu: quit, to the title: " + ex.Message); }
+				return;
+			}
 			if (!Ff4Saves.Suspend()) { Notice("Could not quicksave here."); return; }
 			Close();
 			// The field ends into the title part, as the game's own way back there does (ff3Command_GoToTitle's).
@@ -683,6 +694,7 @@ namespace OpenFF.Client
 				case Screen.Abilities:
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawList(d); break;
+				case Screen.Settings: DrawScreenLayout(); break;
 				case Screen.Party:
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawParty(d); break;
@@ -792,6 +804,8 @@ namespace OpenFF.Client
 			h.Abilities = _screen == Screen.Abilities;
 			h.Gambits = _screen == Screen.Gambits;
 			h.Party = _screen == Screen.Party;
+			h.Settings = _screen == Screen.Settings;
+			if (h.Settings) FillSettings(h);
 			if (h.Party)
 			{
 				bool places = _mode == Mode.SwapMember;

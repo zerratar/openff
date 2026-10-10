@@ -53,6 +53,17 @@ namespace OpenFF.Client
 			public int Icon = -1;
 		}
 
+		/// <summary>A line of Settings: its word, the hand on it, and what it holds - a slider (Music, Sound Effects, Voices: the
+		/// number and where the marker stands), two choices (Battle Mode, Subtitles), Battle Speed's six steps between Fast and
+		/// Slow, Window Design's six, or a button of its own (Help, Quit). Box: the choices, Lit on the one set.</summary>
+		public sealed class SettingRow
+		{
+			public bool Present, Lit, Slider, Pair, Steps, Design, Button;
+			public string Label = "", Number = "", FastLabel = "", SlowLabel = "";
+			public float Marker;
+			public List<CellRow> Box = Rows<CellRow>(6);
+		}
+
 		public sealed class ScrollData
 		{
 			public bool Shown, Knob;
@@ -95,6 +106,12 @@ namespace OpenFF.Client
 			// Party: the two pills (Swap Rows, Party Formation), the hand on one of them or on the member panel's places.
 			public bool Party, SwapRowsLit, FormationLit;
 			public string SwapRowsLabel = "Swap Rows", FormationLabel = "Party Formation";
+			// Settings: five of its nine lines in view, and the scroll bar; Design the window design (1..6) the screens wear.
+			public bool Settings, SettingConfirm;
+			public List<SettingRow> Setting = Rows<SettingRow>(5);
+			public ScrollData SettingScroll = new ScrollData();
+			public int Design = 1;
+			public string DesignClass = "design-1";
 			public string Thought = "", Location = "", Gil = "", GilLabel = "Gil";
 			public string LvLabel = "Lv", HpLabel = "HP", MpLabel = "MP", Confirm = "Confirm", Back = "Back";
 			public string QuestionText = "", YesLabel = "Yes", NoLabel = "No";
@@ -147,6 +164,9 @@ namespace OpenFF.Client
 		public static void Draw(Data data)
 		{
 			if (!Available) return;
+			// The window design the settings chose: the layout's design-N class on every screen (MENU_Common's set N - 1).
+			data.Design = Ff4Settings.Current.WindowDesign;
+			data.DesignClass = "design-" + data.Design;
 			_screen.Draw(Game.Draw, name => string.Equals(name, "menu", StringComparison.OrdinalIgnoreCase)
 				? (true, data)
 				: (Game.Hud.TryGet(name, out object hud) ? (true, hud) : (false, null)));

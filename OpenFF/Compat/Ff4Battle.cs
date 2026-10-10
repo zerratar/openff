@@ -1205,7 +1205,7 @@ namespace OpenFF.Client
 		/// 1/4096ths of a frame - every timer below counts in those (a frame is 4096 of them).</summary>
 		private static readonly int[] SpeedRates = { 6144, 5120, 4096, 3072, 2048, 1024 };
 		private const int Tick = 4096;   // a frame, in the timers' 1/4096ths
-		private static int SpeedRate => SpeedRates[Math.Clamp((int.TryParse(Options.Get("ff4-battle-speed"), out int s) ? s : 3) - 1, 0, 5)];
+		private static int SpeedRate => SpeedRates[Ff4Settings.BattleSpeedNow - 1];
 		private static float BattleSpeedRate => SpeedRate / (float)Tick;
 
 		/// <summary>A normal encounter's start (BattlePlayer / BattleMonster::initializeATG): 45 to 65 of the gauge's 100, at random.</summary>
@@ -1838,7 +1838,7 @@ namespace OpenFF.Client
 		private Fighter _executing;
 
 		/// <summary>The wait mode (the config's battle mode, gpInstance 0x94 bit 0): the gauges stand while a member has a list open. Off, the active mode, unless --ff4-battle-wait.</summary>
-		private static bool WaitMode => Options.Get("ff4-battle-wait") != null;
+		private static bool WaitMode => Ff4Settings.WaitNow;
 
 		/// <summary>
 		/// A member's command is decided (commandSelected): the menu closes and the action waits its turn, the gauge held

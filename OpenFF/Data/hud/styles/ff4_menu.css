@@ -116,3 +116,45 @@
 .m-member.back .m-face { left: 40.5px; }
 /* Party Formation: the place picked up, its name yellow until it is set down. */
 .m-member.picked .m-text { color: #ffe86e; }
+
+/* ---- Settings ---- */
+/* A slider: m008_volume's bar and m008_volume_2's marker over it, at 1.6875 (Steam's 863.7 x 79.3 and 79.4). */
+.m-slider-bar { background-image: resource("files/MENU_Common.dat/m008_volume.NCGR"); -ff-background-rect: 0 0 512 47; }
+.m-slider-marker { background-image: resource("files/MENU_Common.dat/m008_volume_2.NCGR"); -ff-background-rect: 0 0 47 47; }
+/* A choice: a small raised window, the one set in the lit bands. */
+.m-box-fill { background-color: #2a2b66; }
+.m-box {
+  background-image: resource("files/MENU_Common.dat/frame_00.NCGR");
+  -ff-background-rect: 0 0 192 192;
+  -ff-slice: 16;
+  -ff-slice-scale: 1.6875;
+}
+.m-box-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 50.6px, #667dc4 50.6px, #667dc4 77.6px, #4a5daa 77.6px, #4a5daa 100%); }
+
+/* ---- Window Design (Settings): MENU_Common's sets 1..5 for designs 2..6 - the windows' and rows' frames, the scroll
+   bars, the buttons and the wallpaper. ---- */
+.design-2 .m-window, .design-2 .m-box { background-image: resource("files/MENU_Common.dat/frame_01.NCGR"); }
+.design-2 .m-edge { background-image: resource("files/MENU_Common.dat/frame_01.NCGR"); }
+.design-2 .m-scroll-up, .design-2 .m-scroll-down, .design-2 .m-scroll-track, .design-2 .m-scroll-knob { background-image: resource("files/MENU_Common.dat/scrollbar_01.NCGR"); }
+.design-2 .m-pill-art { background-image: resource("files/MENU_Common.dat/button_01.NCGR"); }
+.design-2 .m-wallpaper { background-image: resource("files/MENU_Common.dat/wallpaper3d_01.NCGR"); }
+.design-3 .m-window, .design-3 .m-box { background-image: resource("files/MENU_Common.dat/frame_02.NCGR"); }
+.design-3 .m-edge { background-image: resource("files/MENU_Common.dat/frame_02.NCGR"); }
+.design-3 .m-scroll-up, .design-3 .m-scroll-down, .design-3 .m-scroll-track, .design-3 .m-scroll-knob { background-image: resource("files/MENU_Common.dat/scrollbar_02.NCGR"); }
+.design-3 .m-pill-art { background-image: resource("files/MENU_Common.dat/button_02.NCGR"); }
+.design-3 .m-wallpaper { background-image: resource("files/MENU_Common.dat/wallpaper3d_02.NCGR"); }
+.design-4 .m-window, .design-4 .m-box { background-image: resource("files/MENU_Common.dat/frame_03.NCGR"); }
+.design-4 .m-edge { background-image: resource("files/MENU_Common.dat/frame_03.NCGR"); }
+.design-4 .m-scroll-up, .design-4 .m-scroll-down, .design-4 .m-scroll-track, .design-4 .m-scroll-knob { background-image: resource("files/MENU_Common.dat/scrollbar_03.NCGR"); }
+.design-4 .m-pill-art { background-image: resource("files/MENU_Common.dat/button_03.NCGR"); }
+.design-4 .m-wallpaper { background-image: resource("files/MENU_Common.dat/wallpaper3d_03.NCGR"); }
+.design-5 .m-window, .design-5 .m-box { background-image: resource("files/MENU_Common.dat/frame_04.NCGR"); }
+.design-5 .m-edge { background-image: resource("files/MENU_Common.dat/frame_04.NCGR"); }
+.design-5 .m-scroll-up, .design-5 .m-scroll-down, .design-5 .m-scroll-track, .design-5 .m-scroll-knob { background-image: resource("files/MENU_Common.dat/scrollbar_04.NCGR"); }
+.design-5 .m-pill-art { background-image: resource("files/MENU_Common.dat/button_04.NCGR"); }
+.design-5 .m-wallpaper { background-image: resource("files/MENU_Common.dat/wallpaper3d_04.NCGR"); }
+.design-6 .m-window, .design-6 .m-box { background-image: resource("files/MENU_Common.dat/frame_05.NCGR"); }
+.design-6 .m-edge { background-image: resource("files/MENU_Common.dat/frame_05.NCGR"); }
+.design-6 .m-scroll-up, .design-6 .m-scroll-down, .design-6 .m-scroll-track, .design-6 .m-scroll-knob { background-image: resource("files/MENU_Common.dat/scrollbar_05.NCGR"); }
+.design-6 .m-pill-art { background-image: resource("files/MENU_Common.dat/button_05.NCGR"); }
+.design-6 .m-wallpaper { background-image: resource("files/MENU_Common.dat/wallpaper3d_05.NCGR"); }
