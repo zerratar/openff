@@ -66,6 +66,8 @@ namespace OpenFF.Client
 			{ "checkTopPlayer", Ff4PartyCommands.CheckTopPlayer },            // (type, label)
 			{ "symbolCharacterResetting", Ff4PartyCommands.SymbolCharacterResetting }, // (?, ?, ?, ?)
 			{ "symbolCharacterStore", Ff4PartyCommands.SymbolCharacterStore }, // (type, ?, ?)
+			{ "stonePartySetting", Ff4PartyCommands.StonePartySetting },      // (what): 100 / 99 allow / forbid, 1 / 0 stone / colours
+			{ "setUpPochka", Ff4PartyCommands.SetUpPochka },                  // (cast): a check only
 			{ "setTelepo", Ff4PartyCommands.SetTelepo },                      // (map, x, y, z, facing)
 			{ "setTresureBattleMapID", Ff4PartyCommands.SetTresureBattleMapID }, // (stage, ?, ?)
 			{ "newTBoxIcon", Ff4NaviMap.NewTBoxIcon },                        // (x, y, z, flag group, flag index, ?)

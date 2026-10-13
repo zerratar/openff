@@ -254,9 +254,26 @@ namespace OpenFF.Client
 			try
 			{
 				if (EngineApi.HeroPlayer is GlobalScope.pl.CPlayerHuman hero) hero.changeJob(0, -1);
+				ApplyLeaderLook();
 				Log.Write(LogChannel.File, "field: the leading character walks as " + FieldModel());
 			}
 			catch (Exception ex) { Log.Write(LogChannel.General, "field: remaking the hero: " + ex.Message); }
+		}
+
+		/// <summary>What a made hero needs beyond its model: half its size under Mini (pl::setDwarfScaling - the field shrinks
+		/// the one who leads), the stone look while a scene has the party in stone.</summary>
+		public static void ApplyLeaderLook()
+		{
+			try
+			{
+				Party p = Ff4Party.Party;
+				if (p == null || p.Members.Count == 0 || EngineApi.HeroPlayer == null) return;
+				int type = Ff4Speculation.FieldSymbol >= 0 ? Ff4Speculation.FieldSymbol : p.Members[0].Id;
+				Character c = p.Get(type) ?? p.Members[0];
+				if (_storedModel == null && Has(c, 6)) EngineApi.HeroPlayer.setScale(new GlobalScope.VecFx32(0x800, 0x800, 0x800));
+				if (_stoned) ShowStone();
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "field: the leader's look: " + ex.Message); }
 		}
 
 		/// <summary>SymbolCharacterResetting(?, ?, ?, ?): the party's field figures made again for who they are now (a toad, a
@@ -277,6 +294,44 @@ namespace OpenFF.Client
 			engine.getDword();
 			_storedModel = ModelOf(type);
 			RemakeHero();
+		}
+
+		/// <summary>SetUpPochka(cast): libff4 only checks the cast is there (a vehicle, the player, an NPC or a structure - a panic
+		/// otherwise); nothing changes.</summary>
+		public static void SetUpPochka(GlobalScope.ScriptEngine engine) => engine.getWord();
+
+		// ---- the party turned to stone in a scene (StonePartySetting: CCharacterMng's stone flags, PlayerParty::changeStonePaletteForEvent) ----
+
+		private static bool _stoneAllowed, _stoned;
+
+		/// <summary>StonePartySetting(what): 100 allows the stone look and 99 forbids it; with it allowed 1 shows the field's party
+		/// in stone (each figure's _stone texture, as the palette sent from its stone file) and 0 brings its colours back.</summary>
+		public static void StonePartySetting(GlobalScope.ScriptEngine engine)
+		{
+			int what = engine.getByte();
+			if (what == 99) { _stoneAllowed = false; return; }
+			if (what == 100) { _stoneAllowed = true; return; }
+			if (!_stoneAllowed || (what != 0 && what != 1) || _stoned == (what == 1)) return;
+			_stoned = what == 1;
+			ShowStone();
+		}
+
+		private static void ShowStone()
+		{
+			try
+			{
+				GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+				if (hero == null) return;
+				string model = FieldModel(), texture = _stoned ? model + "_stone" : model;
+				if (_stoned && GlobalScope.ds.g_File.getSize(texture + ".ntxp.lz") == 0) return;
+				int id = hero.getCharacterId();
+				GlobalScope.characterMng.releaseTex(id);
+				GlobalScope.characterMng.bindReplaceTex(id, texture);
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				GlobalScope.characterMng.setupReplaceTex(id);
+				Log.Write(LogChannel.File, "field: the party " + (_stoned ? "turned to stone" : "in its colours again"));
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "field: stone: " + ex.Message); }
 		}
 
 		// ---- what the world keeps for later: Teleport's way out, the next chest fight's stage ----

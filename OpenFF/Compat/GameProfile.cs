@@ -64,6 +64,9 @@ namespace OpenFF.Client
 			switch (model[0])
 			{
 				case 'p':
+					// The toad and the pig walk with their own sets (pl::getFrogMotionName, getPigMotionName).
+					if (model.StartsWith("p25", StringComparison.OrdinalIgnoreCase)) return "f_flog001";
+					if (model.StartsWith("p41", StringComparison.OrdinalIgnoreCase)) return "f_pig001";
 					return model.Length >= 3 ? "f" + model.Substring(1, 2) : null;
 				case 'o':
 				case 'w':

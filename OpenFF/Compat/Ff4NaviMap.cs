@@ -238,6 +238,7 @@ namespace OpenFF.Client
 		private void Load(string stage)
 		{
 			_stage = stage;
+			Ff4PartyCommands.ApplyLeaderLook();   // the hero made with the map: Mini's size, a scene's stone
 			if (!string.Equals(_percentStage, stage, StringComparison.OrdinalIgnoreCase)) _showPercent = true;
 			_map = MapData.Read(NaviName(stage, out _showPlayer));
 			if (_map == null) return;
