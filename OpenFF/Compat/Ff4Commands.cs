@@ -64,6 +64,8 @@ namespace OpenFF.Client
 			{ "budgetAdjust", Ff4PartyCommands.BudgetAdjust },                // (amount, ?, ?)
 			{ "battleResultJump", Ff4PartyCommands.BattleResultJump },        // (won, lost, escaped)
 			{ "checkTopPlayer", Ff4PartyCommands.CheckTopPlayer },            // (type, label)
+			{ "symbolCharacterResetting", Ff4PartyCommands.SymbolCharacterResetting }, // (?, ?, ?, ?)
+			{ "symbolCharacterStore", Ff4PartyCommands.SymbolCharacterStore }, // (type, ?, ?)
 			{ "setTelepo", Ff4PartyCommands.SetTelepo },                      // (map, x, y, z, facing)
 			{ "setTresureBattleMapID", Ff4PartyCommands.SetTresureBattleMapID }, // (stage, ?, ?)
 			{ "newTBoxIcon", Ff4NaviMap.NewTBoxIcon },                        // (x, y, z, flag group, flag index, ?)

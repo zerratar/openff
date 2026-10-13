@@ -46,7 +46,7 @@ namespace OpenFF.Client
 		/// character's job (j101...); FF4 has no jobs, so the name is fixed - Cecil's - unless
 		/// --leader= says otherwise.
 		/// </summary>
-		public static string LeaderModel => Options.Get("leader") ?? (IsFf4 ? "p00_00" : null);
+		public static string LeaderModel => Options.Get("leader") ?? (IsFf4 ? Ff4PartyCommands.FieldModel() : null);
 
 		/// <summary>
 		/// The field motion set for a character model, by the game's naming. FF3 keeps them

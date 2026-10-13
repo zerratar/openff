@@ -225,6 +225,60 @@ namespace OpenFF.Client
 			engine.jump(Ff4Battle.LastResult == 2 ? escaped : Ff4Battle.LastResult == 1 ? lost : won);
 		}
 
+		// ---- the field's leading character (GameParameter::fieldSymbolID and its model, pl::getNormalModelName) ----
+
+		private static string _storedModel;   // SymbolCharacterStore's model, until SymbolCharacterResetting
+
+		/// <summary>
+		/// The model the field's leading character walks as: the field symbol a script set (setSymbolCharacter), else the
+		/// first member - a toad's p25_00, a pig's p41_00 (getFrogModelName / getPigModelName), Golbez's p40_00, otherwise
+		/// pNN_00 by type (Cecil the Dark Knight p00_00, as OpenFF has shown him). SymbolCharacterStore's model while it holds.
+		/// </summary>
+		public static string FieldModel()
+		{
+			if (_storedModel != null) return _storedModel;
+			Party p = Ff4Party.Party;
+			if (p == null || p.Members.Count == 0) return "p00_00";
+			int type = Ff4Speculation.FieldSymbol >= 0 ? Ff4Speculation.FieldSymbol : p.Members[0].Id;
+			Character c = p.Get(type) ?? p.Members[0];
+			if (Has(c, 4)) return "p25_00";
+			if (Has(c, 0xC)) return "p41_00";
+			return ModelOf(c.Id);
+		}
+
+		private static string ModelOf(int type) => type == 14 || type == 16 ? "p40_00" : "p" + Math.Clamp(type, 0, 99).ToString("00") + "_00";
+
+		/// <summary>The hero made again as FieldModel says, where it stands (CPlayerHuman::changeJob's remake - FF3's job change).</summary>
+		private static void RemakeHero()
+		{
+			try
+			{
+				if (EngineApi.HeroPlayer is GlobalScope.pl.CPlayerHuman hero) hero.changeJob(0, -1);
+				Log.Write(LogChannel.File, "field: the leading character walks as " + FieldModel());
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "field: remaking the hero: " + ex.Message); }
+		}
+
+		/// <summary>SymbolCharacterResetting(?, ?, ?, ?): the party's field figures made again for who they are now (a toad, a
+		/// pig, the leader changed) - here the walking leader's.</summary>
+		public static void SymbolCharacterResetting(GlobalScope.ScriptEngine engine)
+		{
+			for (int i = 0; i < 4; i++) engine.getDword();
+			_storedModel = null;
+			RemakeHero();
+		}
+
+		/// <summary>SymbolCharacterStore(type, ?, ?): the field's leading character walks as that type's figure (16: p40_00)
+		/// until SymbolCharacterResetting.</summary>
+		public static void SymbolCharacterStore(GlobalScope.ScriptEngine engine)
+		{
+			int type = (int)engine.getDword();
+			engine.getDword();
+			engine.getDword();
+			_storedModel = ModelOf(type);
+			RemakeHero();
+		}
+
 		// ---- what the world keeps for later: Teleport's way out, the next chest fight's stage ----
 
 		/// <summary>Where the Teleport spell takes the party from this map (WSCMapJump::setTelepo): the map, x, y, z (z negated, as
