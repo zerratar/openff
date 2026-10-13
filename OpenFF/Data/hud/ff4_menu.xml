@@ -207,8 +207,9 @@
       <frame class="key-cap" style="-ff-cell: key 15"><id>backKey</id><x>219.7</x><y>0</y><width>60.75</width><height>60.75</height></frame>
       <frame class="m-key-label" bind-text="{menu.back}"><id>back</id><x>280.5</x><y>0</y><width>200</width><height>60.75</height></frame>
     </frame>
-    <!-- The field's key hints (Ff4NaviMap draws them): M Map / Quit Map, Tab Menu over a dark bar. -->
-    <frame bind-display="menu.fieldKeys">
+    <!-- The field's key hints (Ff4NaviMap draws them): M Map / Quit Map, Tab Menu over a dark bar - slid down out of sight
+         while the party walks and back up once it has stood half a second (menu.fieldKeysDrop: 0 up, 108 gone). -->
+    <frame bind-display="menu.fieldKeys" bind-style="top: {menu.fieldKeysDrop}px">
     <id>fieldKeys</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
       <frame class="m-key-bar"><id>bar</id><x>0</x><y>972</y><width>1920</width><height>108</height></frame>
       <frame bind-display="menu.mapClosed">

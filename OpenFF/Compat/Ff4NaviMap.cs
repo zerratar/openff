@@ -151,6 +151,10 @@ namespace OpenFF.Client
 		private bool _showPlayer;
 		private bool _open;
 		private int _frame, _idle;
+		private long _lastStep, _stillSince;
+		private float _barDrop = BarHeight;
+		private const float BarHeight = 108f, BarStep = 40.5f;   // 1080's pixels; a step's slide (Steam's 20.25 a frame)
+		private const int BarWait = 15;                          // steps stood before it comes back (Steam's 30 frames)
 		// showMapPercent: the explored percentage on a dungeon's map, as the stage's script leaves it (on for each new stage).
 		private static bool _showPercent = true;
 		private static string _percentStage;
@@ -342,6 +346,7 @@ namespace OpenFF.Client
 			bool moving = (at - _lastAt).Length > 0.01f;
 			_lastAt = at;
 			_idle = moving ? 0 : _idle + 1;
+			if (moving || _idle == 1) _stillSince = LegacyStep.Count;
 			if (_map != null && Game.Hero.Present && !Ff4Cutscene.Active)
 			{
 				(float fx, float fz) = _map.PartyFraction(at, _stage);
@@ -362,7 +367,20 @@ namespace OpenFF.Client
 			}
 			if (_open) Draw(at);
 			// Steam's hints over the field: "M Map / Tab Menu", gone while the party walks or anything else is up.
-			if (free && _idle >= 4 && !Flag(0, 4)) DrawKeys();
+			// Steam's bar (FF4.exe, measured frame by frame): the whole bar - its band and keys - slides down out of sight as the
+			// party starts walking and back up once it has stood half a second (30 of Steam's 60 frames), 20.25 of 1080's pixels
+			// (6 of the game's) a frame either way; gone at once when anything else is up, as it was.
+			// Counted in the game's steps (two of Steam's frames each), as Steam counts its frames.
+			long step = LegacyStep.Count, steps = Math.Clamp(step - _lastStep, 0, 4);
+			_lastStep = step;
+			bool keys = free && !Flag(0, 4);
+			if (!keys) _barDrop = BarHeight;
+			else
+			{
+				bool up = _idle > 0 && step - _stillSince >= BarWait;
+				_barDrop = Math.Clamp(_barDrop + (up ? -1 : 1) * BarStep * steps, 0f, BarHeight);
+				if (_barDrop < BarHeight) DrawKeys();
+			}
 		}
 
 		private void Shut(bool sound)
@@ -444,6 +462,7 @@ namespace OpenFF.Client
 			if (!Ff4MenuHud.Available) return;
 			Ff4MenuHud.Data h = _hud;
 			h.FieldKeys = true;
+			h.FieldKeysDrop = _barDrop;
 			h.MapOpen = _open;
 			h.HasMap = _map != null;
 			h.MapClosed = h.HasMap && !_open;
