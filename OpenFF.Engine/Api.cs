@@ -612,7 +612,7 @@ namespace OpenFF
 	public interface IAudio
 	{
 		/// <summary>A sound effect by archive and number, as the scripts play them.</summary>
-		void PlaySe(int archive, int number, int volume = 127, int pan = 64);
+		void PlaySe(int archive, int number, int volume = 127, int pan = 128);   // pan 0 (left) .. 255 (right), 128 the middle
 		void PlayBgm(int number, int volume = 127, int fadeInFrames = 0);
 		void StopBgm(int fadeOutFrames = 15);
 	}

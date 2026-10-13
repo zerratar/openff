@@ -95,7 +95,7 @@ namespace OpenFF.Client
 
 		private static void Se(int number)
 		{
-			try { GlobalScope.MatrixSound.MtxSENDS_Play(0, number, 127, 64); } catch (Exception) { }
+			try { GlobalScope.MatrixSound.MtxSENDS_Play(0, number, 127, 128); } catch (Exception) { }
 		}
 
 		/// <summary>CompanyLogoSubState: the Square Enix logo, then Matrix's, then the title.</summary>

@@ -413,7 +413,7 @@ namespace OpenFF.Client
 					int archive = EffectDefinition.Int(r["archive"] ?? r["group"]), number = EffectDefinition.Int(r["number"]);
 					int volume = r["volume"] != null ? EffectDefinition.Int(r["volume"]) : 127;
 					if (EffectDefinition.Bool(r["load"])) GlobalScope.MatrixSound.MtxSENDS_Load(archive);
-					GlobalScope.MatrixSound.MtxSENDS_Play(archive, number, volume, 64);
+					GlobalScope.MatrixSound.MtxSENDS_Play(archive, number, volume, 128);
 				}
 				else if (t.Type == "shake")
 				{

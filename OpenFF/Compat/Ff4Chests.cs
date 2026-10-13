@@ -206,7 +206,7 @@ namespace OpenFF.Client
 
 		private static void Sound(int bank, int number)
 		{
-			try { GlobalScope.MatrixSound.MtxSENDS_Play(bank, number, 127, 64); } catch (Exception) { }
+			try { GlobalScope.MatrixSound.MtxSENDS_Play(bank, number, 127, 128); } catch (Exception) { }
 		}
 	}
 }

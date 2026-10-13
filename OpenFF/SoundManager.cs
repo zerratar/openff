@@ -458,6 +458,8 @@ internal class SoundManager : MediaPlayer.OnCompletionListener
 
 	private float[] soundVolume = new float[32];
 
+	private float[] soundPan = new float[32];   // PORT: each channel's pan, -1 .. 1 (0 the middle)
+
 	private int[] soundState = new int[32];
 
 	private int[] soundLoop = new int[32];
@@ -499,6 +501,7 @@ internal class SoundManager : MediaPlayer.OnCompletionListener
 					if (array[i, j] != null)
 					{
 						array[i, j].setVolume(soundVolume[i], soundVolume[i], soundMute[i]);
+						array[i, j].setPan(soundPan[i]);
 						break;
 					}
 				}
@@ -533,6 +536,7 @@ internal class SoundManager : MediaPlayer.OnCompletionListener
 	{
 		stopSound(channel);
 		soundFilename[channel] = filename;
+		soundPan[channel] = 0f;   // a new sound in the middle until its pan is set
 		MediaPlayer[,] array = sound;
 		float num = soundVolume[channel];
 		int parts = partsOf(filename, out bool own);
@@ -741,6 +745,13 @@ internal class SoundManager : MediaPlayer.OnCompletionListener
 	public void setSoundVolume(int channel, float volume)
 	{
 		soundVolume[channel] = volume;
+		updateVolume[channel] = true;
+	}
+
+	public void setSoundPan(int channel, float pan)
+	{
+		if (channel < 0 || channel >= soundPan.Length) return;
+		soundPan[channel] = Math.Clamp(pan, -1f, 1f);
 		updateVolume[channel] = true;
 	}
 

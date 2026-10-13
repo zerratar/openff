@@ -14359,6 +14359,10 @@ internal static partial class GlobalScope
 
 						internal static void NNS_SndPlayerSetTrackPan(NNSSndHandle handle, ushort trackBitMask, int pan)
 						{
+							// PORT: the pan was dropped; it is the sound's place between the speakers (-128 left .. 127 right).
+							if (handle == null) return;
+							handle.pan = Math.Clamp(pan, -128, 127);
+							AppShell.setSoundPan((int)handle.source, handle.pan / 128f);
 						}
 
 						internal static void NNS_SndPlayerSetPlayerVolume(int playerNo, int volume)

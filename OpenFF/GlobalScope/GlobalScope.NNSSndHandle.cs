@@ -35,6 +35,9 @@ internal static partial class GlobalScope
 
 		public int[] fadeVolume = new int[2];
 
+		/// <summary>PORT: the track pan the sound plays at, -128 (left) .. 127 (right), 0 the middle (NNS_SndPlayerSetTrackPan).</summary>
+		public int pan;
+
 		public NNSSndHandle next;
 
 		public void setDefault()

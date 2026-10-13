@@ -104,6 +104,15 @@ public class MediaPlayer
 		}
 	}
 
+	/// <summary>PORT: the sound's place between the speakers, -1 (left) .. 1 (right).</summary>
+	public void setPan(float pan)
+	{
+		if (m_Instance != null)
+		{
+			m_Instance.Pan = Math.Clamp(pan, -1f, 1f);
+		}
+	}
+
 	public void start()
 	{
 		if (m_Instance != null)

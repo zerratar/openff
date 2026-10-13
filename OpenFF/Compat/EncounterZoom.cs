@@ -68,7 +68,7 @@ namespace OpenFF.Client
 			catch (Exception) { }
 			_angle = _angle0;
 			if (_instance != null) _instance._haveCapture = false;
-			try { GlobalScope.MatrixSound.MtxSENDS_Play(0, 10, 127, 64); } catch (Exception) { }
+			try { GlobalScope.MatrixSound.MtxSENDS_Play(0, 10, 127, 128); } catch (Exception) { }
 			try { GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(15, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0); } catch (Exception) { }
 			Log.Write(LogChannel.File, "encounter: zoom at step " + LegacyStep.Count + " (half fov index " + _angle0 + ")");
 		}

@@ -859,7 +859,9 @@ internal static partial class GlobalScope
 				}
 				int nPan = Pan - 128;
 				int num2 = 0;
-				num2 = computeSEVolume();
+				// PORT: the sound's own volume (0..127; more is all of it) under the settings' - FF4's scripts play distant
+				// sounds quieter, and the volume was dropped.
+				num2 = computeSEVolume() * Math.Clamp(Volume, 0, 127) / 127;
 				if (!_SEObject[num].Play(SeqArcNo, SeqNo, num2, nPan))
 				{
 					return null;

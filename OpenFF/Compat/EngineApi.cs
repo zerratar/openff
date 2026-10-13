@@ -2373,7 +2373,7 @@ namespace OpenFF.Client
 
 	internal sealed class LegacyAudio : GameService, IAudio
 	{
-		public void PlaySe(int archive, int number, int volume = 127, int pan = 64)
+		public void PlaySe(int archive, int number, int volume = 127, int pan = 128)
 		{
 			GlobalScope.MatrixSound.MtxSENDS_Play(archive, number, volume, pan);
 		}

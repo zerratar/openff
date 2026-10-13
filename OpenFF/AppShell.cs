@@ -529,6 +529,12 @@ public class AppShell
 		sound.setSoundVolume(channel, volume);
 	}
 
+	/// <summary>PORT: a channel's pan, -1 (left) .. 1 (right).</summary>
+	public static void setSoundPan(int channel, float pan)
+	{
+		sound.setSoundPan(channel, pan);
+	}
+
 	public static int getSoundState(int channel)
 	{
 		return sound.getSoundState(channel);

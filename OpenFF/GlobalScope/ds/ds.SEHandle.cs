@@ -65,6 +65,12 @@ internal static partial class GlobalScope
 			{
 				NNS_SndPlayerSetVolume(m_SndHandle, nVolume);
 			}
+
+			/// <summary>PORT: libff4's setVolume(volume, frames) - the volume moved there over the frames.</summary>
+			public void MoveVolume(int nVolume, int nFrames)
+			{
+				NNS_SndPlayerMoveVolume(m_SndHandle, nVolume, nFrames);
+			}
 		}
 	}
 }

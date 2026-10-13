@@ -145,7 +145,7 @@ namespace OpenFF.Client
 
 		private static void Se(int number)
 		{
-			try { GlobalScope.MatrixSound.MtxSENDS_Play(0, number, 127, 64); } catch (Exception) { }
+			try { GlobalScope.MatrixSound.MtxSENDS_Play(0, number, 127, 128); } catch (Exception) { }
 		}
 	}
 }
