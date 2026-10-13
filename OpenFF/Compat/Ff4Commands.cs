@@ -47,6 +47,9 @@ namespace OpenFF.Client
 			{ "messagePermission", MessagePermission },                       // (allow): whether a press may turn the message on
 			{ "clearCountJump", ClearCountJump },                             // (count, label): jumps when the game has been cleared `count` times
 			// The chests (Ff4Chests): FF4's script makes each one; FF3's handler only dresses a cast the map already has.
+			{ "createBindObject", Ff4Cutscene.CreateBindObject },             // (cast, model, joint, x, y, z, rx, ry, rz): a model on a cast's joint
+			{ "setVisibleBindObject", Ff4Cutscene.SetVisibleBindObject },     // (cast, joint, shown)
+			{ "deleteBindObject", Ff4Cutscene.DeleteBindObject },             // (cast, joint)
 			{ "setTreasureItem", Ff4Chests.SetTreasureItem },                 // (cast, item, flag group, flag index, encounter, hidden)
 			{ "setTreasureMoney", Ff4Chests.SetTreasureMoney },               // (cast, gil, flag group, flag index, encounter, hidden)
 			// Sound and loading (Ff4SoundCommands).
@@ -185,9 +188,8 @@ namespace OpenFF.Client
 			"setBattleBGM", "bgmContinueForConteEvent", "soundReset", "bgmDivideLoadDataTypeSpecific",
 			// checkCharacterStatusJump jumps when a member carries a status condition (none does here).
 			"checkCharacterStatusJump",
-			// Objects bound to a character's joint (a carried item, a torch), the sub-plane visibility
-			// of the DS's second screen.
-			"createBindObject", "setVisibleBindObject", "ce_CallProgParam",
+			// The sub-plane visibility of the DS's second screen.
+			"ce_CallProgParam",
 		};
 
 		/// <summary>

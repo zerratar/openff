@@ -777,6 +777,7 @@ namespace OpenFF.Client
 			public bool Own;        // a model this scene made for the binding (deleted with it)
 			public bool Shown = true;
 			public bool Reserved;   // the joint capture is registered on the host
+			public string Name;     // a field bind's own name, "<cast>_<joint>" (createBindObject's "%03d_%s")
 		}
 
 		private static readonly List<Bind> _binds = new List<Bind>();
@@ -819,6 +820,88 @@ namespace OpenFF.Client
 			int rx = (int)engine.getDword(), ry = (int)engine.getDword(), rz = (int)engine.getDword();
 			if (!Slot(hostSlot, out int host) || !Slot(boundSlot, out int bound)) return;
 			Guard("bind cast", () => AddBind(host, bound, joint, x, y, z, rx, ry, rz, own: false));
+		}
+
+		/// <summary>The field's bind objects (createBindObject's "%03d_%s": the cast's hich number and the joint).</summary>
+		private static string BindName(uint hich, string joint) => ((int)(hich & 0xffff)).ToString("000") + "_" + joint;
+
+		/// <summary>The character a field cast (hich number) is drawn as; -1 when there is none.</summary>
+		private static int CastCtrl(uint hich)
+		{
+			int index = GlobalScope.CCastCommandTransit.getInstance().changeHichNumber(hich & 0xffff);
+			return index == -1 ? -1 : EngineApi.Players.Player(index)?.getCharacterId() ?? -1;
+		}
+
+		/// <summary>createBindObject(cast, model, joint, x, y, z, rx, ry, rz): moSetupBindObject - the model on the cast's
+		/// joint, offset by libff4's matrix (MTX_RotX43, RotY43 and RotZ43 each set the same matrix anew, so only the z turn
+		/// stays, then the move).</summary>
+		internal static void CreateBindObject(GlobalScope.ScriptEngine engine)
+		{
+			uint hich = engine.getWord();
+			string model = engine.getString(), joint = engine.getString();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			engine.getDword(); engine.getDword();
+			int rz = (int)engine.getDword();
+			int host = CastCtrl(hich);
+			if (host < 0) return;
+			string name = BindName(hich, joint);
+			Guard("bind object " + name, () =>
+			{
+				DeleteBind(name);
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				int bound = Characters.setCharacterWithTexture(model, model, GlobalScope.CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST);
+				if (bound < 0) bound = Characters.setCharacter(model, GlobalScope.CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST);
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				if (bound < 0)
+				{
+					Log.Write(LogChannel.General, "script: FF4 bind object " + model + " did not load for " + name);
+					return;
+				}
+				Characters.setShadowVisible(bound, false);
+				Characters.setViewVolumeClip(bound, false);
+				Characters.setHidden(bound, true);           // until the joint has been captured once
+				AddBind(host, bound, joint, 0, 0, 0, 0, 0, 0, own: true);
+				Bind bind = _binds[_binds.Count - 1];
+				bind.Name = name;
+				int turn = (int)((long)((rz / 4096) << 16) / 360) & 0xffff;
+				GlobalScope.MtxFx43 rotation = new GlobalScope.MtxFx43(), move = new GlobalScope.MtxFx43();
+				GlobalScope.MTX_Identity43(rotation);
+				GlobalScope.MTX_RotZ43(rotation, GlobalScope.FX_SinIdx(turn), GlobalScope.FX_CosIdx(turn));
+				GlobalScope.MTX_Identity43(move);
+				move._30 = x; move._31 = y; move._32 = z;
+				GlobalScope.MTX_Concat43(rotation, move, bind.Offset);
+				Log.Write(LogChannel.File, "script: FF4 bind object " + model + " as character " + bound + " on " + name);
+			});
+		}
+
+		/// <summary>setVisibleBindObject(cast, joint, shown): BindObject::setVisibility.</summary>
+		internal static void SetVisibleBindObject(GlobalScope.ScriptEngine engine)
+		{
+			uint hich = engine.getWord();
+			string joint = engine.getString();
+			bool shown = engine.getByte() != 0;
+			Bind bind = _binds.Find(b => b.Name == BindName(hich, joint));
+			if (bind == null) return;
+			bind.Shown = shown;
+			if (!shown) Guard("bind hide", () => Characters.setHidden(bind.Bound, true));
+		}
+
+		/// <summary>deleteBindObject(cast, joint): MapObject::deleteMapObject.</summary>
+		internal static void DeleteBindObject(GlobalScope.ScriptEngine engine)
+		{
+			uint hich = engine.getWord();
+			string joint = engine.getString();
+			Guard("bind delete", () => DeleteBind(BindName(hich, joint)));
+		}
+
+		private static void DeleteBind(string name)
+		{
+			for (int i = _binds.Count - 1; i >= 0; i--)
+			{
+				if (_binds[i].Name != name) continue;
+				if (_binds[i].Own) { try { Characters.delCharacter(_binds[i].Bound); } catch (Exception) { } }
+				_binds.RemoveAt(i);
+			}
 		}
 
 		private static void BindObjectVisibility(GlobalScope.ScriptEngine engine)
