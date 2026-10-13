@@ -215,9 +215,23 @@ namespace OpenFF.Client
 			Log.Write(LogChannel.File, "extras: " + page);
 		}
 
+		private static GlobalScope.VecFx32 _savedPos, _savedTrg;
+
+		/// <summary>saveCameraPosAndTarget (WSCMenu::wscmSaveCameraLocation): the camera as it stands, before the script turns it
+		/// on the Fat Chocobo - where the window's closing takes it back to.</summary>
+		public static void SaveCamera(GlobalScope.ScriptEngine engine)
+		{
+			engine.getDword();
+			engine.getDword();
+			GlobalScope.VecFx32 p = GlobalScope.NNS_G3dGlb.camPos, t = GlobalScope.NNS_G3dGlb.camTarget;
+			_savedPos = p == null ? null : new GlobalScope.VecFx32(p.x, p.y, p.z);
+			_savedTrg = t == null ? null : new GlobalScope.VecFx32(t.x, t.y, t.z);
+		}
+
 		private void Close()
 		{
 			Page was = _page;
+			if (was == Page.Launcher && _savedPos != null) { Ff4EventCamera.EaseBack(_savedPos, _savedTrg); _savedPos = _savedTrg = null; }
 			_page = Page.None;
 			Game.Input.Capture = false;
 			if (was == Page.Music)
@@ -266,6 +280,9 @@ namespace OpenFF.Client
 				if (!Flag(750 + _cursor)) { Se(0); return; }
 				Se(1);
 				Page next = _cursor == 0 ? Page.Bestiary : _cursor == 1 ? Page.Theatre : Page.Music;
+				// The part change takes the field down; coming back sets its camera up again (no easing back).
+				_savedPos = _savedTrg = null;
+				Ff4EventCamera.Release();
 				Close();
 				Open(next);
 			}

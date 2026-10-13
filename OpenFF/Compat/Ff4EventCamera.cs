@@ -97,6 +97,7 @@ namespace OpenFF.Client
 			_follow = _followStarts = false;
 			_posFrames = _trgFrames = 0;
 			_orbitFrames = 0;
+			_awayFrames = 0;
 			if (_fovSet && _fovSavedSin > 0)
 			{
 				try { Camera?.setFOV(_fovSavedSin, _fovSavedCos); } catch (Exception) { }
@@ -316,9 +317,33 @@ namespace OpenFF.Client
 			if (_orbitTick >= _orbitFrames) _orbitFrames = 0;
 		}
 
+		// WSCMWindow::cameraAway: the camera half the way back to a kept place each frame (VEC_MultAdd 0x800), then the field's.
+		private static GlobalScope.VecFx32 _awayPos, _awayTrg;
+		private static int _awayFrames;
+
+		/// <summary>The Fat Chocobo's window closes: the camera eases back to where saveCameraPosAndTarget kept it - half the
+		/// way a frame - and the field's camera has it from there.</summary>
+		public static void EaseBack(GlobalScope.VecFx32 pos, GlobalScope.VecFx32 trg)
+		{
+			if (!_active || pos == null || trg == null) return;
+			_follow = false;
+			_posFrames = _trgFrames = _orbitFrames = 0;
+			_awayPos = Copy(pos);
+			_awayTrg = Copy(trg);
+			_awayFrames = 16;
+		}
+
+		private static void TickAway()
+		{
+			_pos = new GlobalScope.VecFx32(_pos.x + (_awayPos.x - _pos.x) / 2, _pos.y + (_awayPos.y - _pos.y) / 2, _pos.z + (_awayPos.z - _pos.z) / 2);
+			_trg = new GlobalScope.VecFx32(_trg.x + (_awayTrg.x - _trg.x) / 2, _trg.y + (_awayTrg.y - _trg.y) / 2, _trg.z + (_awayTrg.z - _trg.z) / 2);
+			if (--_awayFrames <= 0) Release();
+		}
+
 		public static void Tick()
 		{
 			if (!_active) return;
+			if (_awayFrames > 0) { TickAway(); return; }
 			if (_orbitFrames > 0) TickOrbit();
 			if (_posFrames > 0)
 			{

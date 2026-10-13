@@ -50,6 +50,7 @@ namespace OpenFF.Client
 			{ "eventCameraVibratLoopSetting", VibrationLoop },                // (1 loop / 0 not, ?, ?): the camera shake held going
 			{ "setMapMaterialAlpha", SetMapMaterialAlpha },                   // (material, alpha 0..31, ?, ?)
 			{ "clippingBBSetting", ClippingBBSetting },                       // (cast, x, y, z, w, h, d): the box the view-volume test uses
+			{ "saveCameraPosAndTarget", Ff4Extras.SaveCamera },               // (?, ?): the camera kept for the Fat Chocobo's window to go back to
 			{ "shiftState", Ff4ShiftState.ShiftState },                       // (state, ...): another world state once the event lets go
 			{ "setMapJumpObject", SetMapJumpObject },                         // (name, map, x, y, z, ?, ?, ?, at x, y, z): an exit box
 			{ "resetNaviMap", Ff4NaviMap.ResetNaviMap },                      // (sheet, ?, ?)
