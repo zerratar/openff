@@ -96,6 +96,7 @@ namespace OpenFF.Client
 			_active = false;
 			_follow = _followStarts = false;
 			_posFrames = _trgFrames = 0;
+			_orbitFrames = 0;
 			if (_fovSet && _fovSavedSin > 0)
 			{
 				try { Camera?.setFOV(_fovSavedSin, _fovSavedCos); } catch (Exception) { }
@@ -260,9 +261,65 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>Each frame: the moves advance; the follow mode reads the leader.</summary>
+		// guruguruCameraPreset's values (libff4 keeps them in globals) and the running pan (WTCameraPolarPan).
+		private static int _orbitDistance, _orbitYawFrom, _orbitPitchFrom, _orbitYawTo, _orbitPitchTo;
+		private static GlobalScope.pl.CBasePlayer _orbitAround;
+		private static GlobalScope.VecFx32 _orbitOffset = new GlobalScope.VecFx32(0, 0, 0);
+		private static int _orbitFrames, _orbitTick, _orbitYawStep, _orbitPitchStep;
+
+		/// <summary>guruguruCameraPreset(distance, yaw from, pitch from, yaw to, pitch to): the next pan's circle (turns 0..0xffff).</summary>
+		public static void OrbitPreset(GlobalScope.ScriptEngine engine)
+		{
+			_orbitDistance = (int)engine.getDword() << 12;
+			_orbitYawFrom = (ushort)engine.getDword();
+			_orbitPitchFrom = (ushort)engine.getDword();
+			_orbitYawTo = (ushort)engine.getDword();
+			_orbitPitchTo = (ushort)engine.getDword();
+		}
+
+		/// <summary>guruguruCameraDo(cast, x, y, z, frames): world::WTCameraPolarPan - the camera goes round the cast's position
+		/// plus the offset at the preset distance, its yaw and pitch stepped from the preset's first values toward its second
+		/// a whole step a frame, looking at that point.</summary>
+		public static void OrbitDo(GlobalScope.ScriptEngine engine)
+		{
+			uint cast = engine.getWord();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			int frames = (int)engine.getDword();
+			int slot = GlobalScope.CCastCommandTransit.getInstance().changeHichNumber(cast & 0xffff);
+			if (slot == -1) return;
+			GlobalScope.pl.CBasePlayer around = EngineApi.Players.Player(slot);
+			if (around == null || !Take()) return;
+			_follow = false;
+			_posFrames = _trgFrames = 0;
+			_orbitAround = around;
+			_orbitOffset = new GlobalScope.VecFx32(x, y, z);
+			_orbitFrames = frames & 0xffff;
+			_orbitTick = 0;
+			_orbitYawStep = _orbitFrames != 0 ? (short)((_orbitYawTo - _orbitYawFrom) / _orbitFrames) : 0;
+			_orbitPitchStep = _orbitFrames != 0 ? (short)((_orbitPitchTo - _orbitPitchFrom) / _orbitFrames) : 0;
+		}
+
+		private static void TickOrbit()
+		{
+			_orbitTick++;
+			double yaw = (short)(_orbitYawFrom + _orbitYawStep * (short)_orbitTick) * Math.PI / 32768.0;
+			double pitch = (short)(_orbitPitchFrom + _orbitPitchStep * (short)_orbitTick) * Math.PI / 32768.0;
+			// (0, 0, d) turned about x by the pitch, then about y by the yaw (the DS's row-vector matrices); the view the
+			// other way along the same line.
+			double d = _orbitDistance;
+			double cx = d * Math.Cos(pitch) * Math.Sin(yaw), cy = -d * Math.Sin(pitch), cz = d * Math.Cos(pitch) * Math.Cos(yaw);
+			GlobalScope.VecFx32 at;
+			try { at = _orbitAround.getPosition(); } catch (Exception) { _orbitFrames = 0; return; }
+			int tx = at.x + _orbitOffset.x, ty = at.y + _orbitOffset.y, tz = at.z + _orbitOffset.z;
+			_pos = new GlobalScope.VecFx32(tx + (int)cx, ty + (int)cy, tz + (int)cz);
+			_trg = new GlobalScope.VecFx32(tx, ty, tz);
+			if (_orbitTick >= _orbitFrames) _orbitFrames = 0;
+		}
+
 		public static void Tick()
 		{
 			if (!_active) return;
+			if (_orbitFrames > 0) TickOrbit();
 			if (_posFrames > 0)
 			{
 				_posTick++;

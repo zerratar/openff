@@ -50,6 +50,8 @@ namespace OpenFF.Client
 			{ "eventCameraVibratLoopSetting", VibrationLoop },                // (1 loop / 0 not, ?, ?): the camera shake held going
 			{ "setMapMaterialAlpha", SetMapMaterialAlpha },                   // (material, alpha 0..31, ?, ?)
 			{ "clippingBBSetting", ClippingBBSetting },                       // (cast, x, y, z, w, h, d): the box the view-volume test uses
+			{ "guruguruCameraPreset", Ff4EventCamera.OrbitPreset },           // (distance, yaw from, pitch from, yaw to, pitch to)
+			{ "guruguruCameraDo", Ff4EventCamera.OrbitDo },                   // (cast, x, y, z, frames): the camera round a cast
 			{ "playEffectEx", Ff4FieldEffects.PlayEffectEx },                 // (category, number, index, x, y, z, rx, ry, rz, ?)
 			{ "effectFollowCamera", Ff4FieldEffects.EffectFollowCamera },     // (category, number, index, x, y, z): held before the camera
 			{ "createCharacterFollowEffectTask", Ff4FieldEffects.CharacterFollowEffect },   // (cast, index, x, y, z, ?, ?)
