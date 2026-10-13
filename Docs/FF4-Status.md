@@ -122,8 +122,9 @@ Golbez and FuSoYa's Twin Meteor against Zemus (PairMagic), Golbez's Crystal at Z
 friends' prayers over the last fight, Anna over Edward's), an event's kill ending the fight, the win's motions as
 addWinningMotion binds them (b_pl<type>_ending, the pig's and the toad's). The developer room's members fight with their commands (Aim, Analyze,
 Brace, Pray, Bluff, Cry, Recall, Kick from the monsters' side), an enemy member's counter is its own Fight, and an
-event's OffInvokeProdaction lets an action go without its name and chant. Known: a monster-side invoke's effect may
-boot one model from a template already released - that object is left out (no crash).
+event's OffInvokeProdaction lets an action go without its name and chant. The effect packs' textures as many as an FF4
+battle loads (the VRAM manager's 32 slots were FF3's: the pack past them was left half set up, a spell or an ability
+drawn a part short).
 
 ## Menus - 60%
 
