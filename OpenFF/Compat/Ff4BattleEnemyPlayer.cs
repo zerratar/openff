@@ -77,7 +77,7 @@ namespace OpenFF.Client
 
 		/// <summary>
 		/// The AI's pick run as BattlePlayerBehavior runs a member's command (setMonsterAbility): Fight as a member's
-		/// blow on a member, Darkness and Focus through their invoke stages. False for the rest (spells and the monster
+		/// blow on a member, Darkness, Focus and Kick through their invoke stages. False for the rest (spells and the monster
 		/// abilities go the monster's way).
 		/// </summary>
 		private bool EnemyPlayerTurn(Fighter foe, int ability, int targetType, Fighter target = null)
@@ -106,6 +106,11 @@ namespace OpenFF.Client
 				case CmdFocus:
 					AbilityMotions(foe, "b_pa_021");
 					Focus(foe);
+					return true;
+				case CmdKick:
+					// Yang's Kick against the party (PABKick from the monsters' side): its invoke stage, then the kick.
+					AbilityMotions(foe, "b_pa_057");
+					Invoke(foe, CmdKick, () => Kick(foe));
 					return true;
 				default:
 					return false;

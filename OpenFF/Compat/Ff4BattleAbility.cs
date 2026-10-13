@@ -498,7 +498,8 @@ namespace OpenFF.Client
 
 		private void Kick(Fighter who)
 		{
-			List<Fighter> targets = _foes.FindAll(f => f.Alive && !Untargetable(f));
+			// One fighting as a member on the monsters' side (Yang under Golbez's spell) kicks the party.
+			List<Fighter> targets = (who.IsMonster ? _party : _foes).FindAll(f => f.Alive && !Untargetable(f));
 			Acted(who, CmdKick, targets.ToArray());
 			EndTurn(who);
 			if (targets.Count == 0 || who.Npc == null) return;
@@ -513,7 +514,7 @@ namespace OpenFF.Client
 			bool critical = _critical;
 			LoadEffect(294);
 			Vector3 home = who.Home;
-			Vector3 p = KickPoint();
+			Vector3 p = KickPoint(who);
 			// Steam's frames: the kick starts 2 frames after the invoke stage (the stage's end, PABKick's state 0xd).
 			KickMoves(who, blows, critical, home, p);
 		}
@@ -562,8 +563,9 @@ namespace OpenFF.Client
 			After(14, Settle);
 		}
 
-		/// <summary>The spot Kick lands on (battle_parameter chain 23's posture for 0x44): (-15, 0, -5), as Steam's FF4 puts Yang in a normal fight.</summary>
-		private static Vector3 KickPoint() => new Vector3(-15f, 0f, -5f);
+		/// <summary>The spot Kick lands on (battle_parameter chain 23's posture for 0x44, by the kicker's team): (-15, 0, -5) from the
+		/// party, as Steam's FF4 puts Yang in a normal fight, (5, 0, 9) from the monsters' side.</summary>
+		private static Vector3 KickPoint(Fighter who) => who.IsMonster ? new Vector3(5f, 0f, 9f) : new Vector3(-15f, 0f, -5f);
 
 		// ---- Steal (initializeSteal, StealFormula::calcSteal, executeSteal) ----
 
