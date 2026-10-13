@@ -65,7 +65,7 @@ Encounters start from the map's tables and the field's step counter; shops and i
 the scripts call them, with FF4's prices and stock. The windows they show are FF3's dressed
 with FF4's art, not FF4's own screens.
 
-## Battle - 70%
+## Battle - 90%
 
 Ff4Battle, written from FF4's own battle code (libff4's btl::) and measured against the Steam game's
 frames (Tools/ff4hook). A scene's battle comes after the encounter whirl (SPBlurRotate) on its stage as
@@ -114,7 +114,15 @@ Darkness with its close-up and chant (b_pa_018 - a member's Darkness lacked it t
 bound for members now as well), the kneel when weak but for the Dark Knight, the KO motion. Dualcast (an augment
 command learned - ability ids under 256 in a member's abilities are commands): the dual list (White then Black Magic),
 the second pick within the MP both cost, the MP shown less the first's, the two back to back (counters after);
-the spells' chant motions 4004 / 4005 (b_pa_005, initializeMagic) bound for every caster. Not FF4's yet: the Config menu's battle speed (--ff4-battle-speed for now), augments learned in play (no augment system - the drive's `augment` grants one), hit reactions.
+the spells' chant motions 4004 / 4005 (b_pa_005, initializeMagic) bound for every caster. The battle speed from
+Settings, the augments learned in play. The story fights' own pieces: Reverse (damage heals, healing hurts), Odin's
+drawn sword and Asura's three faces, Dr. Lugae's transformation, the King and Queen of Eblan coming back to themselves,
+Yang's Kick from the monsters' side, Rydia joining the Golbez fight unseen and showing herself (AddPlayer, BABShow),
+Golbez and FuSoYa's Twin Meteor against Zemus (PairMagic), Golbez's Crystal at Zeromus, the events' own models (the
+friends' prayers over the last fight, Anna over Edward's), an event's kill ending the fight, the win's motions as
+addWinningMotion binds them (b_pl<type>_ending, the pig's and the toad's). Not FF4's yet: hit reactions; the developer
+room's monsters that fight with members' commands (Aim, Analyze, Brace, Kick, Recall, Bluff, Pray); an event's
+OffInvokeProdaction (the ability's name still shown).
 
 ## Menus - 60%
 
