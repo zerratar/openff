@@ -50,6 +50,7 @@ namespace OpenFF.Client
 			{ "eventCameraVibratLoopSetting", VibrationLoop },                // (1 loop / 0 not, ?, ?): the camera shake held going
 			{ "setMapMaterialAlpha", SetMapMaterialAlpha },                   // (material, alpha 0..31, ?, ?)
 			{ "clippingBBSetting", ClippingBBSetting },                       // (cast, x, y, z, w, h, d): the box the view-volume test uses
+			{ "setMapJumpObject", SetMapJumpObject },                         // (name, map, x, y, z, ?, ?, ?, at x, y, z): an exit box
 			{ "resetNaviMap", Ff4NaviMap.ResetNaviMap },                      // (sheet, ?, ?)
 			{ "guruguruCameraPreset", Ff4EventCamera.OrbitPreset },           // (distance, yaw from, pitch from, yaw to, pitch to)
 			{ "guruguruCameraDo", Ff4EventCamera.OrbitDo },                   // (cast, x, y, z, frames): the camera round a cast
@@ -271,6 +272,26 @@ namespace OpenFF.Client
 				// No world yet: the exit is armed as declared.
 			}
 			Ff4Exits.Register(Ff4Exits.FromOperands(trigger, destination, v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9]), leader);
+		}
+
+		/// <summary>setMapJumpObject(name, map, x, y, z, ?, ?, ?, at x, y, z): object::MapJumpObject - an exit to the map
+		/// (arriving at x, y, -z, facing 0) whose box is 100 a side (DSAABB's 409600s) round the point at x, y, -z.</summary>
+		private static void SetMapJumpObject(GlobalScope.ScriptEngine engine)
+		{
+			string trigger = engine.getString();
+			string destination = engine.getString();
+			int ax = (int)engine.getDword(), ay = (int)engine.getDword(), az = (int)engine.getDword();
+			engine.getDword(); engine.getDword(); engine.getDword();
+			int px = (int)engine.getDword(), py = (int)engine.getDword(), pz = -(int)engine.getDword();
+			const int Half = 409600 / 2;
+			GlobalScope.VecFx32 leader = null;
+			try
+			{
+				leader = GlobalScope.wld.WorldPart.getInstance()?.getWorldSystem()?.PlayerMng()
+					?.Player(GlobalScope.chr.CBaseCharacter.getLookIndex())?.getPosition();
+			}
+			catch (System.Exception) { }
+			Ff4Exits.Register(Ff4Exits.FromOperands(trigger, destination, ax, ay, az, 0, px - Half, py - Half, pz - Half, px + Half, py + Half, pz + Half), leader);
 		}
 
 		/// <summary>changeCamera_Mode(): the field camera follows the party again.</summary>
