@@ -13,6 +13,8 @@ namespace OpenFF.Client
 		{
 			// WSCallTitle: part 3, the title, after the fade (WSCallPart) - as the menu's Quit and a lost battle go there.
 			{ "goto_title", GotoTitle },
+			// WSCallEndingAfter: part 9 (LoadDisplayPart) in mode 3 - the cleared game's save, then the title.
+			{ "ending_after", () => Ff4Menu.Instance?.OpenEndingSave() },
 		};
 
 		public static void ShiftState(GlobalScope.ScriptEngine engine)

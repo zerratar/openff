@@ -328,9 +328,14 @@ namespace OpenFF.Client
 			{
 				return;
 			}
+			// FF4's option block (the settings, 55424) is no game: the party and the field ride the slots only - read back at
+			// boot, it would put an old party over a --load.
+			if (GameProfile.IsFf4 && offset == OptionDataAddress) return;
 			OpenFF.Game.Events.Publish(new OpenFF.Events.SaveWritten { Offset = offset, Length = length });
 			OpenFF.Game.Saves.WriteSlot(offset, length);
 		}
+
+		private const int OptionDataAddress = 55424;
 
 		/// <summary>The legacy game read from the save file (CARD_ReadEeprom); a slot it once wrote brings the mods' chunks back.</summary>
 		public static void SaveRead(int offset, int length)
@@ -340,6 +345,7 @@ namespace OpenFF.Client
 				return;
 			}
 			// The auto-battle rules start from the defaults; the save's own, if it has them, come in with its chunks.
+			if (GameProfile.IsFf4 && offset == OptionDataAddress) return;
 			Gambits.Reset();
 			if (OpenFF.Game.Saves.ReadSlot(offset, length))
 			{

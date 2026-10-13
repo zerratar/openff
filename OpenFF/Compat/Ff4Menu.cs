@@ -163,7 +163,7 @@ namespace OpenFF.Client
 			InputState input = Game.Input;
 			ApplySettingsOnce();
 			// Steam's menu closes the field camera in on the lead, from the root and its question; the full screens cover it.
-			Ff4MenuCamera.Step(_open && !_fromTitle);
+			Ff4MenuCamera.Step(_open && !_fromTitle && !_fromEnding);
 			if (!_open)
 			{
 				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !EventBusy() && !Game.Battle.InBattle && !Ff4Battle.Active
@@ -184,6 +184,7 @@ namespace OpenFF.Client
 			}
 			// The menu key closes it from the main menu; in a screen C and M are the screen's (Key Items, the next member).
 			bool atRoot = _screen == Screen.Root && _mode == Mode.Browse && !_question;
+			if (_fromEnding && input.KeyPressed("Escape")) { EndingDone(); return; }
 			if (input.KeyPressed("Escape") || (atRoot && (input.KeyPressed("Tab") || input.Pressed(Pad.X)))) { Close(); return; }
 			if (Ff4Party.Party.Members.Count == 0) { Close(); return; }
 			_member = Math.Clamp(_member, 0, Ff4Party.Party.Members.Count - 1);

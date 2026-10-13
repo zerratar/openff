@@ -47,9 +47,10 @@ namespace OpenFF.Client
 
 		public object Save()
 		{
-			if (!EngineApi.InWorld || !Game.Hero.Present) return null;
+			// The ending's save (a cleared game: flag 987) is made with the lead perhaps away; its place is not wanted.
+			if (!EngineApi.InWorld || !Game.Hero.Present && !Ff4Saves.Cleared) return null;
 			Data d = new Data { Map = Game.Field.Map };
-			Vector3 at = Game.Hero.Position;
+			Vector3 at = Game.Hero.Present ? Game.Hero.Position : Vector3.Zero;
 			d.X = at.X; d.Y = at.Y; d.Z = at.Z;
 			try { d.Rotation = EngineApi.HeroPlayer.getRotation().y; } catch (Exception) { }
 			byte[,] flags = GlobalScope.flags;
@@ -161,6 +162,7 @@ namespace OpenFF.Client
 				Log.Write(LogChannel.General, "load: FF4 slot " + slot + " is empty");
 				return false;
 			}
+			if (Cleared) { NewGamePlus(); return true; }
 			if (Pending == null)
 			{
 				Log.Write(LogChannel.General, "load: FF4 slot " + slot + " has no field chunk; the party alone came back");
@@ -176,6 +178,28 @@ namespace OpenFF.Client
 				Game.Field.Warp(JumpPart.WithChip(d.Map, fx), new Vector3(d.X, d.Y, d.Z), facing);
 			}
 			return true;
+		}
+
+		/// <summary>Flag 0:987: the game was cleared - the ending sets it before its save (LoadDisplayPart mode 3).</summary>
+		public static bool Cleared => GlobalScope.flags != null && GlobalScope.flags[0, 987] != 0;
+
+		/// <summary>A cleared save read back is a new game (LoadDisplayPart's uninitialize sends it to NewGameInitPart): the
+		/// party as the ending left it, the flags of the extras and the records kept (0:500..740, 0:750..755, 0:920..970,
+		/// 0:998 and 1:615 on), the rest down - 987 too - and the play time from nothing; it starts where a new game does.</summary>
+		private static void NewGamePlus()
+		{
+			byte[,] flags = GlobalScope.flags;
+			for (int i = 0; i < 1000; i++)
+			{
+				flags[2, i] = 0;
+				if (i < 0x267) flags[1, i] = 0;
+				bool kept = (uint)(i - 500) < 0xf1 || (uint)(i - 0x398) < 0x33 || (uint)(i - 0x2ee) < 6 || i == 0x3e6 || i == 0x3db;
+				if (!kept) flags[0, i] = 0;
+			}
+			flags[0, 0x3db] = 0;
+			Pending = null;
+			PlayFrames = 0;
+			Log.Write(LogChannel.General, "load: a cleared game - new game+");
 		}
 
 		/// <summary>The game's play time, in steps (60 a second): counted while the party is in the field or a fight, set back
@@ -217,7 +241,7 @@ namespace OpenFF.Client
 		{
 			string arg = Options.Get("load");
 			if (!GameProfile.IsFf4 || string.IsNullOrEmpty(arg) || !int.TryParse(arg, out int slot)) return;
-			if (Load(slot, true)) Log.Write(LogChannel.General, "load: starting from slot " + slot + " on " + Pending.Map);
+			if (Load(slot, true)) Log.Write(LogChannel.General, "load: starting from slot " + slot + " on " + (Pending?.Map ?? "a new game+"));
 		}
 	}
 }

@@ -90,6 +90,28 @@ namespace OpenFF.Client
 			Log.Write(LogChannel.File, "party: new game - " + _party.Describe().Replace("\n", " | "));
 		}
 
+		// The items initForNewgame(true) takes away (normal items 5026..5028, 6020, 8013, 8121, 8227, 8228, 8321).
+		private static readonly HashSet<int> NotCarried = new HashSet<int> { 0x13a2, 0x13a3, 0x13a4, 0x2023, 0x1784, 0x1f4d, 0x2024, 0x1fb9, 0x2081 };
+
+		/// <summary>The ending's new game (LoadDisplayPart mode 3, initForNewgame(true)): every member's equipment into the bag,
+		/// the bag kept but for the items above and the key items 9001..9099 (bar 9005 and 9010), no gil, and the party a new
+		/// game's - Cecil alone.</summary>
+		public static void NewGamePlus()
+		{
+			Party old = Party;
+			List<(int Id, int Count)> bag = new List<(int Id, int Count)>();
+			foreach (Character c in old.Roster) foreach (int id in c.Equipment) if (id > 0) bag.Add((id, 1));
+			foreach (OpenFF.Data.ItemStack s in old.Inventory) bag.Add((s.ItemId, s.Count));
+			NewGame();
+			foreach ((int id, int count) in bag)
+			{
+				bool key = id >= 0x2329 && id < 0x238c && id != 0x232d && id != 0x2332;
+				if (!key && !NotCarried.Contains(id)) _party.AddItem(id, count);
+			}
+			_party.Gil = 0;
+			Log.Write(LogChannel.General, "party: new game+ - " + _party.Describe().Replace("\n", " | "));
+		}
+
 		// ---- where each member stands: FF4's party positions ----
 
 		// pl::PlayerParty keeps five positions (0..4); a member's decides their spot on the battle stage

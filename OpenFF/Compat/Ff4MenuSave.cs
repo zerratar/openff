@@ -18,6 +18,7 @@ namespace OpenFF.Client
 		private bool _questionTitle;        // "Return to the title menu?"
 		private bool _fromTitle;            // the Load screen is the title's: drawn by it, over it
 		private bool _loadOpening;          // the step it opened in: the title's Enter is not the screen's
+		private bool _fromEnding;           // the Save screen is the ending's (ending_after): the title after it
 
 		/// <summary>The menu the game registered (the title opens its Load screen).</summary>
 		internal static Ff4Menu Instance { get; private set; }
@@ -39,6 +40,33 @@ namespace OpenFF.Client
 			_fromTitle = _loadOpening = true;
 			Game.Input.Capture = true;
 			OpenScreen(Screen.Load);
+		}
+
+		/// <summary>shiftState ending_after (WSCallEndingAfter: LoadDisplayPart mode 3): the party made a new game's
+		/// (initForNewgame(true)), the Save screen for the cleared game, then the title (part 3) - saved, backed out of or left
+		/// by Title Menu.</summary>
+		internal void OpenEndingSave()
+		{
+			Ff4Party.NewGamePlus();
+			Ff4Names.Summon = null;   // SummonSaveParameter::initialize
+			_open = true;
+			_mode = Mode.Browse;
+			_question = false;
+			_questionSlot = _questionLoad = 0;
+			_questionTitle = false;
+			_fromTitle = false;
+			_fromEnding = true;
+			Game.Input.Capture = true;
+			OpenScreen(Screen.Save);
+			Log.Write(LogChannel.General, "menu: the ending's save");
+		}
+
+		/// <summary>The ending's save is done with: to the title.</summary>
+		private void EndingDone()
+		{
+			_fromEnding = false;
+			Close();
+			try { GlobalScope.wld.CBaseSystem.setTitle(true); } catch (Exception ex) { Log.Write(LogChannel.General, "menu: title after the ending: " + ex.Message); }
 		}
 
 		/// <summary>The title draws its Load screen over itself (the title is drawn after the menu would be).</summary>
@@ -63,7 +91,7 @@ namespace OpenFF.Client
 		private void UpdateSaveLayout(InputState input)
 		{
 			if (_question) { UpdateQuestion(input); return; }
-			if (input.Pressed(Pad.B)) { Back(); return; }
+			if (input.Pressed(Pad.B)) { if (_fromEnding) EndingDone(); else Back(); return; }
 			if (input.Pressed(Pad.Up)) _cursor = (_cursor + 3) % 4;
 			if (input.Pressed(Pad.Down)) _cursor = (_cursor + 1) % 4;
 			if (!input.Pressed(Pad.A)) return;
@@ -105,6 +133,7 @@ namespace OpenFF.Client
 				int slot = _questionSlot;
 				_questionSlot = 0;
 				if (!Ff4Saves.Save(slot)) Notice("Could not save here.");
+				else if (_fromEnding) EndingDone();
 				return true;
 			}
 			if (_questionLoad > 0)
@@ -117,6 +146,7 @@ namespace OpenFF.Client
 			if (_questionTitle)
 			{
 				_questionTitle = false;
+				_fromEnding = false;
 				Close();
 				try { GlobalScope.wld.CBaseSystem.setTitle(true); } catch (Exception ex) { Log.Write(LogChannel.General, "menu: title menu: " + ex.Message); }
 				return true;
