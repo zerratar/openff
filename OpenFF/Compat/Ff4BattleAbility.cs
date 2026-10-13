@@ -867,7 +867,10 @@ namespace OpenFF.Client
 			Decide(who, () => Twincast(who, partner), AbilityWait(CmdTwincast), CmdTwincast);
 		}
 
-		private void Twincast(Fighter who, Fighter partner)
+		/// <summary>Twin Meteor (calcPairMagic's event mode: Golbez and FuSoYa against Zemus) - no pair table, no MP, no cap.</summary>
+		private const int TwinMeteor = 4526;
+
+		private void Twincast(Fighter who, Fighter partner, bool twinMeteor = false)
 		{
 			EndTurn(who);
 			// battleBehaved resets the partner too.
@@ -875,6 +878,22 @@ namespace OpenFF.Client
 			partner.Queued = false;
 			who.TwinPartner = null;
 			if (!partner.Alive || who.Member == null || partner.Member == null) return;
+			if (twinMeteor)
+			{
+				SpellDefinition meteor = Ff4Party.Tables.Spell(TwinMeteor);
+				if (meteor == null) return;
+				List<Fighter> foes = AutoTargets(meteor);
+				Note(who.Name + " and " + partner.Name + " twincast " + meteor.Name);
+				Invoke(who, CmdTwincast, () =>
+				{
+					Acted(who, meteor.Id, foes.ToArray());
+					_lastSpell = meteor;
+					ShowSpell(who, meteor, foes, invoked: true);
+					Play(partner, partner.IdleMotion, true, 3);
+					partner.Acted = false;
+				}, partner);
+				return;
+			}
 			if (Has(who, CSilence) || Has(partner, CSilence))
 			{
 				Acted(who, CmdTwincast);

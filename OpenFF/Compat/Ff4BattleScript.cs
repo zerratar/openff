@@ -320,6 +320,15 @@ namespace OpenFF.Client
 					case 71: _b.ResetGauge(_b.ByBattleId(_b.BattleIdOfMonster(R(1)))); return true;   // ResetMonsterATG
 					case 67: { Fighter f = _b.ByBattleId(_b.BattleIdOfPlayer(R(1))); if (f != null) f.Gauge = Math.Clamp(R(2) / 100f, 0f, 1f); return true; }   // ChargePlayerATP
 					case 68: return true;                                            // ChargePlayerATW: nothing in FF4 either
+					case 82:                                                        // PairMagic first, second: their Twincast (0x41) - Twin Meteor - on every monster
+					{
+						Fighter first = _b.ByBattleId(_b.BattleIdOfPlayer(R(1))), second = _b.ByBattleId(_b.BattleIdOfPlayer(R(2)));
+						if (first == null || second == null || !first.Alive || !second.Alive) return true;
+						Note("event action: " + first.Name + " and " + second.Name + " - Twincast");
+						_b.Twincast(first, second, twinMeteor: true);
+						Block(() => _b._cues.Count == 0 && !_b.TurnEffectsPlaying());
+						return false;
+					}
 					case 81: { Fighter f = _b.ByBattleId(R(1)); if (f != null) f.Gauge = Math.Clamp(R(2) / 100f, 0f, 1f); return true; }   // SetATP
 					case 84:                                                         // PlayerHpMax
 					{
