@@ -1243,6 +1243,7 @@ namespace OpenFF.Client
 			Ff4ColorScale.Tick();
 			Ff4FieldBg.Tick();
 			Ff4FieldEffects.Tick();
+			Ff4EndRoll.Tick();
 			foreach (Plate plate in _plates.Values)
 			{
 				if (plate.AlphaFrames <= 0) continue;

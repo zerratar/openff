@@ -251,8 +251,15 @@ namespace OpenFF.Client
 
 		// ---- each frame ----
 
+		private readonly Ff4MenuHud.Data _rollHud = new Ff4MenuHud.Data();
+
 		public override void OnUpdate()
 		{
+			if (Ff4EndRoll.Running)
+			{
+				Ff4EndRoll.Fill(_rollHud);
+				Ff4MenuHud.Draw(_rollHud, "ff4_roll");
+			}
 			if (_page == Page.None)
 			{
 				if (_pending == Page.None || !EngineApi.InWorld || Ff4Menu.EventBusy() || Ff4Cutscene.Active) return;

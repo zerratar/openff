@@ -539,3 +539,12 @@ ne = '\n'.join([
     ]), 1)),
 ])
 screens.append(frame('nameEntry', 0, 0, 1920, 1080, None, 'bind-display="menu.nameEntry"', indent(ne, 1)))
+
+# The staff roll (Ff4EndRoll, world::EndingPlayer): up to 66 placed columns over whatever plays, each a frame 1000 wide hung
+# left of, about or right of its spot (menu.rollRow[n]: left, top, opacity, centre / right / blue).
+roll = [frame('roll%d' % k, 0, 0, 1000, 60.75, 'm-roll', 'data-source="menu.rollRow[%d]" bind-display="present" bind-text="{text}" '
+              'bind-class="centre: centre; right: right; blue: blue" bind-style="left: {left}px; top: {top}px; opacity: {opacity}"' % k)
+        for k in range(66)]
+# Its own file (ff4_roll.xml, gen_ff4_menu.py writes it): its fades change the columns' styles every frame, and the whole
+# menu's cascade worked out again each time would be too slow.
+roll_screen = (frame('endRoll', 0, 0, 1920, 1080, None, 'bind-display="menu.roll"', indent('\n'.join(roll), 1)))

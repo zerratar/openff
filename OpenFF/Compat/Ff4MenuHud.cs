@@ -71,6 +71,15 @@ namespace OpenFF.Client
 			public string Number = "", Name = "";
 		}
 
+		/// <summary>A line of the staff roll: its text, the titles' blue, where it hangs (left, about or right of its spot), and its
+		/// place and fade.</summary>
+		public sealed class RollRow
+		{
+			public bool Present, Blue, Centre, Right;
+			public string Text = "";
+			public float Left, Top, Opacity = 1f;
+		}
+
 		public sealed class ScrollData
 		{
 			public bool Shown, Knob;
@@ -149,6 +158,9 @@ namespace OpenFF.Client
 			// The name entry: the name (a caret after it while typing), Steam's two lines, Accept; the glove on the box or Accept.
 			public bool NameEntry, NameBoxLit, AcceptLit;
 			public string NameText = "", NameHint1 = "", NameHint2 = "", AcceptLabel = "Accept";
+			// The staff roll (Ff4EndRoll): its columns placed.
+			public bool Roll;
+			public List<RollRow> RollRow = Rows<RollRow>(66);
 			public List<CellRow> AutoPick = Rows<CellRow>(12);
 			public ScrollData AutoScroll = new ScrollData();
 			public string DifficultyText = "", NormalLabel = "Normal", HardLabel = "Hard", DifficultyNote1 = "", DifficultyNote2 = "";
@@ -208,6 +220,21 @@ namespace OpenFF.Client
 			if (!s.Knob) return;
 			s.KnobHeight = track * visible / count;
 			s.KnobTop = TrackTop + (track - s.KnobHeight) * top / Math.Max(1, count - visible);
+		}
+
+		private static readonly Dictionary<string, LayoutScreen> _own = new Dictionary<string, LayoutScreen>();
+
+		/// <summary>Another layout file bound to the same data (ff4_roll: the staff roll, apart from the menu so its every-frame
+		/// fades do not cascade the whole menu again).</summary>
+		public static void Draw(Data data, string screenId)
+		{
+			if (!_own.TryGetValue(screenId, out LayoutScreen screen)) _own[screenId] = screen = LayoutScreen.Load(screenId);
+			if (screen == null) return;
+			data.Design = Ff4Settings.Current.WindowDesign;
+			data.DesignClass = "design-" + data.Design;
+			screen.Draw(Game.Draw, name => string.Equals(name, "menu", StringComparison.OrdinalIgnoreCase)
+				? (true, data)
+				: (Game.Hud.TryGet(name, out object hud) ? (true, hud) : (false, null)));
 		}
 
 		public static void Draw(Data data)

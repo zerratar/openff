@@ -171,3 +171,8 @@
 /* The Bestiary page's arrows: MENU_Common's button_right_left, 16 x 64 each half. */
 .m-arrow-left { background-image: resource("files/MENU_Common.dat/button_right_left.NCGR"); -ff-background-rect: 0 0 16 64; }
 .m-arrow-right { background-image: resource("files/MENU_Common.dat/button_right_left.NCGR"); -ff-background-rect: 16 0 16 64; }
+/* The staff roll: the menu's lettering, white or the titles' blue (Steam's pixels), hung from its line's top. */
+.m-roll { color: #ffffff; font-size: 21px; text-shadow: 3.375px 3.375px #000000; vertical-align: top; text-align: left; }
+.m-roll.centre { text-align: center; }
+.m-roll.right { text-align: right; }
+.m-roll.blue { color: #7c7ed6; }
