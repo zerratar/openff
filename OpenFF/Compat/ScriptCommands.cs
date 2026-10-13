@@ -276,7 +276,7 @@ namespace OpenFF.Client
 			Dictionary<int, int> uses = new Dictionary<int, int>();
 			Dictionary<int, HashSet<string>> where = new Dictionary<int, HashSet<string>>();
 			int scripts = 0, broken = 0;
-			string opsOf = Options.Get("ff4ops");   // --ff4ops=<command>: each use with its operands, to logs/ff4-ops.txt
+			string opsOf = Options.Get("ff4ops");   // --ff4ops=<command>[,<command>...]: each use with its operands, to logs/ff4-ops.txt
 			List<string> opLines = new List<string>();
 			foreach (string name in GameArchive.Chain.Names)
 			{
@@ -302,7 +302,7 @@ namespace OpenFF.Client
 						else { int zero = at < end ? Array.IndexOf(data, (byte)0, at, end - at) : -1; at = zero < 0 ? end + 1 : zero + 1; }
 					}
 					if (at > end) break;
-					if (opsOf != null && string.Equals(ScriptOpTable.Simplify(op.Name), opsOf, StringComparison.OrdinalIgnoreCase)) opLines.Add(map + " @" + (opStart - 2) + ": " + Operands(data, opStart, op));
+					if (opsOf != null && Array.Exists(opsOf.Split(','), c => string.Equals(ScriptOpTable.Simplify(op.Name), c, StringComparison.OrdinalIgnoreCase))) opLines.Add(ScriptOpTable.Simplify(op.Name) + " " + map + " @" + (opStart - 2) + ": " + Operands(data, opStart, op));
 					uses.TryGetValue(opcode, out int n);
 					uses[opcode] = n + 1;
 					if (!where.TryGetValue(opcode, out HashSet<string> maps)) where[opcode] = maps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

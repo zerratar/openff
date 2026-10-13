@@ -110,6 +110,13 @@ namespace OpenFF.Client
 			{ "ce_setFrameWait", FrameWait },                // (frames): a wait
 			{ "ce_SetMap", SetMap },                         // (map): the scene's stage - every script but one names its own map
 			{ "ce_CreateToonTable", CreateToonTable },       // (index, r, g, b): entries 0..31; index 100 applies the table
+			{ "ce_SetToonTable", SetToonTable },             // (index): one of ToonTable's nine built-in tables
+			{ "ce_SetLightEnableForCharacter", CastLightEnable },   // (slot, light 0..3 on/off)
+			{ "ce_SetPauseMotion", SetPauseMotion },         // (slot, paused)
+			{ "ce_AutoRotation", AutoRotation },             // (slot, frames, x, y, z degrees): a cast turned that much every frames, until 0 frames stops it
+			{ "ce_setTelopMassage", ReadTwoDwords },         // (message, ?): createTelopMassage is empty in libff4 - no caption
+			{ "ce_ShadowVolumeONOFF", ReadTwoBytes },        // (slot, on): an empty handler in libff4
+			{ "ce_AddShadowVolume", ReadByteAndString },     // (slot, model): an empty handler in libff4
 			{ "effectLoadAsync", EffectLoad },               // (pack): /EFFECT/<pack>.efp, loaded at once
 			{ "cleanUpEffectData2", EffectUnload },          // (pack)
 			{ "ce_CallBattle", CallBattle },                 // (battle, ?, ?, return map, x, y, z): the OpenFF battle here, then the return map
@@ -214,6 +221,7 @@ namespace OpenFF.Client
 		private static void EndEvent(GlobalScope.ScriptEngine engine)
 		{
 			_active = false;
+			_autoRot.Clear();
 			// EventConteManager's cleanup: the skip state goes with the scene. A skipped scene's own fade-in was passed
 			// over; unless a battle or a map follows (each fades itself in), the field comes back from black.
 			bool skipped = EventSkipping || EventSkip == 3;
@@ -452,13 +460,96 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>BTL_SetToonTable: ToonTable's built-in tables - the summons use 8, all white (32 x 0x7fff).</summary>
-		private static void CastToonTable(GlobalScope.ScriptEngine engine)
+		private static void CastToonTable(GlobalScope.ScriptEngine engine) => UseToonTable(engine.getByte());
+
+		/// <summary>CE_SetToonTable: as BTL_SetToonTable (the characters' own lights are left unused from here, m_CharaLightUnuse).</summary>
+		private static void SetToonTable(GlobalScope.ScriptEngine engine) => UseToonTable(engine.getByte());
+
+		private static void UseToonTable(int index)
 		{
-			int index = engine.getByte();
-			if (index != 8) { Log.First(LogChannel.File, "cast-toon-" + index, 1, () => "script: battle toon table " + index + " not read yet - white"); }
-			ushort[] white = new ushort[32];
-			for (int i = 0; i < 32; i++) white[i] = 0x7fff;
-			Guard("cast toon table", () => { GlobalScope.G3X_SetToonTable(white); GlobalScope.G3X_SetShading(0); });
+			ushort[] table = ToonTable(index);
+			Guard("toon table " + index, () => { GlobalScope.G3X_SetToonTable(table); GlobalScope.G3X_SetShading(0); });
+		}
+
+		private static ushort[][] _toonTables;
+
+		/// <summary>ToonTable::getToonTable: nine tables of 32 BGR555 entries (toonTableList_), read from the install's FF4.exe
+		/// (the same 576 bytes, at 0x1a8a50 in the Steam build) - 3 and 8 are all white, which tells the place is right.
+		/// Not found or another build: white for every table.</summary>
+		private static ushort[] ToonTable(int index)
+		{
+			if (_toonTables == null)
+			{
+				_toonTables = new ushort[9][];
+				byte[] raw = null;
+				try
+				{
+					string exe = Ff4Title.SteamFile("FF4.exe");
+					if (exe != null)
+					{
+						using System.IO.FileStream file = System.IO.File.OpenRead(exe);
+						raw = new byte[9 * 64];
+						file.Seek(0x1a8a50, System.IO.SeekOrigin.Begin);
+						if (file.Read(raw, 0, raw.Length) != raw.Length) raw = null;
+					}
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "script: toon tables: " + ex.Message); raw = null; }
+				bool white(int t) { for (int i = 0; i < 32; i++) if ((raw[t * 64 + i * 2] | (raw[t * 64 + i * 2 + 1] << 8)) != 0x7fff) return false; return true; }
+				if (raw != null && !(white(3) && white(8))) { Log.Write(LogChannel.General, "script: toon tables not where FF4.exe keeps them in this build - white"); raw = null; }
+				for (int t = 0; t < 9; t++)
+				{
+					_toonTables[t] = new ushort[32];
+					for (int i = 0; i < 32; i++) _toonTables[t][i] = raw == null ? (ushort)0x7fff : (ushort)(raw[t * 64 + i * 2] | (raw[t * 64 + i * 2 + 1] << 8));
+				}
+			}
+			return _toonTables[Math.Clamp(index, 0, 8)];
+		}
+
+		private static void ReadTwoDwords(GlobalScope.ScriptEngine engine) { engine.getDword(); engine.getDword(); }
+
+		private static void ReadTwoBytes(GlobalScope.ScriptEngine engine) { engine.getByte(); engine.getByte(); }
+
+		private static void ReadByteAndString(GlobalScope.ScriptEngine engine) { engine.getByte(); engine.getString(); }
+
+		/// <summary>CE_SetPauseMotion: CCharacterMng::setMotionPause.</summary>
+		private static void SetPauseMotion(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			bool paused = engine.getByte() != 0;
+			if (!EventSkipping && Slot(slot, out int ctrl)) Guard("pause motion", () => Characters.setMotionPause(ctrl, paused));
+		}
+
+		/// <summary>One of EventConteManager's eight auto-rotations: added to the cast's rotation each frame (executeAutoRotObject).</summary>
+		private sealed class AutoRot { public int Ctrl; public int X, Y, Z; }
+
+		private static readonly List<AutoRot> _autoRot = new List<AutoRot>();
+
+		/// <summary>CE_AutoRotation -> setAutoRotObject: a turn of x/y/z degrees (0..255) spread over that many frames, kept up
+		/// until the same cast is given 0 frames; at most eight at once.</summary>
+		private static void AutoRotation(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			int frames = (short)engine.getWord();
+			int x = (int)engine.getWord() & 0xff, y = (int)engine.getWord() & 0xff, z = (int)engine.getWord() & 0xff;
+			if (EventSkipping || !Slot(slot, out int ctrl)) return;
+			if (frames == 0) { _autoRot.RemoveAll(r => r.Ctrl == ctrl); return; }
+			if (_autoRot.Count >= 8) return;
+			int step(int degrees) => (degrees * 0x10000 / 360 & 0xffff) / frames;
+			_autoRot.Add(new AutoRot { Ctrl = ctrl, X = step(x), Y = step(y), Z = step(z) });
+		}
+
+		private static void TickAutoRotation()
+		{
+			foreach (AutoRot r in _autoRot)
+			{
+				try
+				{
+					ushort x = 0, y = 0, z = 0;
+					Characters.getRotation(r.Ctrl, ref x, ref y, ref z);
+					Characters.setRotation(r.Ctrl, (ushort)(x + r.X), (ushort)(y + r.Y), (ushort)(z + r.Z));
+				}
+				catch (Exception) { }
+			}
 		}
 
 		private static void CastSetMap(GlobalScope.ScriptEngine engine)
@@ -525,7 +616,7 @@ namespace OpenFF.Client
 			int slot = engine.getByte();
 			uint flags = 0;
 			for (int i = 0; i < 4; i++) if (engine.getByte() != 0) flags |= 1u << i;
-			if (!CastSkipping && Slot(slot, out int ctrl)) Guard("light enable", () => Characters.enableLight(ctrl, flags));
+			if (!CastSkipping && !EventSkipping && Slot(slot, out int ctrl)) Guard("light enable", () => Characters.enableLight(ctrl, flags));
 		}
 
 		private static void SetupCharacter(GlobalScope.ScriptEngine engine)
@@ -1021,6 +1112,7 @@ namespace OpenFF.Client
 				try { EngineApi.HeroPlayer?.setHidden(true); } catch (Exception) { }
 			}
 			if (_binds.Count > 0) TickBinds();
+			if (_autoRot.Count > 0) TickAutoRotation();
 			foreach (Plate plate in _plates.Values)
 			{
 				if (plate.AlphaFrames <= 0) continue;
@@ -1570,6 +1662,7 @@ namespace OpenFF.Client
 		public static void MapLeft()
 		{
 			_nextBattle = null;
+			_autoRot.Clear();
 			_slots.Clear();
 			// The hero comes back only from a story scene left halfway (it hid them); a map's own event that hid them
 			// (DisplayCharacter 0 at its start, as the castle's arrival does) shows them again itself.

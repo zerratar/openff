@@ -204,7 +204,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>A file of the Steam install beside FF4.exe (the content's files are two folders under it); null when it is not there.</summary>
-		private static string SteamFile(string name)
+		internal static string SteamFile(string name)
 		{
 			try
 			{
