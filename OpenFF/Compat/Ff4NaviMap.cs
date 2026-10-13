@@ -240,7 +240,9 @@ namespace OpenFF.Client
 			_stage = stage;
 			Ff4PartyCommands.ApplyLeaderLook();   // the hero made with the map: Mini's size, a scene's stone
 			if (!string.Equals(_percentStage, stage, StringComparison.OrdinalIgnoreCase)) _showPercent = true;
-			_map = MapData.Read(NaviName(stage, out _showPlayer));
+			string navi = NaviName(stage, out _showPlayer);
+			if (_resetName != null && string.Equals(_resetStage, stage, StringComparison.OrdinalIgnoreCase)) navi = _resetName;
+			_map = MapData.Read(navi);
 			if (_map == null) return;
 			// A town is seen whole; elsewhere what was kept, or nothing yet.
 			if (_map.Kind == 't') _map.SeeAll();
@@ -248,6 +250,22 @@ namespace OpenFF.Client
 			foreach ((string Stage, Icon Icon, int X, int Z) chest in _scriptChests) if (string.Equals(chest.Stage, stage, StringComparison.OrdinalIgnoreCase)) _map.Icons.Add(_map.Place(chest.Icon, chest.X, chest.Z));
 			_scriptChests.RemoveAll(c => !string.Equals(c.Stage, stage, StringComparison.OrdinalIgnoreCase));
 			Log.Write(LogChannel.File, "navimap: " + stage + " -> " + _map.Name + " (" + _map.Icons.Count + " icon(s), " + _map.Total + " cell(s) to see)");
+		}
+
+		// resetNaviMap's sheet for the stage it was given on (libff4 writes the name into the world state and sets the map
+		// up again; the next map sets its own).
+		private static string _resetName, _resetStage;
+
+		/// <summary>resetNaviMap(sheet, ?, ?): the map's sheet swapped for another's (d12_17's floor before and after it falls).</summary>
+		public static void ResetNaviMap(GlobalScope.ScriptEngine engine)
+		{
+			string name = engine.getString();
+			engine.getDword();
+			engine.getDword();
+			if (string.IsNullOrEmpty(name)) return;
+			_resetName = name;
+			try { _resetStage = GlobalScope.stg.CStageMng.CurrentName; } catch (Exception) { _resetStage = null; }
+			if (Instance != null) Instance._stage = null;   // read again
 		}
 
 		// A map's script's own chests (NewTBoxIcon), kept for the stage they were made on.
