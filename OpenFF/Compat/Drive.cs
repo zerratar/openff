@@ -322,6 +322,30 @@ namespace OpenFF.Client
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: jump failed: " + ex.Message); }
 					break;
 				}
+				case "exec":
+				{
+					// exec <command> [operands...]: one of the game's script commands run now, by its name (FF4's table), its operands
+					// packed as it reads them (numbers decimal or 0x; a String operand as given) - ff4hook's exec, for OpenFF.
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					OpenFF.Script.ScriptOpTable table = GameProfile.IsFf4 ? OpenFF.Script.ScriptOpTable.Ff4 : OpenFF.Script.ScriptOpTable.Ff3;
+					int opcode = -1;
+					for (int i = 0; i < table.Count && bits.Length > 0; i++)
+						if (table.Get(i) is OpenFF.Script.ScriptOp candidate && string.Equals(OpenFF.Script.ScriptOpTable.Simplify(candidate.Name), bits[0], StringComparison.OrdinalIgnoreCase)) { opcode = i; break; }
+					if (opcode < 0) { Log.Write(LogChannel.General, "drive: exec - no command " + (bits.Length > 0 ? bits[0] : "")); break; }
+					List<byte> code = new List<byte> { (byte)opcode, (byte)(opcode >> 8) };
+					OpenFF.Script.Operand[] operands = table.Get(opcode).Operands ?? Array.Empty<OpenFF.Script.Operand>();
+					for (int i = 0; i < operands.Length; i++)
+					{
+						string text = i + 1 < bits.Length ? bits[i + 1] : "0";
+						if (operands[i] == OpenFF.Script.Operand.String) { code.AddRange(System.Text.Encoding.UTF8.GetBytes(text)); code.Add(0); continue; }
+						long value = text.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? Convert.ToInt64(text.Substring(2), 16) : long.Parse(text);
+						int size = operands[i] == OpenFF.Script.Operand.Byte ? 1 : operands[i] == OpenFF.Script.Operand.Word ? 2 : 4;
+						for (int b = 0; b < size; b++) code.Add((byte)(value >> (8 * b)));
+					}
+					try { new GlobalScope.ScriptEngine().runSnippet(code.ToArray()); Log.Write(LogChannel.File, "drive: exec " + step.Arg); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: exec " + step.Arg + " failed: " + ex.Message); }
+					break;
+				}
 				case "hich":
 				{
 					// hich: the map's cast table as the engine read it - each entry's id, kind and character index.
