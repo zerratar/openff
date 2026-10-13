@@ -75,6 +75,8 @@ namespace OpenFF.Client
 		private readonly Stopwatch _clock = Stopwatch.StartNew();
 		private XElement _laid;     // the layout as last laid out, and what it was laid out from
 		private string _laidKey;
+		private string _computedKey;
+		private List<(XElement Frame, Dictionary<string, string> Computed)> _computed;
 		private readonly Dictionary<string, Texture> _pictures = new Dictionary<string, Texture>(StringComparer.OrdinalIgnoreCase);
 
 		private LayoutScreen(string id, string source, XElement menu, MenuStyles.Sheet sheet)
@@ -136,13 +138,15 @@ namespace OpenFF.Client
 			try
 			{
 				Bind(root);
-				List<(XElement Frame, Dictionary<string, string> Computed)> computed = MenuStyles.Computed(_menu, _sheet);
+				// Cascaded and laid out again only when a frame's classes, styles, state or text changed (the same otherwise) - a
+				// screen as big as the menu's is too much to cascade every frame.
+				string key = string.Join("|", _menu.Descendants("frame").Select(f => string.Join("~", f.Attributes().Select(a => a.Value)) + "~" + (string)f.Element("data")));
+				if (key != _computedKey || _computed == null) { _computed = MenuStyles.Computed(_menu, _sheet); _computedKey = key; }
+				List<(XElement Frame, Dictionary<string, string> Computed)> computed = _computed;
 				Dictionary<XElement, Dictionary<string, string>> shown = _animator.Step(computed, _sheet, _clock.Elapsed.TotalSeconds);
 				Dictionary<XElement, MenuStyles.Look> looks = MenuStyles.Looks(_menu, computed, shown);
 				Dictionary<XElement, Dictionary<string, string>> values = new Dictionary<XElement, Dictionary<string, string>>();
 				foreach ((XElement frame, Dictionary<string, string> c) in computed) values[frame] = shown != null && shown.TryGetValue(frame, out Dictionary<string, string> s) ? s : c;
-				// Laid out again only when a frame's classes, styles, state or text changed (the layout is the same otherwise).
-				string key = string.Join("|", _menu.Descendants("frame").Select(f => string.Join("~", f.Attributes().Select(a => a.Value)) + "~" + (string)f.Element("data")));
 				if (key != _laidKey || _laid == null)
 				{
 					XElement laid = new XElement(_menu);
