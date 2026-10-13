@@ -208,14 +208,24 @@ internal static partial class GlobalScope
 					// one past the last entry in use for that reason and searches up to it. Searched as a plain count,
 					// a character whose scene or battle motions came and went out of order had its idle and walk
 					// past the end - never found, and it T-posed (Baron after the opening).
+					// PORT (FF4): of two motions of one number, the first that moves all of the model's joints - an FF4 NPC
+					// is given f_man001 ahead of its own set (GameProfile.FieldMotion), and its idle on a model of more joints
+					// (Namingway's n028_00 with f_name001's own) left the rest in the bind pose. The first one otherwise.
+					int unfitting = -1;
 					for (int i = 0; i < MOTION_MAX; i++)
 					{
 						if ((1 & m_Flag[i]) != 0 && motIdx == m_MotSet[i].getIndex())
 						{
+							if (OpenFF.Client.GameProfile.IsFf4 && !m_MotSet[i].CoversModel)
+							{
+								if (unfitting < 0) unfitting = i;
+								continue;
+							}
 							m_PlayIndex = i;
 							break;
 						}
 					}
+					if (-1 == m_PlayIndex) m_PlayIndex = unfitting;
 					if (-1 == m_PlayIndex && m_MotNum > 0)
 					{
 						// PORT: FF4.exe panics here ("MotionIndex[ %d ] is not found"); every motion its scripts start exists.

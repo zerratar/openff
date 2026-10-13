@@ -64,6 +64,18 @@ internal static partial class GlobalScope
 				{
 				}
 
+				// PORT: whether a joint motion moves every joint of the model it is set on (CMotSet.start's choice between two
+				// motions of one number); true for any other motion, or when either count is unknown.
+				public bool CoversModel
+				{
+					get
+					{
+						int moved = m_AnmObject?.resAnm?.m_Anm is NNSG3dResJntAnm jnt && jnt.p != null ? jnt.p.Length : -1;
+						int joints = m_RelateMdl?.info != null ? m_RelateMdl.info.numNode : -1;
+						return moved < 0 || joints < 0 || moved >= joints;
+					}
+				}
+
 				public void setup(NNSG3dResFileHeader anmData, NNSG3dResMdl mdlResData, uint idx, NNSG3dResTex texResData)
 				{
 					if ((m_Flag & 1) == 0 || idx != m_CurrAnmNo)

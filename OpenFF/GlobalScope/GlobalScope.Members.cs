@@ -13118,6 +13118,13 @@ internal static partial class GlobalScope
 											int num74 = MATH_MIN(nNSG3dAnmObj2.frame >> 12, nNSG3dResJntAnm.numFrame - 1);
 											// PORT: the frame with its fraction, for the keys either side of it (JointKeys).
 											int fxFrame = Math.Max(0, Math.Min(nNSG3dAnmObj2.frame, (nNSG3dResJntAnm.numFrame - 1) << 12));
+											// PORT: a motion with fewer joints than the model (a cast's motion left on another model) has nothing
+											// for this one - NNS reads no data for a node its animation does not map.
+											if (num61 >= nNSG3dResJntAnm.p.Length)
+											{
+												OpenFF.Client.Log.First(OpenFF.Client.LogChannel.General, "jnt-anm-short", 3, () => "g3d: a joint motion of " + nNSG3dResJntAnm.p.Length + " joint(s) on a model of more - node " + num61 + " left unmoved");
+												continue;
+											}
 											NNSG3dResJntAnm.NNSG3dResJntAnmP nNSG3dResJntAnmP = nNSG3dResJntAnm.p[num61];
 											int num75 = 0;
 											uint flag = nNSG3dResJntAnmP.flag;
