@@ -497,3 +497,26 @@ bl = '\n'.join([
     keys('bestKeys', 'menu.bestiary', [(43, 1348.7, '{menu.confirm}'), (15, 1568.5, '{menu.back}')]),
 ])
 screens.append(frame('bestiary', 0, 0, 1920, 1080, None, 'bind-display="menu.bestiary"', indent(bl, 1)))
+
+# The Bestiary's page (mr::MRSubState over the monster on its stage; Steam's draws): the window on the right - the name
+# between MENU_Common's arrows, Lv, Slay Count, EXP, Gil (values right-aligned 20.3 in), Treasure and its four lines, Area
+# and the place - and the field's dark key bar with Z M Change Monsters, Enter Play Action, Backspace Back.
+def page_line(id_, y, label, value=None):
+    fs = [frame(id_ + 'Label', 20.3, y, 527.3, 60.75, 'm-text', 'bind-text="%s"' % label)]
+    if value: fs.append(frame(id_, 0, y, 547.6, 60.75, 'm-text m-right', 'bind-text="%s"' % value))
+    return fs
+pg = page_line('lv', 118.15, '{menu.lvLabel}', '{menu.bestLv}') + page_line('slay', 199.15, '{menu.slayLabel}', '{menu.bestSlay}') \
+   + page_line('exp', 280.15, '{menu.expWord}', '{menu.bestExp}') + page_line('gil', 361.15, '{menu.gilLabel}', '{menu.bestGil}') \
+   + page_line('treasure', 442.15, '{menu.treasureLabel}') \
+   + [frame('item%d' % k, 20.3, 496.15 + 54 * k, 527.3, 60.75, 'm-text', 'bind-text="{menu.bestItem[%d].name}"' % k) for k in range(4)] \
+   + page_line('area', 739.15, '{menu.areaLabel}') + [frame('areaName', 20.3, 793.15, 527.3, 60.75, 'm-text', 'bind-text="{menu.bestArea}"')]
+bp = '\n'.join([
+    window('bestPanel', 1183.1, 20.25, 567.9, 864, 'm-pane', '', '\n'.join([
+        frame('left', 14.4, 6.75, 25.4, 107.1, 'm-arrow-left'),
+        frame('right', 528.2, 6.75, 25.4, 107.1, 'm-arrow-right'),
+        frame('name', 0, 30.35, 567.9, 60.75, 'm-text m-centre', 'bind-text="{menu.bestName}"'),
+    ] + pg)),
+    frame('keyBar', 0, 972, 1920, 108, 'm-key-bar'),
+    keys('pageKeys', 'menu.bestPage', [(46, 966.8, ''), (52, 1054.6, '{menu.changeMonstersLabel}'), (43, 1440.0, '{menu.playActionLabel}'), (15, 1717.2, '{menu.back}')]),
+])
+screens.append(frame('bestPage', 0, 0, 1920, 1080, None, 'bind-display="menu.bestPage"', indent(bp, 1)))

@@ -27,6 +27,8 @@ namespace OpenFF.Client
 		/// <summary>The jump to the battle stage is under way.</summary>
 		public static bool Pending { get; private set; }
 		public static int BattleMap { get; private set; } = -1;
+		/// <summary>The stage is up for a picture, not a fight (the Bestiary's page): the battle leaves it alone.</summary>
+		public static bool Viewing { get; private set; }
 		public static string StageName => BattleMap >= 0 ? "b" + BattleMap.ToString("00") : null;
 
 		private static string _fieldMap;
@@ -136,6 +138,26 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>The stage for the Bestiary's page (mr::MRStageLoader's b%02d): Begin's jump, the fight left out of it.</summary>
+		public static bool BeginView(int battleMap)
+		{
+			if (!Begin(battleMap)) return false;
+			Viewing = true;
+			return true;
+		}
+
+		/// <summary>The Bestiary's next monster stands on another stage: there, the field it will go back to kept.</summary>
+		public static void SwitchView(int battleMap)
+		{
+			if (!Viewing || battleMap < 0 || battleMap > 30) return;
+			BattleMap = battleMap;
+			Active = false;
+			Pending = true;
+			_pendingFrames = 0;
+			Ff4MapChange.PartJump();
+			Game.Field.Warp(StageName, PartySpot(0, 1), 6);
+		}
+
 		/// <summary>True once the party stands on the battle stage after Begin; gives up after a while.</summary>
 		public static bool Arrived
 		{
@@ -165,6 +187,7 @@ namespace OpenFF.Client
 			if (!Active && !Pending) return;
 			Active = false;
 			Pending = false;
+			Viewing = false;
 			BattleMap = -1;
 			if (!jumpBack) return;
 			try

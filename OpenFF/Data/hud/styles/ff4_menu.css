@@ -168,3 +168,6 @@
 .design-6 .m-wallpaper { background-image: resource("files/MENU_Common.dat/wallpaper3d_05.NCGR"); }
 /* The bestiary's NEW: MENU.dat's text_jp, the whole picture (76 x 27) at 1.6875. */
 .m-badge { background-image: resource("files/MENU.dat/text_jp.NCBR"); }
+/* The Bestiary page's arrows: MENU_Common's button_right_left, 16 x 64 each half. */
+.m-arrow-left { background-image: resource("files/MENU_Common.dat/button_right_left.NCGR"); -ff-background-rect: 0 0 16 64; }
+.m-arrow-right { background-image: resource("files/MENU_Common.dat/button_right_left.NCGR"); -ff-background-rect: 16 0 16 64; }

@@ -2814,6 +2814,43 @@
         <frame class="m-key-label" bind-text="{menu.back}"><id>label1</id><x>1629.3</x><y>0</y><width>360</width><height>60.75</height></frame>
       </frame>
     </frame>
+    <frame bind-display="menu.bestPage">
+    <id>bestPage</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+      <frame class="m-pane">
+      <id>bestPanel</id><x>1183.1</x><y>20.25</y><width>567.9</width><height>864</height>
+        <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>581.4</width><height>877.5</height></frame>
+        <frame class="m-arrow-left"><id>left</id><x>14.4</x><y>6.75</y><width>25.4</width><height>107.1</height></frame>
+        <frame class="m-arrow-right"><id>right</id><x>528.2</x><y>6.75</y><width>25.4</width><height>107.1</height></frame>
+        <frame class="m-text m-centre" bind-text="{menu.bestName}"><id>name</id><x>0</x><y>30.35</y><width>567.9</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{menu.lvLabel}"><id>lvLabel</id><x>20.3</x><y>118.15</y><width>527.3</width><height>60.75</height></frame>
+        <frame class="m-text m-right" bind-text="{menu.bestLv}"><id>lv</id><x>0</x><y>118.15</y><width>547.6</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{menu.slayLabel}"><id>slayLabel</id><x>20.3</x><y>199.15</y><width>527.3</width><height>60.75</height></frame>
+        <frame class="m-text m-right" bind-text="{menu.bestSlay}"><id>slay</id><x>0</x><y>199.15</y><width>547.6</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{menu.expWord}"><id>expLabel</id><x>20.3</x><y>280.15</y><width>527.3</width><height>60.75</height></frame>
+        <frame class="m-text m-right" bind-text="{menu.bestExp}"><id>exp</id><x>0</x><y>280.15</y><width>547.6</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{menu.gilLabel}"><id>gilLabel</id><x>20.3</x><y>361.15</y><width>527.3</width><height>60.75</height></frame>
+        <frame class="m-text m-right" bind-text="{menu.bestGil}"><id>gil</id><x>0</x><y>361.15</y><width>547.6</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{menu.treasureLabel}"><id>treasureLabel</id><x>20.3</x><y>442.15</y><width>527.3</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{menu.bestItem[0].name}"><id>item0</id><x>20.3</x><y>496.15</y><width>527.3</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{menu.bestItem[1].name}"><id>item1</id><x>20.3</x><y>550.15</y><width>527.3</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{menu.bestItem[2].name}"><id>item2</id><x>20.3</x><y>604.15</y><width>527.3</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{menu.bestItem[3].name}"><id>item3</id><x>20.3</x><y>658.15</y><width>527.3</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{menu.areaLabel}"><id>areaLabel</id><x>20.3</x><y>739.15</y><width>527.3</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{menu.bestArea}"><id>areaName</id><x>20.3</x><y>793.15</y><width>527.3</width><height>60.75</height></frame>
+      </frame>
+      <frame class="m-key-bar"><id>keyBar</id><x>0</x><y>972</y><width>1920</width><height>108</height></frame>
+      <frame bind-display="menu.bestPage">
+      <id>pageKeys</id><x>0</x><y>995.6</y><width>1920</width><height>60.75</height>
+        <frame class="key-cap" style="-ff-cell: key 46"><id>key0</id><x>966.8</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text=""><id>label0</id><x>1027.6</x><y>0</y><width>360</width><height>60.75</height></frame>
+        <frame class="key-cap" style="-ff-cell: key 52"><id>key1</id><x>1054.6</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.changeMonstersLabel}"><id>label1</id><x>1115.4</x><y>0</y><width>360</width><height>60.75</height></frame>
+        <frame class="key-cap" style="-ff-cell: key 43"><id>key2</id><x>1440</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.playActionLabel}"><id>label2</id><x>1500.8</x><y>0</y><width>360</width><height>60.75</height></frame>
+        <frame class="key-cap" style="-ff-cell: key 15"><id>key3</id><x>1717.2</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.back}"><id>label3</id><x>1778</x><y>0</y><width>360</width><height>60.75</height></frame>
+      </frame>
+    </frame>
     <!-- A Yes / No question over the menu (Quicksave: "Quicksave game and quit?"; Settings: Quit). -->
     <frame bind-display="menu.question">
     <id>question</id><x>0</x><y>0</y><width>1920</width><height>1080</height>

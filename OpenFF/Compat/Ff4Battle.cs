@@ -274,6 +274,10 @@ namespace OpenFF.Client
 			return foe;
 		}
 
+		/// <summary>A monster stood on the stage for the Bestiary's page (MCBattleMonster): its battle model and motions, not
+		/// in the fight.</summary>
+		internal Npc SpawnForView(MonsterDefinition m, Vector3 at, float facing) => SpawnFoe(m, at, facing, at, join: false)?.Npc;
+
 		private MonsterParty _startingParty;
 		private List<Vector3> _placements;
 		private List<float> _facings;       // the monsters' facings, degrees about y (the group's fourth word)
@@ -688,7 +692,7 @@ namespace OpenFF.Client
 		{
 			if (_phase == Phase.Idle)
 			{
-				if (Ff4BattleStage.Pending)
+				if (Ff4BattleStage.Pending && !Ff4BattleStage.Viewing)
 				{
 					// On the way to the battle stage; the fight starts when the party stands on it.
 					if (Ff4BattleStage.Arrived)

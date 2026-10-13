@@ -140,6 +140,12 @@ namespace OpenFF.Client
 			public List<BestRow> BestRow = Rows<BestRow>(6);
 			public ScrollData BestScroll = new ScrollData();
 			public string CompleteText = "";
+			// The Bestiary's page: the monster's name and figures, its four treasures (an item's symbol and name), its area.
+			public bool BestPage;
+			public string BestName = "", BestLv = "", BestSlay = "", BestExp = "", BestGil = "", BestArea = "";
+			public List<CommandRow> BestItem = Rows<CommandRow>(4);
+			public string SlayLabel = "Slay Count", ExpWord = "EXP", TreasureLabel = "Treasure", AreaLabel = "Area";
+			public string ChangeMonstersLabel = "Change Monsters", PlayActionLabel = "Play Action";
 			public List<CellRow> AutoPick = Rows<CellRow>(12);
 			public ScrollData AutoScroll = new ScrollData();
 			public string DifficultyText = "", NormalLabel = "Normal", HardLabel = "Hard", DifficultyNote1 = "", DifficultyNote2 = "";

@@ -168,7 +168,7 @@ namespace OpenFF.Client
 		private bool _full;
 
 		/// <summary>%item% as the game fills it (DGSMsdGetString of the item's id): its icon (U+E040 + its cell), then its name.</summary>
-		private static string ItemString(int id)
+		internal static string ItemString(int id)
 		{
 			ItemDefinition item = Ff4Party.Tables?.Item(id);
 			if (item == null) return "item " + id;

@@ -24,7 +24,7 @@ namespace OpenFF.Client
 {
 	internal sealed class Ff4Extras : GameService
 	{
-		private enum Page { None, Launcher, Music, Theatre, Bestiary }
+		private enum Page { None, Launcher, Music, Theatre, Bestiary, BestiaryPage }
 
 		private static Ff4Extras _instance;
 		private static Page _pending;
@@ -247,6 +247,7 @@ namespace OpenFF.Client
 				case Page.Music: UpdateMusic(input); break;
 				case Page.Theatre: UpdateTheatre(input); break;
 				case Page.Bestiary: UpdateBestiary(input); break;
+				case Page.BestiaryPage: UpdatePage(input); break;
 				default:
 					if (input.Pressed(Pad.B)) { Se(2); Close(); }
 					break;
@@ -319,10 +320,153 @@ namespace OpenFF.Client
 
 		private List<Ff4Bestiary.Entry> _listed = new List<Ff4Bestiary.Entry>();
 
+		private static int _bestCursor, _bestScroll;
+
 		private void OpenBestiary()
 		{
 			_listed = Ff4Bestiary.Book.FindAll(e => Ff4Bestiary.Listed(e.Monster));
-			_cursor = _scroll = 0;
+			_cursor = Math.Min(_bestCursor, Math.Max(0, _listed.Count - 1));
+			_scroll = Math.Min(_bestScroll, _cursor);
+			_bestCursor = _bestScroll = 0;
+		}
+
+		// The page: the monster on its battle stage (MRStageLoader, MCBattleMonster), Steam's camera for it (measured: at
+		// (0, 60, 196) looking at (0, 0, -34), a 16-degree field of view), its battle BGM (MCBattleBGM, the record's +4).
+		private int _viewing = -1;          // the index in _listed shown
+		private Npc _viewNpc;
+		private bool _viewWaiting, _viewAttacking;
+		private int _viewBgm = -1;
+
+		private void OpenPage(int index)
+		{
+			Ff4Bestiary.Entry e = _listed[index];
+			_viewing = index;
+			_page = Page.BestiaryPage;
+			RemoveViewNpc();
+			_viewWaiting = true;
+			if (!Ff4BattleStage.Viewing)
+			{
+				_fieldBgm = _lastBgm;
+				_bestCursor = index;
+				_bestScroll = _scroll;
+				if (!Ff4BattleStage.BeginView(e.Stage)) { _viewWaiting = false; Log.Write(LogChannel.General, "extras: no stage b" + e.Stage.ToString("00") + " for the bestiary"); }
+			}
+			else if (Ff4BattleStage.BattleMap != e.Stage) Ff4BattleStage.SwitchView(e.Stage);
+			else _viewWaiting = false;
+			if (!_viewWaiting) SetUpView();
+			Log.Write(LogChannel.File, "extras: bestiary page " + e.Monster + " on b" + e.Stage.ToString("00"));
+		}
+
+		private void SetUpView()
+		{
+			Ff4Bestiary.Entry e = _listed[_viewing];
+			MonsterDefinition m = Ff4Bestiary.Definition(e.Monster);
+			try { EngineApi.HeroPlayer?.setHidden(true); } catch (Exception) { }
+			// MCBattleMonster::setup: the record's turn (+8, degrees) and place (+0xc less 12, +0x10, +0x14).
+			Vector3 at = new Vector3((e.Camera[1] - 0xC000) / 4096f, e.Camera[2] / 4096f, e.Camera[3] / 4096f);
+			float facing = e.Camera[0] / 4096f;
+			if (m != null) _viewNpc = Ff4Battle.Instance?.SpawnForView(m, at, facing);
+			_viewAttacking = false;
+			Ff4EventCamera.MoveTo(0, 60 * 4096, 196 * 4096, 0, false);
+			Ff4EventCamera.LookAt(0, 0, -34 * 4096, 0);
+			Ff4EventCamera.SetFov(16.04f);
+			Ff4EventCamera.SetClip(Ff4BattleStage.ClipNear, Ff4BattleStage.ClipFar);
+			if (e.Bgm != _viewBgm)
+			{
+				_viewBgm = e.Bgm;
+				try { GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().play(e.Bgm, 127, 0, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0); } catch (Exception) { }
+			}
+			GlobalScope.dgs.CFade.Main().fadeIn(5);
+			GlobalScope.dgs.CFade.Sub().fadeIn(5);
+		}
+
+		private void RemoveViewNpc()
+		{
+			if (_viewNpc == null) return;
+			try { _viewNpc.Remove(); } catch (Exception) { }
+			_viewNpc = null;
+		}
+
+		private void UpdatePage(InputState input)
+		{
+			if (_viewWaiting)
+			{
+				if (Ff4BattleStage.Pending && Ff4BattleStage.Arrived) { Ff4BattleStage.Arrive(); _viewWaiting = false; SetUpView(); }
+				return;
+			}
+			if (input.Pressed(Pad.B))
+			{
+				Se(2);
+				RemoveViewNpc();
+				Ff4EventCamera.Release();
+				Ff4BattleStage.Leave();
+				_viewBgm = -1;
+				_page = Page.None;
+				Game.Input.Capture = false;
+				if (_fieldBgm > 0) { try { GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().play(_fieldBgm, 127, 0, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0); } catch (Exception) { } }
+				_pending = Page.Bestiary;   // the list again, once the field is back
+				return;
+			}
+			// Z and M: the previous and the next monster met.
+			int step = input.Pressed(Pad.Y) ? -1 : input.KeyPressed("M") ? 1 : 0;
+			if (step != 0)
+			{
+				for (int k = 1; k < _listed.Count; k++)
+				{
+					int i = ((_viewing + step * k) % _listed.Count + _listed.Count) % _listed.Count;
+					if (!Ff4Bestiary.Met(_listed[i].Monster)) continue;
+					if (i != _viewing) { Se(3); Ff4Bestiary.Seen(_listed[i].Monster); _bestCursor = i; OpenPage(i); }
+					break;
+				}
+				return;
+			}
+			// Enter: MCBattleMonster::startAttackMotion - motion 201, unless the record's flag 0 is up; then the stance again.
+			if (input.Pressed(Pad.A) && _viewNpc != null && !_viewAttacking && (_listed[_viewing].Flags & 1) == 0)
+			{
+				_viewAttacking = true;
+				try { _viewNpc.PlayMotion(201, false, 5); Log.Write(LogChannel.File, "extras: bestiary action 201"); } catch (Exception ex) { _viewAttacking = false; Log.Write(LogChannel.File, "extras: bestiary action: " + ex.Message); }
+			}
+			if (_viewAttacking && _viewNpc != null && _viewNpc.MotionDone)
+			{
+				_viewAttacking = false;
+				try { _viewNpc.PlayMotion(101, true, 10); Log.Write(LogChannel.File, "extras: bestiary action done"); } catch (Exception) { }
+			}
+		}
+
+		private void DrawPage(Ff4MenuHud.Data h)
+		{
+			Ff4Bestiary.Entry e = _listed[_viewing];
+			MonsterDefinition m = Ff4Bestiary.Definition(e.Monster);
+			int mania = Ff4Bestiary.Mania(e.Monster);
+			bool felled = mania > 0xF;
+			string unknown = MonsterRef(60011, "??????"), little = MonsterRef(60010, "???");
+			h.BestName = m?.Name ?? "";
+			h.LvLabel = Ff4Layouts.Text(50401, "Lv");
+			h.SlayLabel = MonsterRef(60005, "Slay Count");
+			h.ExpWord = Ff4Layouts.Text(50451, "EXP");
+			h.GilLabel = Ff4Layouts.Text(50446, "Gil");
+			h.TreasureLabel = MonsterRef(60009, "Treasure");
+			h.AreaLabel = MonsterRef(61000, "Area");
+			h.ChangeMonstersLabel = Ff4Menu.KeyText(60214, "Change Monsters");
+			h.PlayActionLabel = Ff4Menu.KeyText(60215, "Play Action");
+			// su_AfterLoad: the figures once one has been felled ("???" before; a record's flag 1 hides the level).
+			h.BestLv = felled ? ((e.Flags & 2) != 0 ? little : (m?.Level ?? 0).ToString()) : little;
+			h.BestSlay = felled ? (mania >> 4).ToString() : little;
+			h.BestExp = felled ? (m == null || m.Experience < 0 ? "------" : m.Experience.ToString()) : little;
+			h.BestGil = felled ? (m == null || m.Gil < 0 ? "-------" : m.Gil.ToString()) : unknown;
+			int line = 0;
+			for (int k = 0; k < 4; k++) h.BestItem[k].Name = felled ? "" : unknown;
+			if (felled && m?.Raw != null)
+			{
+				for (int d = 0; d < 4 && line < 4; d++)
+				{
+					int item = BitConverter.ToInt16(m.Raw, 0x6C + 4 * d);
+					if (item <= 0) continue;
+					string text = Ff4Chests.ItemString(item);
+					if (!string.IsNullOrEmpty(text)) h.BestItem[line++].Name = text;
+				}
+			}
+			h.BestArea = felled ? MonsterRef(e.Area, "") : unknown;
 		}
 
 		private void UpdateBestiary(InputState input)
@@ -342,7 +486,7 @@ namespace OpenFF.Client
 				if (!Ff4Bestiary.Met(_listed[_cursor].Monster)) { Se(0); return; }
 				Se(1);
 				Ff4Bestiary.Seen(_listed[_cursor].Monster);
-				Log.Write(LogChannel.File, "extras: bestiary page of monster " + _listed[_cursor].Monster);
+				OpenPage(_cursor);
 			}
 		}
 
@@ -422,6 +566,8 @@ namespace OpenFF.Client
 			h.Theatre = _page == Page.Theatre;
 			h.Bestiary = _page == Page.Bestiary;
 			if (h.Bestiary) DrawBestiary(h);
+			h.BestPage = _page == Page.BestiaryPage && !_viewWaiting;
+			if (h.BestPage) DrawPage(h);
 			if (h.Launcher)
 			{
 				for (int k = 0; k < 3; k++)
