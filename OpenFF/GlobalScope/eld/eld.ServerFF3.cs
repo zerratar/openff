@@ -101,7 +101,20 @@ internal static partial class GlobalScope
 				Array array = ds.CHeap.alloc_app(size);
 				ds.g_File.load(array, const_cast<string>(szFilename));
 				SFileHeader sFileHeader = (SFileHeader)array;
-				if (_listLoadEfp.add(sFileHeader) && base.registerEfp(sFileHeader))
+				// PORT: a pack whose registration fails part-way is taken out again (what it registered released) - left in,
+				// half set up, it stayed first in the lookup, and every load after added a copy behind it the lookup never reached.
+				bool registered;
+				try
+				{
+					registered = _listLoadEfp.add(sFileHeader) && base.registerEfp(sFileHeader);
+				}
+				catch (Exception)
+				{
+					try { base.releaseEfp(sFileHeader); } catch (Exception) { }
+					_listLoadEfp.erase(sFileHeader);
+					throw;
+				}
+				if (registered)
 				{
 					return sFileHeader;
 				}

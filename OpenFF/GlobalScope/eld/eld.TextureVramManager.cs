@@ -19,9 +19,14 @@ internal static partial class GlobalScope
 	{
 		public class TextureVramManager
 		{
-			private ds.Vector<ds.Texture, ds.FastErasePolicy<ds.Texture>> _listTx = new ds.Vector<ds.Texture, ds.FastErasePolicy<ds.Texture>>(32);
+			// PORT: 32 each held FF3's few packs (five at most); an FF4 battle keeps up to 24 in (the hits, the attacks, the
+			// chants, the spells - CEffectMng's EFP_ID_MAX), and the pack that overflowed them threw part-way through its
+			// registration: its remaining templates were never set up (a monster's Aim, Holy... drew a part short).
+			private const int TextureSlots = 512;
 
-			private ds.Vector<ModelTexture, ds.FastErasePolicy<ModelTexture>> _listMdlTx = new ds.Vector<ModelTexture, ds.FastErasePolicy<ModelTexture>>(32);
+			private ds.Vector<ds.Texture, ds.FastErasePolicy<ds.Texture>> _listTx = new ds.Vector<ds.Texture, ds.FastErasePolicy<ds.Texture>>(TextureSlots);
+
+			private ds.Vector<ModelTexture, ds.FastErasePolicy<ModelTexture>> _listMdlTx = new ds.Vector<ModelTexture, ds.FastErasePolicy<ModelTexture>>(TextureSlots);
 
 			private uint _unMaxSizeTexel;
 

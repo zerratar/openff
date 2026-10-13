@@ -65,11 +65,11 @@ internal static partial class GlobalScope
 				ModelDSNmdpHeader textureAddr = m_pTemplate.GetTextureAddr<ModelDSNmdpHeader>();
 				ModelDSNcapHeader animAddr = m_pTemplate.GetAnimAddr<ModelDSNcapHeader>();
 				ModelTexture unModelTexturePointer = textureAddr.unModelTexturePointer;
-				// PORT: a template already disposed (its pack's texture released) while a sequence still boots an object from
-				// it: no object, as for any that cannot be made, rather than a null texture taking the game down.
+				// PORT: a template never set up (its pack's registration failed part-way): no object, as for any that cannot be
+				// made, rather than a null texture taking the game down.
 				if (unModelTexturePointer == null)
 				{
-					OpenFF.Client.Log.First(OpenFF.Client.LogChannel.File, "eld-disposed-model", 3, () => "effect: a model object from a disposed template - not made");
+					OpenFF.Client.Log.First(OpenFF.Client.LogChannel.File, "eld-unset-model", 3, () => "effect: a model object from a template never set up - not made");
 					return false;
 				}
 				_pResModel = textureAddr.unOffsetModel;
