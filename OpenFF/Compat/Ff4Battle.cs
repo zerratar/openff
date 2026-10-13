@@ -280,6 +280,82 @@ namespace OpenFF.Client
 		private int _rootId;                // the party root the members stand on (the group's byte 2)
 		private List<int> _pendingIds;
 
+		/// <summary>A member as a fighter: the character's stats, equipment and conditions.</summary>
+		private Fighter MemberFighter(Character c, GameTables tables)
+		{
+			OpenFF.Data.Stats stats = c.StatsWith(tables);
+			int weapon = Weapon(c, tables);
+			return new Fighter
+			{
+				Name = c.Name, Member = c, Hp = c.Hp, MaxHp = c.MaxHp, Commands = CommandList(c),
+				Attack = Math.Max(1, weapon > 0 ? weapon : stats.Strength / 2), Defence = Armour(c, tables), Agility = Math.Max(1, stats.Agility),
+				Level = c.Level, Intellect = stats.Intellect, Spirit = stats.Spirit, Vitality = stats.Vitality, MagicDefence = MagicArmour(c, tables),
+				Strength = stats.Strength, HitChance = weapon > 0 ? WeaponHit(c, tables) : 90, Evade = Evasion(c, tables),
+				Gauge = StartGauge(false), Conditions = c.Conditions, HpSeen = c.Hp, MagicEvasion = MagicEvasionOf(c, tables),
+			};
+		}
+
+		/// <summary>A member's battle model (pNN_00) spawned at its spot - FF4's party position and, under the formation, its row
+		/// (Ff4Party) - with its motions, weapon sounds and equipment, and its facing set. Null when there is no model.</summary>
+		private Npc MemberModel(Fighter ally, GameTables tables, out Vector3 spot)
+		{
+			CharacterDefinition who = ally.Member.Definition;
+			int position = Ff4Party.PositionOf(ally.Member.Id), row = Ff4Party.RowOf(position);
+			spot = Ff4BattleStage.PartySpot(_rootId, position, row);
+			Npc npc = null;
+			try { npc = Game.Npcs.SpawnModel("p" + who.Id.ToString("00") + "_00", spot, 0f); } catch (Exception) { }
+			if (npc == null) { Log.Write(LogChannel.File, "battle: no battle model for " + ally.Name); return null; }
+			try
+			{
+				WeaponMotionRecord weapon = BindBattleMotions(npc, who.Id, ally.Member, tables);
+				if (weapon != null) { ally.Poise = weapon.Poise; ally.SwingA = weapon.Raw[3]; ally.SwingB = weapon.Raw[2]; }
+				int system = WeaponSystem(ally.Member, tables);
+				ally.HitEffect = HitEffectOf(system);
+				if (system >= 0 && system < tables.WeaponSounds.Count && tables.WeaponSounds[system][0] >= 0 && tables.WeaponSounds[system][1] >= 0)
+				{
+					ally.HitBank = tables.WeaponSounds[system][0];
+					ally.HitSound = tables.WeaponSounds[system][1];
+				}
+				LoadEffect(ally.HitEffect);
+			}
+			catch (Exception) { }
+			HoldEquipment(npc, ally.Member, tables);
+			npc.Solid = false;
+			ally.Facing = Ff4BattleStage.PartyFacingDegrees(_rootId, position, row);
+			return npc;
+		}
+
+		/// <summary>
+		/// A member joining mid-fight (BSCAddPlayer: PlayerParty::addMember, then BattleParty::addMember): in the party for good,
+		/// and in the fight unseen and hidden (setShow false, condition 0x19), its gauge empty - until it shows itself (BABShow).
+		/// </summary>
+		private Fighter AddMember(int id)
+		{
+			GameTables tables = Ff4Party.Tables;
+			if (tables == null || !Ff4Party.Join(id)) return null;
+			Character c = Ff4Party.Party.Members.Find(m => m.Id == id);
+			if (c == null || _party.Exists(f => f.Member == c)) return null;
+			Fighter ally = MemberFighter(c, tables);
+			ally.Gauge = 0f;
+			ally.Hiding = true;
+			_party.Add(ally);
+			if (Ff4BattleStage.Active)
+			{
+				Npc npc = MemberModel(ally, tables, out Vector3 spot);
+				if (npc != null)
+				{
+					ally.Npc = npc;
+					ally.Home = spot;
+					npc.Teleport(spot);
+					npc.Hidden = true;
+					Face(ally, ally.Facing);
+					Play(ally, _heroMotionIdle, true, 0);
+				}
+			}
+			Note(ally.Name + " joins the fight, unseen.");
+			return ally;
+		}
+
 		/// <summary>A fight against these monsters (ids in the unified tables), on the spot.</summary>
 		public bool Start(IEnumerable<int> monsterIds, bool inScene = false, int battleMap = -1)
 		{
@@ -303,19 +379,7 @@ namespace OpenFF.Client
 			_expWon = _gilWon = 0;
 			_whirlwind = false;
 			BeginOpening(monsterIds);
-			foreach (Character c in party.Members)
-			{
-				OpenFF.Data.Stats stats = c.StatsWith(tables);
-				int weapon = Weapon(c, tables);
-				_party.Add(new Fighter
-				{
-					Name = c.Name, Member = c, Hp = c.Hp, MaxHp = c.MaxHp, Commands = CommandList(c),
-					Attack = Math.Max(1, weapon > 0 ? weapon : stats.Strength / 2), Defence = Armour(c, tables), Agility = Math.Max(1, stats.Agility),
-					Level = c.Level, Intellect = stats.Intellect, Spirit = stats.Spirit, Vitality = stats.Vitality, MagicDefence = MagicArmour(c, tables),
-					Strength = stats.Strength, HitChance = weapon > 0 ? WeaponHit(c, tables) : 90, Evade = Evasion(c, tables),
-					Gauge = StartGauge(false), Conditions = c.Conditions, HpSeen = c.Hp, MagicEvasion = MagicEvasionOf(c, tables),
-				});
-			}
+			foreach (Character c in party.Members) _party.Add(MemberFighter(c, tables));
 			if (onStage)
 			{
 				// FF4 fights with its battle models: pNN_00 per player type (the field walks pNN_01,
@@ -331,30 +395,8 @@ namespace OpenFF.Client
 				for (int i = 0; i < _party.Count; i++)
 				{
 					Fighter ally = _party[i];
-					CharacterDefinition who = ally.Member.Definition;
-					// FF4's party position and, under the formation, its row (Ff4Party): the spot and the facing the root gives it.
-					int position = Ff4Party.PositionOf(ally.Member.Id), row = Ff4Party.RowOf(position);
-					Vector3 spot = Ff4BattleStage.PartySpot(_rootId, position, row);
-					Npc npc = null;
-					try { npc = Game.Npcs.SpawnModel("p" + who.Id.ToString("00") + "_00", spot, 0f); } catch (Exception) { }
-					if (npc == null) { Log.Write(LogChannel.File, "battle: no battle model for " + ally.Name); continue; }
-					try
-					{
-						WeaponMotionRecord weapon = BindBattleMotions(npc, who.Id, ally.Member, tables);
-						if (weapon != null) { ally.Poise = weapon.Poise; ally.SwingA = weapon.Raw[3]; ally.SwingB = weapon.Raw[2]; }
-						int system = WeaponSystem(ally.Member, tables);
-						ally.HitEffect = HitEffectOf(system);
-						if (system >= 0 && system < tables.WeaponSounds.Count && tables.WeaponSounds[system][0] >= 0 && tables.WeaponSounds[system][1] >= 0)
-						{
-							ally.HitBank = tables.WeaponSounds[system][0];
-							ally.HitSound = tables.WeaponSounds[system][1];
-						}
-						LoadEffect(ally.HitEffect);
-					}
-					catch (Exception) { }
-					HoldEquipment(npc, ally.Member, tables);
-					npc.Solid = false;
-					ally.Facing = Ff4BattleStage.PartyFacingDegrees(_rootId, position, row);
+					Npc npc = MemberModel(ally, tables, out Vector3 spot);
+					if (npc == null) continue;
 					if (StandInPlace)
 					{
 						// A back attack's or a surprise's party: at its spots from the start, no run-in - turned away from the

@@ -259,6 +259,13 @@ namespace OpenFF.Client
 		{
 			int type = (int)engine.getDword();
 			int position = engine.getByte() - 1;   // 0: the first one free
+			Join(type, position);
+		}
+
+		/// <summary>A character into the line-up (PlayerParty::addMember): at its join level, at <paramref name="position"/> in the
+		/// formation (-1: the first one free), its default commands. False when it could not join.</summary>
+		public static bool Join(int type, int position = -1)
+		{
 			bool joined = Party.Join(type, JoinLevel(type));
 			if (joined)
 			{
@@ -268,6 +275,7 @@ namespace OpenFF.Client
 			Character c = Party.Get(type);
 			if (c != null) Ff4Augments.DefaultLayout(c);   // _global.c AddPartyPC: initializeDefaultCommand on every join
 			Log.Write(LogChannel.General, "party: " + (c?.Name ?? ("type " + type)) + (joined ? " joins - " : " could not join - ") + Party.Members.Count + " in the party");
+			return joined;
 		}
 
 		/// <summary>subPartyPC(type, ?): the character leaves the line-up.</summary>

@@ -242,7 +242,7 @@ namespace OpenFF.Client
 					{
 						int team = R(1), id = R(2);
 						int found = team == 0 ? _b.BattleIdOfPlayer(id) : team == 1 ? _b.BattleIdOfMonster(id, aliveOnly: true) : -1;
-						if (found >= 0) _eventActor = found;
+						_eventActor = found;   // none such: no actor (the action is passed over)
 						return true;
 					}
 					case 37:                                                        // StartEventAction: the actor acts, the event waits
@@ -254,6 +254,7 @@ namespace OpenFF.Client
 						Block(() => _b._cues.Count == 0 && !_b.TurnEffectsPlaying());
 						return false;
 					}
+					case 77: _b.AddMember(R(1)); return true;                         // AddPlayer id: joins unseen
 					case 78:                                                        // EventActionTargetCheck dst
 					{
 						Fighter t = _targets.Count > 0 ? _b.ByBattleId(_targets[0]) : null;
@@ -550,6 +551,8 @@ namespace OpenFF.Client
 			}
 			// A monster's own specials (a boss's action, the mist, a summons) as its turn would run them.
 			if (actor.IsMonster && (QuietTurn(actor, ability) || EnemySummon(actor, ability) || MistTurn(actor, ability) || BossTurn(actor, ability))) return true;
+			// BABShow: one who joined unseen (AddPlayer) shows itself - Edward's Return from hiding.
+			if (!actor.IsMonster && ability == 3010) { Return(actor); return true; }
 			Log.First(LogChannel.File, "battle-event-ability-" + ability, 1, () => "battle: event action ability " + ability + " not in yet");
 			return false;
 		}
