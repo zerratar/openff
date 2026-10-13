@@ -520,3 +520,22 @@ bp = '\n'.join([
     keys('pageKeys', 'menu.bestPage', [(46, 966.8, ''), (52, 1054.6, '{menu.changeMonstersLabel}'), (43, 1440.0, '{menu.playActionLabel}'), (15, 1717.2, '{menu.back}')]),
 ])
 screens.append(frame('bestPage', 0, 0, 1920, 1080, None, 'bind-display="menu.bestPage"', indent(bp, 1)))
+
+# The name entry (Steam's NameEntryPart: Namingway's rename, Whyt's name, an ability's): over the wallpaper, a window with
+# the name in a sunken box (the glove on it), Steam's two lines under it, and Accept below the window (button_00).
+ne = '\n'.join([
+    frame('wallpaper', 0, 0, 1920, 1080, 'm-wallpaper'),
+    window('nameWindow', 169, 60.75, 1582, 337.5, 'm-pane', '', '\n'.join([
+        frame('box', 548, 33.75, 486, 87.75, 'm-edge'),
+        frame('name', 548, 47.25, 486, 60.75, 'm-text m-centre', 'bind-text="{menu.nameText}"'),
+        frame('hand', 628.7, 33.75, 1, 87.75, 'hand', 'bind-visible="menu.nameBoxLit"'),
+        frame('hint1', 0, 138.35, 1582, 60.75, 'm-text m-centre', 'bind-text="{menu.nameHint1}"'),
+        frame('hint2', 0, 246.35, 1582, 60.75, 'm-text m-centre', 'bind-text="{menu.nameHint2}"'),
+    ])),
+    frame('accept', 758, 428.6, 405.5, 121.5, 'm-pill', '', indent('\n'.join([
+        frame('art', 0, 0, 405.5, 121.5, 'm-pill-art'),
+        frame('label', 0, 30.4, 405.5, 60.75, 'm-text m-centre', 'bind-text="{menu.acceptLabel}"'),
+        frame('hand', 81, 0, 1, 121.5, 'hand m-pill-hand', 'bind-visible="menu.acceptLit"'),
+    ]), 1)),
+])
+screens.append(frame('nameEntry', 0, 0, 1920, 1080, None, 'bind-display="menu.nameEntry"', indent(ne, 1)))

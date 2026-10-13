@@ -24,7 +24,7 @@ namespace OpenFF.Client
 {
 	internal sealed class Ff4Extras : GameService
 	{
-		private enum Page { None, Launcher, Music, Theatre, Bestiary, BestiaryPage }
+		private enum Page { None, Launcher, Music, Theatre, Bestiary, BestiaryPage, NameEntry }
 
 		private static Ff4Extras _instance;
 		private static Page _pending;
@@ -49,6 +49,11 @@ namespace OpenFF.Client
 				case "call_music_player": _pending = Page.Music; return true;
 				case "call_theater": _pending = Page.Theatre; return true;
 				case "call_monster_ref": _pending = Page.Bestiary; return true;
+				// WSNamingWay, WSPlayerNamingWay, WSLovingWay: NameEntryPart with five characters - Whyt's name (mode 1), the
+				// leader's (2), the ability's (3).
+				case "namingway": _pending = Page.NameEntry; _nameMode = 1; return true;
+				case "plr_namingway": _pending = Page.NameEntry; _nameMode = 2; return true;
+				case "lovingway": _pending = Page.NameEntry; _nameMode = 3; return true;
 				default: return false;
 			}
 		}
@@ -212,6 +217,7 @@ namespace OpenFF.Client
 				_theatreCursor = _theatreScroll = 0;
 			}
 			if (page == Page.Bestiary) OpenBestiary();
+			if (page == Page.NameEntry) OpenName();
 			Log.Write(LogChannel.File, "extras: " + page);
 		}
 
@@ -262,6 +268,7 @@ namespace OpenFF.Client
 				case Page.Theatre: UpdateTheatre(input); break;
 				case Page.Bestiary: UpdateBestiary(input); break;
 				case Page.BestiaryPage: UpdatePage(input); break;
+				case Page.NameEntry: UpdateName(input); break;
 				default:
 					if (input.Pressed(Pad.B)) { Se(2); Close(); }
 					break;
@@ -486,6 +493,62 @@ namespace OpenFF.Client
 			h.BestArea = felled ? MonsterRef(e.Area, "") : unknown;
 		}
 
+		// ---- the name entry ----
+
+		private static int _nameMode;
+		private string _name = "";
+		private bool _onAccept, _typing;
+
+		private Character NameLeader => Ff4Party.Party.Leader;
+
+		private void OpenName()
+		{
+			_name = _nameMode == 1 ? Ff4Names.Summon : _nameMode == 3 ? Ff4Names.Ability : NameLeader?.Name ?? "";
+			if (_name.Length > 5) _name = _name.Substring(0, 5);
+			_onAccept = _typing = false;
+		}
+
+		private void UpdateName(InputState input)
+		{
+			if (_typing)
+			{
+				// Steam's keyboard line: the text field has the keys until Enter (kept) or Escape (as it was).
+				if (TextEntry.Instance == null || !TextEntry.Instance.IsActive) _typing = false;
+				return;
+			}
+			if (input.Pressed(Pad.Up) || input.Pressed(Pad.Down)) { _onAccept = !_onAccept; Se(3); }
+			if (!input.Pressed(Pad.A)) return;
+			Se(1);
+			if (!_onAccept)
+			{
+				if (TextEntry.Instance == null) return;
+				_typing = true;
+				TextEntry.Instance.Show("", "", _name, 5, result =>
+				{
+					_typing = false;
+					if (result != null && result.Trim().Length > 0) _name = result;
+				}, headless: true);
+				return;
+			}
+			// Accept: NameEntryPart::nepFinalize copies the name where it goes; back to the field.
+			if (_nameMode == 1) Ff4Names.Summon = _name;
+			else if (_nameMode == 3) Ff4Names.Ability = _name;
+			else if (NameLeader != null) NameLeader.Name = _name;
+			Log.Write(LogChannel.General, "extras: name " + _nameMode + " set to " + _name);
+			Close();
+		}
+
+		private void DrawName(Ff4MenuHud.Data h)
+		{
+			string shown = _typing && TextEntry.Instance != null ? TextEntry.Instance.Text : _name;
+			h.NameText = _typing ? shown + "|" : shown;
+			h.NameHint1 = Ff4Layouts.Text(50763, "Enter up to five characters. Emoticons are not allowed.");
+			h.NameHint2 = Ff4Names.SteamLine(6, "Use the keyboard to enter the name. Press Enter to validate.");
+			h.AcceptLabel = Ff4Layouts.Text(50718, "Accept");
+			h.NameBoxLit = !_onAccept;
+			h.AcceptLit = _onAccept;
+		}
+
 		private void UpdateBestiary(InputState input)
 		{
 			int n = _listed.Count;
@@ -583,6 +646,8 @@ namespace OpenFF.Client
 			h.Theatre = _page == Page.Theatre;
 			h.Bestiary = _page == Page.Bestiary;
 			if (h.Bestiary) DrawBestiary(h);
+			h.NameEntry = _page == Page.NameEntry;
+			if (h.NameEntry) DrawName(h);
 			h.BestPage = _page == Page.BestiaryPage && !_viewWaiting;
 			if (h.BestPage) DrawPage(h);
 			if (h.Launcher)

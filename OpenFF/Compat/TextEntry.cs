@@ -42,6 +42,13 @@ namespace OpenFF.Client
 
 		public bool IsActive { get; private set; }
 
+		/// <summary>Typing for a screen that draws the field itself (FF4's name entry, Steam's keyboard line): no prompt, no
+		/// on-screen keys - the text as it stands in <see cref="Text"/>, Enter finishing it, Escape giving it up.</summary>
+		public bool Headless { get; private set; }
+
+		/// <summary>The text as typed so far.</summary>
+		public string Text => _text.ToString();
+
 		private TextEntry(Game game)
 			: base(game)
 		{
@@ -58,7 +65,7 @@ namespace OpenFF.Client
 
 		/// <summary>Opens the prompt. <paramref name="onComplete"/> gets null if cancelled.</summary>
 		public void Show(string title, string description, string defaultText, int maxLength,
-			Action<string> onComplete)
+			Action<string> onComplete, bool headless = false)
 		{
 			if (IsActive)
 			{
@@ -78,6 +85,7 @@ namespace OpenFF.Client
 			}
 			_onComplete = onComplete;
 			_previousKeys = Keyboard.GetState();
+			Headless = headless;
 			IsActive = true;
 			Log.Write(LogChannel.Input, "text entry opened: \"" + _title + "\" default=\"" + _text + "\"");
 		}
@@ -227,7 +235,7 @@ namespace OpenFF.Client
 				_text.Length--;
 			}
 			_previousKeys = keys;
-			if (!IsActive) return;
+			if (!IsActive || Headless) return;
 
 			// The pad on the grid: edges of its bits (the keyboard is not read here - it types).
 			int pad = DesktopInput.PadOnlyBits(), edge = pad & ~_previousPad;
@@ -262,7 +270,7 @@ namespace OpenFF.Client
 
 		public override void Draw(GameTime gameTime)
 		{
-			if (!IsActive)
+			if (!IsActive || Headless)
 			{
 				return;
 			}

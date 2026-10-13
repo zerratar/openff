@@ -38,6 +38,8 @@ namespace OpenFF.Client
 			public Dictionary<string, uint[]> Navi;
 			/// <summary>The bestiary's record by monster id (the kill count x 16 and its flags), the ones not zero.</summary>
 			public Dictionary<int, int> Bestiary;
+			/// <summary>Whyt's name and the ability's as set at the name entry (null: the game's own).</summary>
+			public string SummonName, AbilityName;
 		}
 
 		public string ChunkId => "ff4/field";
@@ -67,6 +69,8 @@ namespace OpenFF.Client
 			d.PlaySeconds = Ff4Saves.PlaySeconds;
 			d.Navi = Ff4NaviMap.SeenForSave();
 			d.Bestiary = Ff4Bestiary.ForSave();
+			d.SummonName = Ff4Names.Summon;
+			d.AbilityName = Ff4Names.Ability;
 			Log.Write(LogChannel.General, "save: field - " + d.Map + " at " + d.X.ToString("0") + "," + d.Y.ToString("0") + "," + d.Z.ToString("0") + " rot " + d.Rotation + ", " + d.Flags.Count + " flag(s)");
 			return d;
 		}
@@ -93,6 +97,9 @@ namespace OpenFF.Client
 			Ff4Saves.PlayFrames = d.PlaySeconds * 60;
 			Ff4NaviMap.Restore(d.Navi);
 			Ff4Bestiary.Restore(d.Bestiary);
+			Ff4Names.NewGame();
+			if (!string.IsNullOrEmpty(d.SummonName)) Ff4Names.Summon = d.SummonName;
+			Ff4Names.Ability = d.AbilityName;
 			Log.Write(LogChannel.General, "load: field - " + (d.Map ?? "?") + " at " + d.X.ToString("0") + "," + d.Y.ToString("0") + "," + d.Z.ToString("0") + ", " + d.Flags.Count + " flag(s)");
 		}
 	}

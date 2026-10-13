@@ -2851,6 +2851,25 @@
         <frame class="m-key-label" bind-text="{menu.back}"><id>label3</id><x>1778</x><y>0</y><width>360</width><height>60.75</height></frame>
       </frame>
     </frame>
+    <frame bind-display="menu.nameEntry">
+    <id>nameEntry</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+      <frame class="m-wallpaper"><id>wallpaper</id><x>0</x><y>0</y><width>1920</width><height>1080</height></frame>
+      <frame class="m-pane">
+      <id>nameWindow</id><x>169</x><y>60.75</y><width>1582</width><height>337.5</height>
+        <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>1595.5</width><height>351</height></frame>
+        <frame class="m-edge"><id>box</id><x>548</x><y>33.75</y><width>486</width><height>87.75</height></frame>
+        <frame class="m-text m-centre" bind-text="{menu.nameText}"><id>name</id><x>548</x><y>47.25</y><width>486</width><height>60.75</height></frame>
+        <frame class="hand" bind-visible="menu.nameBoxLit"><id>hand</id><x>628.7</x><y>33.75</y><width>1</width><height>87.75</height></frame>
+        <frame class="m-text m-centre" bind-text="{menu.nameHint1}"><id>hint1</id><x>0</x><y>138.35</y><width>1582</width><height>60.75</height></frame>
+        <frame class="m-text m-centre" bind-text="{menu.nameHint2}"><id>hint2</id><x>0</x><y>246.35</y><width>1582</width><height>60.75</height></frame>
+      </frame>
+      <frame class="m-pill">
+      <id>accept</id><x>758</x><y>428.6</y><width>405.5</width><height>121.5</height>
+        <frame class="m-pill-art"><id>art</id><x>0</x><y>0</y><width>405.5</width><height>121.5</height></frame>
+        <frame class="m-text m-centre" bind-text="{menu.acceptLabel}"><id>label</id><x>0</x><y>30.4</y><width>405.5</width><height>60.75</height></frame>
+        <frame class="hand m-pill-hand" bind-visible="menu.acceptLit"><id>hand</id><x>81</x><y>0</y><width>1</width><height>121.5</height></frame>
+      </frame>
+    </frame>
     <!-- A Yes / No question over the menu (Quicksave: "Quicksave game and quit?"; Settings: Quit). -->
     <frame bind-display="menu.question">
     <id>question</id><x>0</x><y>0</y><width>1920</width><height>1080</height>

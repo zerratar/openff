@@ -146,6 +146,9 @@ namespace OpenFF.Client
 			public List<CommandRow> BestItem = Rows<CommandRow>(4);
 			public string SlayLabel = "Slay Count", ExpWord = "EXP", TreasureLabel = "Treasure", AreaLabel = "Area";
 			public string ChangeMonstersLabel = "Change Monsters", PlayActionLabel = "Play Action";
+			// The name entry: the name (a caret after it while typing), Steam's two lines, Accept; the glove on the box or Accept.
+			public bool NameEntry, NameBoxLit, AcceptLit;
+			public string NameText = "", NameHint1 = "", NameHint2 = "", AcceptLabel = "Accept";
 			public List<CellRow> AutoPick = Rows<CellRow>(12);
 			public ScrollData AutoScroll = new ScrollData();
 			public string DifficultyText = "", NormalLabel = "Normal", HardLabel = "Hard", DifficultyNote1 = "", DifficultyNote2 = "";

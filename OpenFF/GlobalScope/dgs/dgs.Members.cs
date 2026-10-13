@@ -57,7 +57,7 @@ internal static partial class GlobalScope
 
 		public const TARGETLCD TLCD_SUB = TARGETLCD.TLCD_SUB;
 
-		public static C_C_SET[] ccs = new C_C_SET[22]
+		public static C_C_SET[] ccs = new C_C_SET[23]
 		{
 			new C_C_SET("lead_player_name", ccpLeadPlayerName),
 			new C_C_SET("shuyaku", ccpPlayerName),
@@ -80,8 +80,16 @@ internal static partial class GlobalScope
 			new C_C_SET("job_name", ccpUnFixedJobName),
 			new C_C_SET("slot", ccpUnFixedSlot),
 			new C_C_SET("friend", ccpUnFixedFriendName),
-			new C_C_SET("1", ccpArgument1)
+			new C_C_SET("1", ccpArgument1),
+			// PORT (FF4): libff4's "chr" code - Whyt's name, the ability's, a member's (Ff4Names).
+			new C_C_SET("chr", ccpFf4Chr)
 		};
+
+		internal static void ccpFf4Chr(string code, char[] dest, int iDestOffset)
+		{
+			string text = OpenFF.Client.Ff4Names.ControlCode(code);
+			if (text != null) strcpy(dest, iDestOffset, text);
+		}
 
 		private static int NUMBER_OF_CCS = ccs.Length;
 
