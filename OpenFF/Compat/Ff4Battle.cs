@@ -1774,18 +1774,20 @@ namespace OpenFF.Client
 			return e.Hp > 0 || e.Mp > 0 || e.Id == 17 ? e : null;
 		}
 
-		private void UseItem(Fighter member, int itemId, Fighter target)
+		/// <summary>An item used on a target. An event's (<paramref name="fromEvent"/>: Golbez's Crystal at Zeromus) comes from no
+		/// one's bag, and one with no recovery in it is only shown - its name, the motion and its effect.</summary>
+		private void UseItem(Fighter member, int itemId, Fighter target, bool fromEvent = false)
 		{
 			ItemDefinition item = Ff4Party.Tables.Item(itemId);
 			Efficacy effect = item != null ? ItemEffect(item) : null;
-			if (effect == null) return;
-			bool revive = effect.Id == 17;
-			if (revive == target.Alive)
+			if (item == null || effect == null && !fromEvent) return;
+			bool revive = effect?.Id == 17;
+			if (effect != null && revive == target.Alive)
 			{
 				Say(item.Name + " does nothing for " + target.Name + ".");
 				return;
 			}
-			if (!Ff4Party.Party.RemoveItem(itemId, 1)) { member.Gauge = 0f; return; }
+			if (!fromEvent && !Ff4Party.Party.RemoveItem(itemId, 1)) { member.Gauge = 0f; return; }
 			member.Gauge = 0f;
 			Acted(member, itemId, target);
 			// Steam's Potion, frame by frame: the item's name in the help window first (22 frames), then the item motion (62)
@@ -1801,12 +1803,13 @@ namespace OpenFF.Client
 			}
 			After(ItemNameFrames + 44, () =>
 			{
+				if (effect == null) { Note(member.Name + " uses " + item.Name + " on " + target.Name + "."); return; }
 				if (revive == target.Alive) return;
 				int before = target.Hp;
 				if (revive) target.Hp = Math.Max(1, target.MaxHp / 4);
 				else if (effect.Hp > 0) Mend(target, effect.Hp);
-				target.Member.Hp = target.Hp;
-				if (effect.Mp > 0) target.Member.Mp = Math.Min(target.Member.MaxMp, target.Member.Mp + effect.Mp);
+				if (target.Member != null) target.Member.Hp = target.Hp;
+				if (effect.Mp > 0 && target.Member != null) target.Member.Mp = Math.Min(target.Member.MaxMp, target.Member.Mp + effect.Mp);
 				if (target.Hp != before) Pop(DamageSpot(target), target.Hp - before, true);
 				Note(member.Name + " uses " + item.Name + ": " + target.Name + (revive ? " rises." : (effect.Hp > 0 ? " +" + (target.Hp - before) + " HP" : "") + (effect.Mp > 0 ? " +" + effect.Mp + " MP" : "") + "."));
 			});

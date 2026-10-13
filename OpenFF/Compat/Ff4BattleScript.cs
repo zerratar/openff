@@ -560,6 +560,8 @@ namespace OpenFF.Client
 			}
 			// A monster's own specials (a boss's action, the mist, a summons) as its turn would run them.
 			if (actor.IsMonster && (QuietTurn(actor, ability) || EnemySummon(actor, ability) || MistTurn(actor, ability) || BossTurn(actor, ability))) return true;
+			// An item (a member's event action: Golbez's Crystal at Zeromus).
+			if (!actor.IsMonster && target != null && Ff4Party.Tables.Item(ability) != null) { UseItem(actor, ability, target, fromEvent: true); return true; }
 			// BABShow: one who joined unseen (AddPlayer) shows itself - Edward's Return from hiding.
 			if (!actor.IsMonster && ability == 3010) { Return(actor); return true; }
 			Log.First(LogChannel.File, "battle-event-ability-" + ability, 1, () => "battle: event action ability " + ability + " not in yet");
