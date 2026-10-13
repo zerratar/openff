@@ -31,7 +31,7 @@ behaviour or to a stand-in. That is why "renders" comes first and "behaves" late
 | Walking, collision, the camera | The engine's own, with FF4's camera offsets per map kind (field, dungeon, town) read from the binary. Movement tuning tables FF4 compiled in are synthesised. |
 | Exits | `setInsideMapJump` / `setOutsideMapJump` are real commands: an exit exists from the moment its script declares it, and walking into its box makes the jump. |
 | Talking | The game's talk on contact; the speaker's name window (`openCharacterNameWindow`) is implemented. |
-| Script commands | 247 of FF4's 500 run - FF3's handler where the command is the same, renamed or has extra operands; FF4-only commands implemented so far: exits, the name window, confirm boxes, locale waits, reward messages, player levels; cosmetic ones (doors' dust, BGM ducking, the jump history) skip quietly. Every map and scene logs what it skipped, by name and count - that log is the work list. `--ff4table` lists them all. |
+| Script commands | Of the 369 commands FF4's scripts use, 338 run and 23 skip on purpose (cosmetic: door swings, footstep dust, BGM bookkeeping); 8 are open: the vehicles' state (storeMagishipPos, loadMagishipPos, setBackChocoboBackPoint, setVehicleRot - FF4's vehicles are not in yet), the scenes' 2D art programs (ce_CallProgram), the ending (bootProgram, callEndRoll) and saveCameraPosAndTarget (the Fat Chocobo's camera). shiftState runs goto_title; the Fat Chocobo, the name entry (Whyt, a member, an ability), the bestiary, the music player, the theater and ending_after are still to come. `--ff4usage=1` writes the list to logs/ff4-commands.txt (`--ff4ops=<command>,...` or `@<map>` each use with its operands). |
 | Map parameters | Encounter tables and landforms read from the binary; camera chains as above. |
 
 ## Cutscenes (the `ce_*` scene engine) - 70%
@@ -158,6 +158,6 @@ started here.
 ## In one line
 
 FF4 in OpenFF is a world you can walk, with its scenes playing and its battles fought by FF4's own
-rules, its field menu half rebuilt as Steam's, on top of field commands that are still largely FF3's.
-The battle is FF4's throughout; bringing the field commands and the last menu screens to FF4's own is
-the work ahead.
+rules, its field menu rebuilt as Steam's, and nearly all of its field commands FF4's own.
+The battle is FF4's throughout; the vehicles, the Fat Chocobo and the extras' screens, the scenes' 2D
+art and the ending are the work ahead.
