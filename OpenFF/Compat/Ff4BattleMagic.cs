@@ -23,7 +23,7 @@ namespace OpenFF.Client
 			_lastSpell = spell;
 			_casting = null;
 			if (caster.Member != null) caster.Member.Mp = Math.Max(0, caster.Member.Mp - MpCostOf(caster, spell));
-			if (!TrySummon(caster, spell, targets)) ShowSpell(caster, spell, targets, invoked);
+			if (!TrySummon(caster, spell, targets)) ShowSpell(caster, spell, targets, invoked || NoInvokeProduction);
 			if (spell.School == OpenFF.Data.MagicSchool.Song && UsableUnder(caster, spell.Id)) StartSong(caster, spell);
 			caster.Gauge = 0f;
 		}
@@ -34,7 +34,7 @@ namespace OpenFF.Client
 			if (targets.Count == 0) return;
 			Acted(foe, spell.Id, targets.ToArray());
 			_lastSpell = spell;
-			ShowSpell(foe, spell, targets);
+			ShowSpell(foe, spell, targets, invoked: NoInvokeProduction);
 		}
 
 		/// <summary>
@@ -299,9 +299,13 @@ namespace OpenFF.Client
 		/// </summary>
 		private const int InvokeGap = 2;
 
+		/// <summary>An event's OffInvokeProdaction (BattleParameter flag 4, calcBattleParameter's check flag 0x2000000 - as a
+		/// silenced caster's): the action goes without its production - no name, no chant, no lead (Rydia's Esuna, unseen).</summary>
+		private bool NoInvokeProduction => BattleParameterFlag(4);
+
 		private void Invoke(Fighter member, int command, Action then, Fighter partner = null)
 		{
-			if ((member.IsMonster && member.PlayerType < 0) || Ff4Party.Tables == null || !Ff4Party.Tables.AbilityInvokes.TryGetValue(command, out short[] row))
+			if (NoInvokeProduction || (member.IsMonster && member.PlayerType < 0) || Ff4Party.Tables == null || !Ff4Party.Tables.AbilityInvokes.TryGetValue(command, out short[] row))
 			{
 				then();
 				return;
