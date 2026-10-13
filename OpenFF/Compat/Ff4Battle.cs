@@ -586,6 +586,15 @@ namespace OpenFF.Client
 			return 24;
 		}
 
+		/// <summary>btl::BattlePlayer::addWinningMotion: the win's 2007 and 2009 bound as the fight is won - b_pig_ending for a
+		/// pig, b_frog_ending for a toad, b_pl&lt;type&gt;_ending for the rest.</summary>
+		private void BindWinningMotions(Fighter f)
+		{
+			if (f.Npc == null || f.Member == null) return;
+			string set = Has(f, CPig) ? "b_pig_ending" : Has(f, CToad) ? "b_frog_ending" : "b_pl" + f.Member.Definition.Id.ToString("00") + "_ending";
+			try { f.Npc.BindMotions(set); } catch (Exception) { }
+		}
+
 		/// <summary>
 		/// A member's battle motions as btl::BattlePlayer::addBasicMotion and addPoiseMotion bind them: b_p_common,
 		/// b_pc_form_<PLAYER_FORM>, b_<the player's basic set>, b_poise<the weapon's poise>, b_p<the player's set> (Cecil's
@@ -601,7 +610,6 @@ namespace OpenFF.Client
 			if (weapon != null && weapon.Poise > 0) sets.Add("b_poise" + weapon.Poise);
 			if (player != null && player.PlayerSet > 0) sets.Add("b_p" + player.PlayerSet.ToString("0000"));
 			if (weapon != null && weapon.WeaponSet >= 0) sets.Add("b_w" + weapon.WeaponSet.ToString("00"));
-			sets.Add("b_p_player_" + type.ToString("00"));   // the victory's 2007 and 2009 (BattleWin)
 			foreach (string set in sets) npc.BindMotions(set);
 			Log.Write(LogChannel.File, "battle: " + c.Name + " (weapon system " + system + ") binds " + string.Join(", ", sets));
 			return weapon;
@@ -821,6 +829,9 @@ namespace OpenFF.Client
 				{
 					if (was == EventKind.After) FinishTurn();
 					else if (was == EventKind.Before && _queue.Count > 0 && !_eventMode) StartNextAction();
+					// One that put the last foe down outside a turn (DeathMonster - Anna's Sahagin): the fight is over now, as at a
+					// turn's end, not polled for by the event again and again.
+					else if (was == EventKind.Normal && _executing == null && _foes.TrueForAll(OutOfFight)) FinishTurn();
 				}
 			}
 			if (_executing != null && _cues.Count == 0 && !TurnEffectsPlaying())
@@ -897,6 +908,16 @@ namespace OpenFF.Client
 				// BattleCommandSelectorManager::skip: the window to the next member ready, this one to the back of the line.
 				_ready.Remove(_acting);
 				_ready.Add(_acting);
+				_acting = null;
+				_pick = Pick.None;
+				_abilityCmd = 0;
+				_casting = null;
+				_castItem = 0;
+			}
+			// Auto battle turned on with a member's window open: the window goes and auto battle takes the member, as it takes
+			// the ones whose gauges fill after (a window left open would hold the rest of the party behind it).
+			if (_acting != null && AutoTakes(_acting) && !_acting.Queued)
+			{
 				_acting = null;
 				_pick = Pick.None;
 				_abilityCmd = 0;
@@ -2099,6 +2120,7 @@ namespace OpenFF.Client
 					PartyRootSlot spot = layout.Spots[k++];
 					f.Npc.Teleport(new Vector3(spot.X, spot.Y, spot.Z));
 					Face(f, spot.Facing);
+					BindWinningMotions(f);
 					Play(f, 2007, false, 0);
 					f.Acted = false;
 					Fighter winner = f;
