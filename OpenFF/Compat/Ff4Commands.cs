@@ -49,6 +49,17 @@ namespace OpenFF.Client
 			// The chests (Ff4Chests): FF4's script makes each one; FF3's handler only dresses a cast the map already has.
 			{ "setTreasureItem", Ff4Chests.SetTreasureItem },                 // (cast, item, flag group, flag index, encounter, hidden)
 			{ "setTreasureMoney", Ff4Chests.SetTreasureMoney },               // (cast, gil, flag group, flag index, encounter, hidden)
+			// Sound and loading (Ff4SoundCommands).
+			{ "slotSEPlay", Ff4SoundCommands.SlotSEPlay },                    // (slot, bank, number, volume, pan)
+			{ "slotSESetVolume", Ff4SoundCommands.SlotSESetVolume },          // (slot, frames, volume)
+			{ "moveVolumeSE", Ff4SoundCommands.MoveVolumeSE },                // (bank, number, pan, volume, frames)
+			{ "soundDataDivideLoadWait", Ff4SoundCommands.Loads("soundDataDivideLoadWait") },   // the DS's banks loaded in pieces: here loaded already
+			{ "seDivideLoad", Ff4SoundCommands.Loads("seDivideLoad") },
+			{ "vramRefresh", Ff4SoundCommands.Loads("vramRefresh") },         // texture VRAM packed: none to pack here
+			{ "allocFileTable", Ff4SoundCommands.Loads("allocFileTable") },   // the file table made and freed: files read as needed
+			{ "freeFileTable", Ff4SoundCommands.Loads("freeFileTable") },
+			{ "changeLocalizeDirectory", Ff4SoundCommands.Loads("changeLocalizeDirectory") },   // the language's folder: the files are one tree here
+			{ "changeGlobalDirectory", Ff4SoundCommands.Loads("changeGlobalDirectory") },
 			// The party (Ff4PartyCommands).
 			{ "savePartySetting", Ff4PartyCommands.SavePartySetting },        // (withFormation, ?)
 			{ "restorePartySetting", Ff4PartyCommands.RestorePartySetting },  // (withFormation, ?)
