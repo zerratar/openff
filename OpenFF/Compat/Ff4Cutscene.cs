@@ -1747,7 +1747,7 @@ namespace OpenFF.Client
 			if (!CastSkipping && Ff4CameraMotion.Playing && !Ff4CameraMotion.Looping) engine.suspendRedo();
 		}
 
-		private static void Guard(string what, Action action)
+		internal static void Guard(string what, Action action)
 		{
 			try { action(); }
 			catch (Exception ex) { Log.Write(LogChannel.General, "script: FF4 cutscene " + what + ": " + ex.Message); }

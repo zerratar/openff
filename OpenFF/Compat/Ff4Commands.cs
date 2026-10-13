@@ -47,6 +47,8 @@ namespace OpenFF.Client
 			{ "messagePermission", MessagePermission },                       // (allow): whether a press may turn the message on
 			{ "clearCountJump", ClearCountJump },                             // (count, label): jumps when the game has been cleared `count` times
 			// The chests (Ff4Chests): FF4's script makes each one; FF3's handler only dresses a cast the map already has.
+			{ "setMapMaterialAlpha", SetMapMaterialAlpha },                   // (material, alpha 0..31, ?, ?)
+			{ "clippingBBSetting", ClippingBBSetting },                       // (cast, x, y, z, w, h, d): the box the view-volume test uses
 			{ "glayScaleMap", Ff4ColorScale.Map },                            // (frames, from %, to %): the stage greyed
 			{ "glayScaleCharacter", Ff4ColorScale.Character },                // (cast, frames, from %, to %)
 			{ "glayScaleCharaAll", Ff4ColorScale.CharaAll },                  // (frames, from %, to %)
@@ -597,6 +599,38 @@ namespace OpenFF.Client
 		/// (FF3's handler allowed it whatever the operand, so a press cleared the text and left the window empty). In a
 		/// story scene it only marks the scene's message as allowed (EventConteManager +0x635), as FF3's did.
 		/// </summary>
+		/// <summary>setMapMaterialAlpha(material, alpha, ?, ?): CStageMng::setMaterialAlpha - a part of the map faded or gone.</summary>
+		private static void SetMapMaterialAlpha(GlobalScope.ScriptEngine engine)
+		{
+			string material = engine.getString();
+			uint alpha = engine.getDword();
+			engine.getDword();
+			engine.getDword();
+			if (material != null) Ff4Cutscene.Guard("map material alpha", () => GlobalScope.stageMng?.setMaterialAlpha(material, alpha));
+		}
+
+		/// <summary>clippingBBSetting(cast, x, y, z, w, h, d): the cast's model's bounding box (CModelSet's, which its render
+		/// object tests against the view volume), each value cut to 16 bits as libff4 stores it.</summary>
+		private static void ClippingBBSetting(GlobalScope.ScriptEngine engine)
+		{
+			uint cast = engine.getWord();
+			short[] v = new short[6];
+			for (int i = 0; i < 6; i++) v[i] = (short)engine.getDword();
+			int index = GlobalScope.CCastCommandTransit.getInstance().changeHichNumber(cast & 0xffff);
+			if (index == -1) return;
+			int ctrl = EngineApi.Players.Player(index)?.getCharacterId() ?? -1;
+			if (ctrl < 0 || !GlobalScope.characterMng.isValidCharacter(ctrl)) return;
+			Ff4Cutscene.Guard("clipping box", () =>
+			{
+				GlobalScope.ds.sys3d.BoundingBox box = GlobalScope.characterMng.getBoundingBox(ctrl);
+				if (box == null) return;
+				box.pos ??= new GlobalScope.VecFx16();
+				box.size ??= new GlobalScope.VecFx16();
+				box.pos.x = v[0]; box.pos.y = v[1]; box.pos.z = v[2];
+				box.size.x = v[3]; box.size.y = v[4]; box.size.z = v[5];
+			});
+		}
+
 		private static void MessagePermission(GlobalScope.ScriptEngine engine)
 		{
 			bool allow = engine.getWord() != 0;
