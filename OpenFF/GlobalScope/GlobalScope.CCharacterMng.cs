@@ -1037,6 +1037,20 @@ internal static partial class GlobalScope
 			}
 		}
 
+		/// <summary>The manager's character places (libff4 walks its count byte).</summary>
+		public int Capacity => Character.Length;
+
+		public bool isShadowEnable(int ctrl) => isValidCharacter(ctrl) && Character[ctrl].RdrObject.isShadowEnable();
+
+		/// <summary>CCharacterMng::setEnableFog: the model's materials take the fog or not.</summary>
+		public void setEnableFog(int ctrl, bool b)
+		{
+			if (isValidCharacter(ctrl) && Character[ctrl].modelSet.getMdlResource() != null)
+			{
+				NNS_G3dMdlSetMdlFogEnableFlagAll(Character[ctrl].modelSet.getMdlResource(), b);
+			}
+		}
+
 		public void setShadowEnable(int ctrl, bool b)
 		{
 			if (isValidCharacter(ctrl))

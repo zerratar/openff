@@ -539,6 +539,14 @@ internal static partial class GlobalScope
 
             private CFileData BoxData = new CFileData();
 
+            /// <summary>stg::CStageMng::enableFog: with a stage up, G3X fog on or off and every stage material fogged.</summary>
+            public void enableFog(bool on)
+            {
+                if (m_ModelSet.getMdlResource() == null) return;
+                G3X_SetFog(on);
+                NNS_G3dMdlSetMdlFogEnableFlagAll(m_ModelSet.getMdlResource(), true);
+            }
+
             private ds.sys3d.CModelSet m_ModelSet = new ds.sys3d.CModelSet();
 
             private ds.sys3d.CAnimSet m_AnimSet = new ds.sys3d.CAnimSet();

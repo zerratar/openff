@@ -9389,6 +9389,63 @@ internal static partial class GlobalScope
 						{
 						}
 
+						// G3X fog as FF4.exe keeps it (G3X_SetFog, G3X_SetFogColor, G3X_SetFogRange - the PC build's own, in fx32):
+						// its renderer draws GL linear fog over the range; the DS's density table is not used.
+						internal static bool g3xFog;
+
+						internal static ushort g3xFogColor;
+
+						internal static int g3xFogStart = -0x200000;
+
+						internal static int g3xFogEnd = 0x200000;
+
+						internal static void G3X_SetFog(bool enable)
+						{
+							g3xFog = enable;
+						}
+
+						internal static void G3X_SetFogColor(ushort color, int alpha)
+						{
+							g3xFogColor = color;
+						}
+
+						internal static void G3X_SetFogRange(int start, int end)
+						{
+							g3xFogStart = start;
+							g3xFogEnd = end;
+						}
+
+						/// <summary>NNS_G3dMdlSetMdlFogEnableFlagAll: bit 15 of every material's polygon attributes.</summary>
+						internal static void NNS_G3dMdlSetMdlFogEnableFlagAll(NNSG3dResMdl pMdl, bool on)
+						{
+							NNSG3dResMat nNSG3dResMat = NNS_G3dGetMat(pMdl);
+							for (int i = 0; i < nNSG3dResMat.dict.numEntry; i++)
+							{
+								NNSG3dResMatData nNSG3dResMatData = NNS_G3dGetMatByIdx(nNSG3dResMat, (uint)i);
+								nNSG3dResMatData.polyAttr = on ? (nNSG3dResMatData.polyAttr | 0x8000u) : (nNSG3dResMatData.polyAttr & ~0x8000u);
+							}
+						}
+
+						/// <summary>glEnable/glDisable(GL_FOG) with GL_LINEAR's start, end and colour (glFogf/glFogfv) on both effects.</summary>
+						internal static void SetGlFog(bool on, float start, float end, Microsoft.Xna.Framework.Vector3 color)
+						{
+							if (!on)
+							{
+								glDisable(2912u);
+								return;
+							}
+							BasicEffect basicEffect = m_Graphics.getBasicEffect();
+							AlphaTestEffect alphaTestEffect = m_Graphics.getAlphaTestEffect();
+							if (basicEffect.FogStart != start || basicEffect.FogEnd != end || basicEffect.FogColor != color)
+							{
+								basicEffect.FogStart = alphaTestEffect.FogStart = start;
+								basicEffect.FogEnd = alphaTestEffect.FogEnd = end;
+								basicEffect.FogColor = alphaTestEffect.FogColor = color;
+								m_bApplyEffect = true;
+							}
+							glEnable(2912u);
+						}
+
 						internal static void G3X_SetToonTable(ushort[] rgb_32)
 						{
 							toonTable = rgb_32[0];
@@ -13643,6 +13700,26 @@ internal static partial class GlobalScope
 														}
 													}
 												}
+												// FF4.exe's fog, per material: a fog-enabled polygon (bit 15) under G3X_SetFog gets GL's linear fog over
+												// the G3X_SetFogRange span in the fog colour; else a toon polygon with a white ambient is whitened by a
+												// fixed white fog (-1000..3000), the Steam build's stand-in for the DS's highlight shading; else none.
+												if (OpenFF.Client.GameProfile.IsFf4)
+												{
+													NNSG3dResMatData fogMat = nNSG3dResMat.mat[j];
+													uint fogAttr = fogMat.polyAttr;
+													if (g3xFog && (fogAttr & 0x8000) != 0)
+													{
+														SetGlFog(true, g3xFogStart / 4096f, g3xFogEnd / 4096f, new Microsoft.Xna.Framework.Vector3((g3xFogColor & 0x1F) / 31f, ((g3xFogColor >> 5) & 0x1F) / 31f, ((g3xFogColor >> 10) & 0x1F) / 31f));
+													}
+													else if ((fogAttr & 0x30) == 0x20 && (fogMat.diffAmb & 0xFFFF0000u) == 0x7FFF0000u)
+													{
+														SetGlFog(true, -1000f, 3000f, Microsoft.Xna.Framework.Vector3.One);
+													}
+													else
+													{
+														SetGlFog(false, 0f, 0f, Microsoft.Xna.Framework.Vector3.Zero);
+													}
+												}
 												if (num3 != 0)
 												{
 													NNSG3dResMatData nNSG3dResMatData3 = nNSG3dResMat.mat[j];
@@ -13732,6 +13809,7 @@ internal static partial class GlobalScope
 										}
 										glDisableClientState(32888u);
 										glDisableClientState(32886u);
+										glDisable(2912u);   // the model's fog stays with it
 										if (num6 == 0)
 										{
 											glEnable(3042u);
@@ -21600,6 +21678,7 @@ internal static partial class GlobalScope
 							}
 							if (OpenFF.Client.NativeRenderer.Enabled)
 							{
+								OpenFF.Client.NativeRenderer.Fog = new OpenFF.Client.NativeRenderer.FogState { On = basicEffect.FogEnabled, Start = basicEffect.FogStart, End = basicEffect.FogEnd, Colour = basicEffect.FogColor };
 								OpenFF.Client.NativeRenderer.Draw(graphicsDevice, mode, v, first, count,
 									basicEffect.World, basicEffect.Projection,
 									(basicEffect.TextureEnabled && m_uiBindTexture < m_aGlTexture.Length
@@ -21614,6 +21693,7 @@ internal static partial class GlobalScope
 									m_bAlphaTest, m_fAlphaRef, alphaTestEffect.AlphaFunction,
 									m_bDepthTest, m_bDepthMask, m_DepthFunc,
 									m_bCullFace, m_RasterizerState != null ? m_RasterizerState.CullMode : CullMode.None, m_Blend);
+								OpenFF.Client.NativeRenderer.Fog = default;
 								return;
 							}
 							// PORT: the original only bound the texture when the texture INDEX changed, and

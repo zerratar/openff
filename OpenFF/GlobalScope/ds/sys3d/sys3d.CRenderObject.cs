@@ -491,6 +491,8 @@ internal static partial class GlobalScope
 					m_ShadowType = type;
 				}
 
+				public bool isShadowEnable() => (m_Flag & 16u) != 0;
+
 				public void setShadowEnable(bool b)
 				{
 					if (b)

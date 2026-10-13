@@ -146,6 +146,7 @@ namespace OpenFF.Client
 			public CompareFunction AlphaFunction, DepthFunction;
 			public CullMode CullMode;
 			public Blend DestinationBlend;
+			public NativeRenderer.FogState Fog;
 			// Clear
 			public ClearOptions Options;
 			public Color Colour;
@@ -295,6 +296,7 @@ namespace OpenFF.Client
 			r.Viewport = device.Viewport;
 			r.Full = IsWhole(device, r.Viewport);
 			r.Mode = mode;
+			r.Fog = NativeRenderer.Fog;
 			r.First = _current.Take(vertices, first, count, out r.Centre);
 			r.Count = count;
 			r.Camera = _current.CameraCount - 1;
@@ -1106,9 +1108,11 @@ namespace OpenFF.Client
 					_blended++;
 				}
 			}
+			NativeRenderer.Fog = r.Fog;
 			NativeRenderer.Draw(device, r.Mode, vertices, first, r.Count, world, projection, r.Texture,
 				r.Filter, r.AddressU, r.AddressV, r.AlphaTest, r.AlphaReference, r.AlphaFunction,
 				r.DepthTest, r.DepthWrite, r.DepthFunction, r.Cull, r.CullMode, r.DestinationBlend);
+			NativeRenderer.Fog = default;
 		}
 
 		// ---- the viewport

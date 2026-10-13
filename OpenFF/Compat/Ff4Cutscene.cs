@@ -110,6 +110,7 @@ namespace OpenFF.Client
 			{ "ce_setFrameWait", FrameWait },                // (frames): a wait
 			{ "ce_SetMap", SetMap },                         // (map): the scene's stage - every script but one names its own map
 			{ "ce_CreateToonTable", CreateToonTable },       // (index, r, g, b): entries 0..31; index 100 applies the table
+			{ "ce_setFog", SetFog },                         // (on, table 0..1): the stage and the cast in a linear fog
 			{ "ce_SetToonTable", SetToonTable },             // (index): one of ToonTable's nine built-in tables
 			{ "ce_SetLightEnableForCharacter", CastLightEnable },   // (slot, light 0..3 on/off)
 			{ "ce_SetPauseMotion", SetPauseMotion },         // (slot, paused)
@@ -503,6 +504,32 @@ namespace OpenFF.Client
 				}
 			}
 			return _toonTables[Math.Clamp(index, 0, 8)];
+		}
+
+		private static bool[] _fogShadows = new bool[0];
+
+		/// <summary>CE_setFog: CStageMng::enableFog, the range FF4.exe draws over (G3X_SetFogRange -0x200000..0x200000), the
+		/// fog colour (0x0400 or 0x0087 - the density table is the DS's, unused by the PC renderer); every character takes
+		/// the fog and loses its shadow while it is on, which comes back as it was after.</summary>
+		private static void SetFog(GlobalScope.ScriptEngine engine)
+		{
+			bool on = engine.getByte() != 0;
+			int table = engine.getByte() & 1;
+			Guard("fog", () =>
+			{
+				GlobalScope.stageMng?.enableFog(on);
+				GlobalScope.G3X_SetFogRange(-0x200000, 0x200000);
+				GlobalScope.G3X_SetFogColor(table == 0 ? (ushort)0x0400 : (ushort)0x0087, 30);
+				int count = Characters.Capacity;
+				if (_fogShadows.Length < count) Array.Resize(ref _fogShadows, count);
+				for (int i = 0; i < count; i++)
+				{
+					Characters.setEnableFog(i, on);
+					if (on) _fogShadows[i] = Characters.isShadowEnable(i);
+					if (Characters.isValidCharacter(i)) Characters.setShadowEnable(i, !on && _fogShadows[i]);
+					if (!on) _fogShadows[i] = false;
+				}
+			});
 		}
 
 		private static void ReadTwoDwords(GlobalScope.ScriptEngine engine) { engine.getDword(); engine.getDword(); }

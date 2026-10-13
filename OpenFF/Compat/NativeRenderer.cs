@@ -57,6 +57,17 @@ namespace OpenFF.Client
 		private static readonly System.Collections.Generic.Dictionary<int, BlendState> _blendStates
 			= new System.Collections.Generic.Dictionary<int, BlendState>();
 
+		/// <summary>GL's linear fog for the next draw (FF4.exe's glFog: G3X_SetFog's fog and its white toon fog); off unless
+		/// the emulation or a replay says so for that one draw.</summary>
+		public struct FogState
+		{
+			public bool On;
+			public float Start, End;
+			public Microsoft.Xna.Framework.Vector3 Colour;
+		}
+
+		public static FogState Fog;
+
 		private static BasicEffect _basic;
 		private static AlphaTestEffect _alphaTest;
 
@@ -158,6 +169,8 @@ namespace OpenFF.Client
 				_alphaTest.Texture = texture;
 				_alphaTest.AlphaFunction = alphaFunction;
 				_alphaTest.ReferenceAlpha = (int)(alphaReference * 255f);
+				_alphaTest.FogEnabled = Fog.On;
+				if (Fog.On) { _alphaTest.FogStart = Fog.Start; _alphaTest.FogEnd = Fog.End; _alphaTest.FogColor = Fog.Colour; }
 				effect = _alphaTest;
 			}
 			else
@@ -166,6 +179,8 @@ namespace OpenFF.Client
 				_basic.Projection = corrected;
 				_basic.TextureEnabled = texture != null && !texture.IsDisposed;
 				_basic.Texture = _basic.TextureEnabled ? texture : null;
+				_basic.FogEnabled = Fog.On;
+				if (Fog.On) { _basic.FogStart = Fog.Start; _basic.FogEnd = Fog.End; _basic.FogColor = Fog.Colour; }
 				effect = _basic;
 			}
 
