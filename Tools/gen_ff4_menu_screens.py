@@ -471,3 +471,29 @@ el = '\n'.join([
     keys('theatreKeys', 'menu.theatre', [(43, 1348.7, '{menu.confirm}'), (15, 1568.5, '{menu.back}')]),
 ])
 screens.append(frame('extrasList', 0, 0, 1920, 1080, None, 'bind-display="menu.extrasList"', indent(el, 1)))
+
+# The Bestiary's list (mr::MonsterInfoList, Steam's draws): "N% complete" in a band under the title, the book's entries in
+# rows 135 high - the number right-aligned to 176.5, the name (or ??????) at 216.3, NEW at 1292.5 - five and the top of a
+# sixth in view (the window's frame drawn over the rows, as the cut row ends under it), the scroll bar, Confirm and Back.
+best_rows = []
+for k in range(6):
+    h = 135 if k < 5 else 87.75
+    inner = '\n'.join([
+        frame('band', 0, 0, 1541.4, h, 'lit-band', 'bind-visible="lit"'),
+        frame('edge', 0, 0, 1541.4, h, 'm-edge'),
+        frame('number', 0, 0, 176.5, 135, 'm-text m-right', 'bind-text="{number}"'),
+        frame('name', 216.3, 0, 1000, 135, 'm-text', 'bind-text="{name}"'),
+        frame('badge', 1292.5, 44.7, 128.25, 45.6, 'm-badge', 'bind-visible="fresh"'),
+        frame('hand', 87.8, 0, 1, 135, 'hand', 'bind-visible="lit"'),
+    ])
+    best_rows.append(frame('row%d' % k, 0, 135 * k, 1541.4, h, 'm-command',
+                           'data-source="menu.bestRow[%d]" bind-display="present" bind-class="lit: lit"' % k, indent(inner, 1)))
+bl = '\n'.join([
+    window('bestHead', 155.5, 87.75, 1609, 94.5, 'm-pane', '', frame('complete', 0, 0, 1609, 94.5, 'm-text m-centre', 'bind-text="{menu.completeText}"')),
+    frame('bestList', 155.5, 195.75, 1609, 756, 'm-pane', '', indent('\n'.join(best_rows + [
+        scroll('scroll', 1544.8, 0, 756, 'menu.bestScroll'),
+        frame('frame', -6.75, -6.75, 1622.5, 769.5, 'm-window'),
+    ]), 1)),
+    keys('bestKeys', 'menu.bestiary', [(43, 1348.7, '{menu.confirm}'), (15, 1568.5, '{menu.back}')]),
+])
+screens.append(frame('bestiary', 0, 0, 1920, 1080, None, 'bind-display="menu.bestiary"', indent(bl, 1)))

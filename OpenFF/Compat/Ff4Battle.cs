@@ -438,6 +438,7 @@ namespace OpenFF.Client
 			Vector3 side = new Vector3(-forward.Z, 0, forward.X);
 			int n = 0;
 			List<int> ids = new List<int>(monsterIds);
+			Ff4Bestiary.Met(ids);   // MonsterManiaManager::onEncount, each of the party's monsters
 			foreach (int id in ids)
 			{
 				MonsterDefinition m = tables.Monster(id);
@@ -1356,6 +1357,7 @@ namespace OpenFF.Client
 			else if (foe.Npc != null) { foe.Npc.Alpha = 8; foe.Npc.Hidden = true; }
 			_expWon += foe.Monster.Experience;
 			_gilWon += foe.Monster.Gil;
+			Ff4Bestiary.Killed(foe.Monster.Id);   // MonsterManiaManager::kill
 		}
 
 		/// <summary>The dead process for one fallen monster: the sound, then the fade a frame at a time.</summary>

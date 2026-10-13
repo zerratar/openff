@@ -211,6 +211,7 @@ namespace OpenFF.Client
 				_scroll = Math.Min(_theatreScroll, _cursor);
 				_theatreCursor = _theatreScroll = 0;
 			}
+			if (page == Page.Bestiary) OpenBestiary();
 			Log.Write(LogChannel.File, "extras: " + page);
 		}
 
@@ -245,6 +246,7 @@ namespace OpenFF.Client
 				case Page.Launcher: UpdateLauncher(input); break;
 				case Page.Music: UpdateMusic(input); break;
 				case Page.Theatre: UpdateTheatre(input); break;
+				case Page.Bestiary: UpdateBestiary(input); break;
 				default:
 					if (input.Pressed(Pad.B)) { Se(2); Close(); }
 					break;
@@ -313,6 +315,60 @@ namespace OpenFF.Client
 			}
 		}
 
+		// ---- the Bestiary ----
+
+		private List<Ff4Bestiary.Entry> _listed = new List<Ff4Bestiary.Entry>();
+
+		private void OpenBestiary()
+		{
+			_listed = Ff4Bestiary.Book.FindAll(e => Ff4Bestiary.Listed(e.Monster));
+			_cursor = _scroll = 0;
+		}
+
+		private void UpdateBestiary(InputState input)
+		{
+			int n = _listed.Count;
+			if (n > 0)
+			{
+				if (input.Pressed(Pad.Up) && _cursor > 0) { _cursor--; Se(3); }
+				if (input.Pressed(Pad.Down) && _cursor < n - 1) { _cursor++; Se(3); }
+				if (_cursor < _scroll) _scroll = _cursor;
+				if (_cursor >= _scroll + 5) _scroll = _cursor - 4;
+			}
+			if (input.Pressed(Pad.B)) { Se(2); Close(); return; }
+			if (input.Pressed(Pad.A) && n > 0)
+			{
+				// decideMonster: a monster not met yet only buzzes.
+				if (!Ff4Bestiary.Met(_listed[_cursor].Monster)) { Se(0); return; }
+				Se(1);
+				Ff4Bestiary.Seen(_listed[_cursor].Monster);
+				Log.Write(LogChannel.File, "extras: bestiary page of monster " + _listed[_cursor].Monster);
+			}
+		}
+
+		private static string MonsterRef(uint id, string fallback) => Ff4Layouts.Page("babil_monster_ref.msd", id, fallback);
+
+		private void DrawBestiary(Ff4MenuHud.Data h)
+		{
+			h.Title = Ff4Layouts.Text(51501, "Bestiary");
+			// 60002 "%SCC0%%percent% complete": the rate in standard code 0 (setCompleteRate), then the sign.
+			h.CompleteText = MonsterRef(60002, "%SCC0%%percent% complete").Replace("%SCC0%", Ff4Bestiary.Complete().ToString()).Replace("%percent%", "%");
+			string unknown = MonsterRef(60011, "??????");
+			for (int k = 0; k < 6; k++)
+			{
+				int i = _scroll + k;
+				Ff4MenuHud.BestRow row = h.BestRow[k];
+				row.Present = i < _listed.Count;
+				row.Lit = i == _cursor;
+				if (!row.Present) continue;
+				int id = _listed[i].Monster;
+				row.Number = (i + 1).ToString();
+				row.Name = Ff4Bestiary.Met(id) ? (Ff4Bestiary.Definition(id)?.Name ?? "") : unknown;
+				row.Fresh = Ff4Bestiary.New(id);
+			}
+			Ff4MenuHud.Scroll(h.BestScroll, _listed.Count, 5, _scroll, 756 - 67.5f, always: true);
+		}
+
 		private void PlaySong(int index)
 		{
 			_playing = index;
@@ -364,6 +420,8 @@ namespace OpenFF.Client
 			h.MusicIdle = _page == Page.Music && _playing < 0;
 			h.MusicPlaying = _page == Page.Music && _playing >= 0;
 			h.Theatre = _page == Page.Theatre;
+			h.Bestiary = _page == Page.Bestiary;
+			if (h.Bestiary) DrawBestiary(h);
 			if (h.Launcher)
 			{
 				for (int k = 0; k < 3; k++)

@@ -36,6 +36,8 @@ namespace OpenFF.Client
 			public long PlaySeconds;
 			/// <summary>The field map's seen cells by map name: 24 rows of 32 bits (NavimapSaveData).</summary>
 			public Dictionary<string, uint[]> Navi;
+			/// <summary>The bestiary's record by monster id (the kill count x 16 and its flags), the ones not zero.</summary>
+			public Dictionary<int, int> Bestiary;
 		}
 
 		public string ChunkId => "ff4/field";
@@ -64,6 +66,7 @@ namespace OpenFF.Client
 			d.Place = Ff4Menu.PlaceName();
 			d.PlaySeconds = Ff4Saves.PlaySeconds;
 			d.Navi = Ff4NaviMap.SeenForSave();
+			d.Bestiary = Ff4Bestiary.ForSave();
 			Log.Write(LogChannel.General, "save: field - " + d.Map + " at " + d.X.ToString("0") + "," + d.Y.ToString("0") + "," + d.Z.ToString("0") + " rot " + d.Rotation + ", " + d.Flags.Count + " flag(s)");
 			return d;
 		}
@@ -89,6 +92,7 @@ namespace OpenFF.Client
 			Ff4Saves.Pending = d;
 			Ff4Saves.PlayFrames = d.PlaySeconds * 60;
 			Ff4NaviMap.Restore(d.Navi);
+			Ff4Bestiary.Restore(d.Bestiary);
 			Log.Write(LogChannel.General, "load: field - " + (d.Map ?? "?") + " at " + d.X.ToString("0") + "," + d.Y.ToString("0") + "," + d.Z.ToString("0") + ", " + d.Flags.Count + " flag(s)");
 		}
 	}

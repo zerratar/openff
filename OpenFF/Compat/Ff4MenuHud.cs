@@ -64,6 +64,13 @@ namespace OpenFF.Client
 			public List<CellRow> Box = Rows<CellRow>(6);
 		}
 
+		/// <summary>A Bestiary row: its number, the monster's name or ??????, NEW while its page is unread.</summary>
+		public sealed class BestRow
+		{
+			public bool Present, Lit, Fresh;
+			public string Number = "", Name = "";
+		}
+
 		public sealed class ScrollData
 		{
 			public bool Shown, Knob;
@@ -128,6 +135,11 @@ namespace OpenFF.Client
 			public List<CommandRow> Extra = Rows<CommandRow>(3), ListRow = Rows<CommandRow>(8);
 			public ScrollData ListScroll = new ScrollData();
 			public string LoopLabel = "", ModeLabel = "", StopLabel = "";
+			// The Bestiary's list: menu.bestRow[0..5] (the sixth cut by the window), its scroll bar, "N% complete".
+			public bool Bestiary;
+			public List<BestRow> BestRow = Rows<BestRow>(6);
+			public ScrollData BestScroll = new ScrollData();
+			public string CompleteText = "";
 			public List<CellRow> AutoPick = Rows<CellRow>(12);
 			public ScrollData AutoScroll = new ScrollData();
 			public string DifficultyText = "", NormalLabel = "Normal", HardLabel = "Hard", DifficultyNote1 = "", DifficultyNote2 = "";

@@ -166,3 +166,5 @@
 .design-6 .m-scroll-up, .design-6 .m-scroll-down, .design-6 .m-scroll-track, .design-6 .m-scroll-knob { background-image: resource("files/MENU_Common.dat/scrollbar_05.NCGR"); }
 .design-6 .m-pill-art { background-image: resource("files/MENU_Common.dat/button_05.NCGR"); }
 .design-6 .m-wallpaper { background-image: resource("files/MENU_Common.dat/wallpaper3d_05.NCGR"); }
+/* The bestiary's NEW: MENU.dat's text_jp, the whole picture (76 x 27) at 1.6875. */
+.m-badge { background-image: resource("files/MENU.dat/text_jp.NCBR"); }
