@@ -65,7 +65,7 @@ Encounters start from the map's tables and the field's step counter; shops and i
 the scripts call them, with FF4's prices and stock. The windows they show are FF3's dressed
 with FF4's art, not FF4's own screens.
 
-## Battle - 90%
+## Battle - 100%
 
 Ff4Battle, written from FF4's own battle code (libff4's btl::) and measured against the Steam game's
 frames (Tools/ff4hook). A scene's battle comes after the encounter whirl (SPBlurRotate) on its stage as
@@ -120,9 +120,10 @@ drawn sword and Asura's three faces, Dr. Lugae's transformation, the King and Qu
 Yang's Kick from the monsters' side, Rydia joining the Golbez fight unseen and showing herself (AddPlayer, BABShow),
 Golbez and FuSoYa's Twin Meteor against Zemus (PairMagic), Golbez's Crystal at Zeromus, the events' own models (the
 friends' prayers over the last fight, Anna over Edward's), an event's kill ending the fight, the win's motions as
-addWinningMotion binds them (b_pl<type>_ending, the pig's and the toad's). Not FF4's yet: the developer
-room's monsters that fight with members' commands (Aim, Analyze, Brace, Kick, Recall, Bluff, Pray); an event's
-OffInvokeProdaction (the ability's name still shown).
+addWinningMotion binds them (b_pl<type>_ending, the pig's and the toad's). The developer room's members fight with their commands (Aim, Analyze,
+Brace, Pray, Bluff, Cry, Recall, Kick from the monsters' side), an enemy member's counter is its own Fight, and an
+event's OffInvokeProdaction lets an action go without its name and chant. Known: a monster-side invoke's effect may
+boot one model from a template already released - that object is left out (no crash).
 
 ## Menus - 60%
 
@@ -157,5 +158,5 @@ started here.
 
 FF4 in OpenFF is a world you can walk, with its scenes playing and its battles fought by FF4's own
 rules, its field menu half rebuilt as Steam's, on top of field commands that are still largely FF3's.
-Bringing the field commands, the rest of the battle (statuses, abilities) and the last menu screens to
-FF4's own is the work ahead.
+The battle is FF4's throughout; bringing the field commands and the last menu screens to FF4's own is
+the work ahead.
