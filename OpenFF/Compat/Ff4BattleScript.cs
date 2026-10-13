@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using OpenFF.Data;
 
 namespace OpenFF.Client
@@ -132,6 +133,14 @@ namespace OpenFF.Client
 			}
 
 			private int R(int k) => Resolve(Op(k));
+
+			/// <summary>A name the command carries in 32 bytes from argument <paramref name="k"/> on (a model's, a motion set's).</summary>
+			private string Text(int k)
+			{
+				int at = _pc + 4 * k, end = at;
+				while (end < at + 32 && end < _data.Length && _data[end] != 0) end++;
+				return System.Text.Encoding.ASCII.GetString(_data, at, end - at);
+			}
 
 			/// <summary>setCastVariable: the destination and the value both resolved.</summary>
 			private void Set(int dst, int value)
@@ -320,6 +329,19 @@ namespace OpenFF.Client
 					case 71: _b.ResetGauge(_b.ByBattleId(_b.BattleIdOfMonster(R(1)))); return true;   // ResetMonsterATG
 					case 67: { Fighter f = _b.ByBattleId(_b.BattleIdOfPlayer(R(1))); if (f != null) f.Gauge = Math.Clamp(R(2) / 100f, 0f, 1f); return true; }   // ChargePlayerATP
 					case 68: return true;                                            // ChargePlayerATW: nothing in FF4 either
+					// The event's models (BattleEventSymbol): positions fx32, turns fx32 degrees, scale 4096 = 1, transparency 0..31.
+					case 49: Set(Op(17), _b.CreateEventModel(Text(1), Text(9))); return true;   // CreateModel model, texture, dst
+					case 50: case 51: case 52: return true;                         // WaitLoadingModel / Texture / Motion: loaded at once
+					case 53: _b.EventModelMotions(R(1), Text(2)); return true;       // AddMotion handle, set
+					case 54: _b.EventModelMotion(R(1), R(2), R(3) != 0, R(4)); return true;   // StartMotion handle, motion, loop, blend
+					case 55: _b.PlaceEventModel(R(1), new Vector3(R(2), R(3), R(4)) / 4096f); return true;   // SetPosition
+					case 56: _b.TurnEventModel(R(1), R(2) / 4096f, R(3) / 4096f, R(4) / 4096f); return true;  // SetRotation
+					case 57: _b.FadeEventModel(R(1), R(2), R(3)); return true;      // SetAlpha handle, alpha, frames
+					case 58: _b.ScaleEventModel(R(1), R(2) / 4096f); return true;  // SetScale handle, x, y, z (uniform here)
+					case 59: _b.ShowEventModel(R(1), R(2) != 0); return true;        // SetShow handle, shown
+					case 60: _b.DeleteEventModel(R(1)); return true;                // DeleteModel handle
+					case 61: _b.FadeEventShadow(R(1), R(2), R(3)); return true;     // SetShadowAlpha handle, alpha, frames
+					case 62: if (R(2) == 0) _b.FadeEventShadow(R(1), 0, 0); return true;   // SetShadowShow handle, shown
 					case 82:                                                        // PairMagic first, second: their Twincast (0x41) - Twin Meteor - on every monster
 					{
 						Fighter first = _b.ByBattleId(_b.BattleIdOfPlayer(R(1))), second = _b.ByBattleId(_b.BattleIdOfPlayer(R(2)));

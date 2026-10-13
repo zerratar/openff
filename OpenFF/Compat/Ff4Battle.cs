@@ -2309,6 +2309,7 @@ namespace OpenFF.Client
 		private void End()
 		{
 			Log.Write(LogChannel.File, "battle: over (step " + LegacyStep.Count + ")");
+			ClearEventModels();
 			EndOpening();
 			_sinceBattle = 0;
 			_lastStep = Game.Hero.Present ? Game.Hero.Position : Vector3.Zero;
