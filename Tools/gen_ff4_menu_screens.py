@@ -427,3 +427,47 @@ sg = '\n'.join([
     keys('sightKeys', 'menu.sight', [(15, 1568.5, '{menu.back}')]),
 ])
 screens.append(frame('sight', 0, 0, 1920, 1080, None, 'bind-display="menu.sight"', indent(sg, 1)))
+
+# The Fat Chocobo's extras (Steam's, opened in Baron with their flags set and measured off its draws). The window over the
+# field (WSCMWindow: Bestiary, Event Theatre, Music Box) is the root's command column with three rows the window's width
+# (no scroll bar), its key hints the root's; the Music Box and the Event Theatre are one list - rows 108 high, eight in view, the name 81.1 in - with their own
+# key hints (the Music Box's Tab Stop only while a song plays, the others moving left for it).
+launcher_rows = []
+for k in range(3):
+    inner = '\n'.join([
+        frame('band', 0, 0, 635.5, 135, 'lit-band', 'bind-visible="lit"'),
+        frame('edge', 0, 0, 635.5, 135, 'm-edge'),
+        frame('name', 0, 0, 635.5, 135, 'm-label', 'bind-text="{name}"'),
+        frame('hand', 87.8, 0, 1, 135, 'hand', 'bind-visible="lit"'),
+    ])
+    launcher_rows.append(frame('row%d' % k, 0, 135 * k, 635.5, 135, 'm-command',
+                               'data-source="menu.extra[%d]" bind-class="lit: lit; disabled: disabled"' % k, indent(inner, 1)))
+lc = '\n'.join([
+    window('extras', 1129, 6.75, 635.5, 405, 'm-pane', '', '\n'.join(launcher_rows)),
+    frame('keyBar', 0, 972, 1920, 108, 'm-key-bar'),
+    frame('keys', 1497.5, 995.6, 480, 60.75, None, '', indent('\n'.join([
+        frame('confirmKey', 0, 0, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 43'),
+        frame('confirm', 60.8, 0, 200, 60.75, 'm-key-label', 'bind-text="{menu.confirm}"'),
+        frame('backKey', 219.7, 0, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 15'),
+        frame('back', 280.5, 0, 200, 60.75, 'm-key-label', 'bind-text="{menu.back}"'),
+    ]), 1)),
+])
+screens.append(frame('launcher', 0, 0, 1920, 1080, None, 'bind-display="menu.launcher"', indent(lc, 1)))
+
+list_rows = []
+for k in range(8):
+    inner = '\n'.join([
+        frame('band', 0, 0, 1541.4, 108, 'lit-band', 'bind-visible="lit"'),
+        frame('edge', 0, 0, 1541.4, 108, 'm-edge'),
+        frame('name', 81.1, 0, 1400, 108, 'm-text', 'bind-text="{name}"'),
+        frame('hand', 87.8, 0, 1, 108, 'hand', 'bind-visible="lit"'),
+    ])
+    list_rows.append(frame('row%d' % k, 0, 108 * k, 1541.4, 108, 'm-command',
+                           'data-source="menu.listRow[%d]" bind-display="present" bind-class="lit: lit"' % k, indent(inner, 1)))
+el = '\n'.join([
+    window('list', 155.5, 87.75, 1609, 864, 'm-pane', '', '\n'.join(list_rows + [scroll('scroll', 1544.8, 0, 864, 'menu.listScroll')])),
+    keys('musicKeys', 'menu.musicIdle', [(46, 693.0, '{menu.loopLabel}'), (52, 990.4, '{menu.modeLabel}'), (43, 1348.7, '{menu.confirm}'), (15, 1568.5, '{menu.back}')]),
+    keys('playingKeys', 'menu.musicPlaying', [(46, 527.3, '{menu.loopLabel}'), (52, 824.8, '{menu.modeLabel}'), (16, 1183.1, '{menu.stopLabel}'), (43, 1348.7, '{menu.confirm}'), (15, 1568.5, '{menu.back}')]),
+    keys('theatreKeys', 'menu.theatre', [(43, 1348.7, '{menu.confirm}'), (15, 1568.5, '{menu.back}')]),
+])
+screens.append(frame('extrasList', 0, 0, 1920, 1080, None, 'bind-display="menu.extrasList"', indent(el, 1)))

@@ -269,7 +269,7 @@ namespace OpenFF.Client
 			float[] at = StopsAt(g, across ? w / sx : h / sy);
 			int n = at.Length;
 			// Between two stops of one colour (a hard stop's band, a menu's flat rows) one rectangle, edge to edge, so
-			// translucent bands meet without a seam; a blend in strips, 24 to the whole length.
+			// translucent bands meet without a seam; a blend in strips, one a level of colour.
 			void Band(float t0, float t1, uint colour)
 			{
 				if (t1 <= t0) return;
@@ -284,7 +284,10 @@ namespace OpenFF.Client
 				if (t1 <= t0) continue;
 				uint c0 = g.Stops[i - 1].Colour, c1 = g.Stops[i].Colour;
 				if (c0 == c1) { Band(t0, t1, c0); continue; }
-				int strips = Math.Max(1, (int)Math.Ceiling(24 * (t1 - t0)));
+				// A strip for each level the colour moves through (a step of one can't be seen), no thinner than a pixel.
+				int levels = 0;
+				for (int shift = 0; shift < 32; shift += 8) levels = Math.Max(levels, Math.Abs((int)((c0 >> shift) & 0xFF) - (int)((c1 >> shift) & 0xFF)));
+				int strips = Math.Clamp(levels, 1, Math.Max(1, (int)(length * (t1 - t0))));
 				for (int k = 0; k < strips; k++) Band(t0 + (t1 - t0) * k / strips, t0 + (t1 - t0) * (k + 1) / strips, Mix(c0, c1, (k + 0.5f) / strips));
 			}
 			Band(Math.Clamp(at[n - 1], 0, 1), 1, g.Stops[n - 1].Colour);
@@ -446,11 +449,19 @@ namespace OpenFF.Client
 					{
 						MenuText.Shadow s = lettering.Shadows[i];
 						uint c = s.Colour;
-						d.Text(text, tx + s.X * sx, ty + s.Y * sy, new Color((byte)(c >> 24), (byte)(c >> 16), (byte)(c >> 8), (byte)Math.Round((c & 0xFF) * opacity)), drawn, kx, ky);
+						d.Text(text, tx + s.X * sx, ty + s.Y * sy, TextTint(c, opacity), drawn, kx, ky);
 					}
 				}
 			}
-			d.Text(text, tx, ty, new Color((byte)(colour >> 24), (byte)(colour >> 16), (byte)(colour >> 8), (byte)Math.Round((colour & 0xFF) * opacity)), drawn, kx, ky);
+			d.Text(text, tx, ty, TextTint(colour, opacity), drawn, kx, ky);
+		}
+
+		/// <summary>A text's colour for the text pass, which blends premultiplied (SpriteBatch's AlphaBlend): its red, green and
+		/// blue scaled by its alpha, or a see-through text (#ffffffc2, a fade) comes out as bright as an opaque one.</summary>
+		private static Color TextTint(uint rgba, double opacity)
+		{
+			double a = (rgba & 0xFF) / 255.0 * opacity;
+			return new Color((byte)Math.Round((rgba >> 24) * a), (byte)Math.Round(((rgba >> 16) & 0xFF) * a), (byte)Math.Round(((rgba >> 8) & 0xFF) * a), (byte)Math.Round(255 * a));
 		}
 
 		/// <summary>Whether a text holds one of FF4's name icons (U+E040..U+E05F, BABIL_SYMBOL's cells).</summary>

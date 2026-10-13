@@ -167,7 +167,7 @@ namespace OpenFF.Client
 			if (!_open)
 			{
 				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !EventBusy() && !Game.Battle.InBattle && !Ff4Battle.Active
-					&& !(Ff4Shop.Instance?.IsOpen ?? false) && !(Ff4NaviMap.Instance?.IsOpen ?? false) && !Ff4Chests.Busy && !EncounterZoom.Playing && !BlurRotate.Playing
+					&& !(Ff4Shop.Instance?.IsOpen ?? false) && !(Ff4NaviMap.Instance?.IsOpen ?? false) && !Ff4Chests.Busy && !Ff4Extras.Busy && !EncounterZoom.Playing && !BlurRotate.Playing
 					&& (input.KeyPressed("Tab") || input.Pressed(Pad.X)))
 				{
 					Open();

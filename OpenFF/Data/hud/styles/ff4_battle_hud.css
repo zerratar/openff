@@ -6,8 +6,8 @@
    half) over them, its 16-pixel corners kept. The lit row (the hand's, the member choosing) has three lighter bands
    over the two, under the frame. */
 .row { background-image: linear-gradient(to bottom, #5054837b 0px, #5054837b 27px, #2a2b667b 27px, #2a2b667b 100%); }
-.row .lit-band { background-image: linear-gradient(to bottom, #6987dd7b 0%, #6987dd7b 40%, #667dc47b 40%, #667dc47b 63.33%, #4a5daa7b 63.33%, #4a5daa7b 100%); }
-.member .lit-band { background-image: linear-gradient(to bottom, #6987dd7b 0%, #6987dd7b 36.84%, #667dc47b 36.84%, #667dc47b 63.16%, #4a5daa7b 63.16%, #4a5daa7b 100%); }
+.row .lit-band { background-image: linear-gradient(to bottom, #7ca4db7b 0%, #6986dd7b 40%, #657dc37b 63.33%, #4a5da97b 100%); }
+.member .lit-band { background-image: linear-gradient(to bottom, #7ca4db7b 0%, #6986dd7b 36.84%, #657dc37b 63.16%, #4a5da97b 100%); }
 .edge {
   background-image: resource("files/MENU_Common.dat/frame_00.NCGR");
   -ff-background-rect: 192 0 192 192;

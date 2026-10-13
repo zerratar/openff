@@ -351,7 +351,7 @@ namespace OpenFF.Client
 		// ---- each step ----
 
 		private static bool FreeToWalk() => EngineApi.InWorld && Game.Hero.Present && !Ff4Battle.Active && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen
-			&& !Ff4Chests.Busy && !EncounterZoom.Playing && !BlurRotate.Playing
+			&& !Ff4Chests.Busy && !Ff4Extras.Busy && !EncounterZoom.Playing && !BlurRotate.Playing
 			&& !Ff4Menu.EventBusy() && !(Ff4Menu.Instance?.IsOpen ?? false) && !(Ff4Shop.Instance?.IsOpen ?? false);
 
 		public override void OnUpdate()

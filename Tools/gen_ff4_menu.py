@@ -154,8 +154,8 @@ field_keys = '\n'.join([
     frame('menuKey', 1710.4, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 16'),
     frame('menuLabel', 1771.3, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.menuLabel}"'),
 ])
-out.append(indent("<!-- The field's key hints (Ff4NaviMap draws them): M Map / Quit Map, Tab Menu over a dark bar. -->", 1))
-out.append(indent(frame('fieldKeys', 0, 0, 1920, 1080, None, 'bind-display="menu.fieldKeys"', indent(field_keys, 1)), 1))
+out.append(indent("<!-- The field's key hints (Ff4NaviMap draws them): M Map / Quit Map, Tab Menu over a dark bar - slid down out of sight\n     while the party walks and back up once it has stood half a second (menu.fieldKeysDrop: 0 up, 108 gone). -->", 1))
+out.append(indent(frame('fieldKeys', 0, 0, 1920, 1080, None, 'bind-display="menu.fieldKeys" bind-style="top: {menu.fieldKeysDrop}px"', indent(field_keys, 1)), 1))
 
 # The Yes / No question (Quicksave's): the screen dimmed, a window, the question, two pills (button_00), the hand on one.
 def pill(id_, x):

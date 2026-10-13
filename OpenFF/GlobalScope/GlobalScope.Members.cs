@@ -14280,6 +14280,7 @@ internal static partial class GlobalScope
 								{
 								case 33554432:
 									sprintf(out arg, "BGM%.2d", next.request & 0xFFFF);
+									if (OpenFF.Client.GameProfile.IsFf4) OpenFF.Client.Ff4Extras.BgmStarted(next.request & 0xFFFF);   // PORT (FF4): the Music Box's heard flags
 									PlaySound(next, arg);
 									break;
 								case 50331648:

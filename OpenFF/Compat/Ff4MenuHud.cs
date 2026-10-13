@@ -122,6 +122,12 @@ namespace OpenFF.Client
 			public List<CommandRow> SightRow = Rows<CommandRow>(7);
 			public ScrollData SightScroll = new ScrollData();
 			public string MapLabel = "Map", MenuLabel = "Menu";
+			// The Fat Chocobo's extras (Ff4Extras): its window over the field (menu.extra[0..2]: Bestiary, Event Theatre, Music
+			// Box); the Music Box's and the Event Theatre's list (menu.listRow[0..7], listScroll) and their key hints.
+			public bool Launcher, ExtrasList, MusicIdle, MusicPlaying, Theatre;
+			public List<CommandRow> Extra = Rows<CommandRow>(3), ListRow = Rows<CommandRow>(8);
+			public ScrollData ListScroll = new ScrollData();
+			public string LoopLabel = "", ModeLabel = "", StopLabel = "";
 			public List<CellRow> AutoPick = Rows<CellRow>(12);
 			public ScrollData AutoScroll = new ScrollData();
 			public string DifficultyText = "", NormalLabel = "Normal", HardLabel = "Hard", DifficultyNote1 = "", DifficultyNote2 = "";

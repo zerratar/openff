@@ -2,8 +2,9 @@
    A mod restyles it with menus/hud/styles/*.css: those sheets come after this one, so their rules win. The battle HUD's
    sheet sits beside this one and is read for this screen too: .lit-band, .hand and .key-cap are its. */
 
-/* A window's two bands (a lighter 20.25-pixel band over the body), opaque, under its frame. */
-#commands, #place, #members, #partyMembers { background-image: linear-gradient(to bottom, #505483 0px, #505483 20.25px, #2a2b66 20.25px, #2a2b66 100%); }
+/* A window's fill, opaque, under its frame: a lighter 20.25-pixel band, then the body graded from #2a2b66 under it to
+   #505483 at its foot (Steam's pixels down the command column: 48,49,107 at 150, 79,83,130 at 800). */
+#commands, #place, #members, #partyMembers { background-image: linear-gradient(to bottom, #505483 0px, #505483 20.25px, #2a2b66 20.25px, #505483 100%); }
 
 /* A window's frame: MENU_Common's frame_00, the raised square (its left half), the 16-pixel corners kept at 1.6875. */
 .m-window {
@@ -19,13 +20,15 @@
   -ff-slice: 16;
   -ff-slice-scale: 1.6875;
 }
-/* The lit row's three bands, opaque here (the battle HUD's are at 48%). */
-.m-command .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 54px, #667dc4 54px, #667dc4 87.75px, #4a5daa 87.75px, #4a5daa 100%); }
-.m-member .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 77.6px, #667dc4 77.6px, #667dc4 121.5px, #4a5daa 121.5px, #4a5daa 100%); }
+/* The lit row's three bands, each graded into the next (Steam's pixels down Inventory: 121,159,219 near the top, 108,139,221
+   at 54, 102,127,200 at 81, 81,101,176 at 123), opaque here (the battle HUD's are at 48%). */
+.m-command .lit-band { background-image: linear-gradient(to bottom, #7ca4db 0px, #6986dd 54px, #657dc3 87.75px, #4a5da9 100%); }
+.m-member .lit-band { background-image: linear-gradient(to bottom, #7ca4db 0px, #6986dd 77.6px, #657dc3 121.5px, #4a5da9 100%); }
 
-/* Every text: white, Arial at Steam's size (font-size 21: a 37.7-pixel em at 1080), with Steam's opaque shadow a base
-   pixel down and right; centred on its capitals (FF4.exe sets its text so). */
-.m-label, .m-text, .m-key-label { color: #ffffff; font-size: 21px; text-shadow: 3.375px 3.375px #000000; vertical-align: central; }
+/* Every text: white at 194 of 255 over what is under it (Steam's lettering blends so: 204,204,218 on a window's #2a2b66,
+   217,225,246 on the lit band, 197 on the key bar), Arial at Steam's size (font-size 21: a 37.7-pixel em at 1080), with
+   Steam's opaque shadow a base pixel down and right; centred on its capitals (FF4.exe sets its text so). */
+.m-label, .m-text, .m-key-label { color: #ffffffc2; font-size: 21px; text-shadow: 3.375px 3.375px #000000; vertical-align: central; }
 .m-label, .m-centre { text-align: center; }
 .m-right { text-align: right; }
 .m-command.disabled .m-label { color: #808080; }
@@ -80,7 +83,7 @@
 }
 /* The title bar: dark at its ends, light in the middle; a pane: the two bands. */
 .m-title { background-image: linear-gradient(to right, #21223a 0%, #7275c1 50%, #21223a 100%); }
-.m-pane { background-image: linear-gradient(to bottom, #505483 0px, #505483 20.25px, #2a2b66 20.25px, #2a2b66 100%); }
+.m-pane { background-image: linear-gradient(to bottom, #505483 0px, #505483 20.25px, #2a2b66 20.25px, #505483 100%); }
 
 /* A list's cell: its name after the item's or spell's symbol, its count right, the lit one's three bands. */
 .m-cell-name, .m-cell-count { color: #ffffff; font-size: 21px; text-shadow: 3.375px 3.375px #000000; vertical-align: central; }
@@ -88,9 +91,11 @@
 .m-cell.dim .m-cell-name, .m-cell.dim .m-cell-count { color: #808080; }
 .m-cell.dim .m-icon { color: #808080; }
 .m-icon { -ff-cell-scale: 0.79; -ff-cell-shadow: 3.375px 3.375px #000000; }
-#inventory .m-cell .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 40.5px, #667dc4 40.5px, #667dc4 64.1px, #4a5daa 64.1px, #4a5daa 100%); }
-#magic .m-cell .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 43.9px, #667dc4 43.9px, #667dc4 67.5px, #4a5daa 67.5px, #4a5daa 100%); }
-#inventory .m-member .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 60.8px, #667dc4 60.8px, #667dc4 94.5px, #4a5daa 94.5px, #4a5daa 100%); }
+#inventory .m-cell .lit-band { background-image: linear-gradient(to bottom, #7ca4db 0px, #6986dd 40.5px, #657dc3 64.1px, #4a5da9 100%); }
+#magic .m-cell .lit-band { background-image: linear-gradient(to bottom, #7ca4db 0px, #6986dd 43.9px, #657dc3 67.5px, #4a5da9 100%); }
+/* The extras' lists (Music Box, Event Theatre): rows 108 high, their bands at 43.9 and 67.5 (Steam's draws). */
+#extrasList .lit-band { background-image: linear-gradient(to bottom, #7ca4db 0px, #6986dd 43.9px, #657dc3 67.5px, #4a5da9 100%); }
+#inventory .m-member .lit-band { background-image: linear-gradient(to bottom, #7ca4db 0px, #6986dd 60.8px, #657dc3 94.5px, #4a5da9 100%); }
 
 /* The arrows either side of the member (button_right_left: the left one, the right one, at 1.6875). */
 .m-arrow-left, .m-arrow-right { background-image: resource("files/MENU_Common.dat/button_right_left.NCGR"); }
@@ -99,15 +104,15 @@
 
 /* The Equipment screen's figures: the small print (two lines to a row of the big). */
 .m-small { color: #ffffff; font-size: 14px; text-shadow: 2.25px 2.25px #000000; vertical-align: central; }
-#equipment .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 43.9px, #667dc4 43.9px, #667dc4 67.5px, #4a5daa 67.5px, #4a5daa 100%); }
-#abilities .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 40.5px, #667dc4 40.5px, #667dc4 64.1px, #4a5daa 64.1px, #4a5daa 100%); }
-#abilities #autoCommand .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 43.9px, #667dc4 43.9px, #667dc4 67.5px, #4a5daa 67.5px, #4a5daa 100%); }
+#equipment .lit-band { background-image: linear-gradient(to bottom, #7ca4db 0px, #6986dd 43.9px, #657dc3 67.5px, #4a5da9 100%); }
+#abilities .lit-band { background-image: linear-gradient(to bottom, #7ca4db 0px, #6986dd 40.5px, #657dc3 64.1px, #4a5da9 100%); }
+#abilities #autoCommand .lit-band { background-image: linear-gradient(to bottom, #7ca4db 0px, #6986dd 43.9px, #657dc3 67.5px, #4a5da9 100%); }
 /* A command picked up to be moved: its name yellow until it is set down. */
 #abilities .m-cell.picked .m-cell-name { color: #ffe86e; }
 
 /* Gambits: the rule's condition red for a foe, blue for an ally or the member; ON yellow; an empty or switched-off rule
    grey; the rule being set yellow while its choice is picked. The picker's choices take the same colours. */
-#gambits .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 40.5px, #667dc4 40.5px, #667dc4 64.1px, #4a5daa 64.1px, #4a5daa 100%); }
+#gambits .lit-band { background-image: linear-gradient(to bottom, #7ca4db 0px, #6986dd 40.5px, #657dc3 64.1px, #4a5da9 100%); }
 #gambits .m-rule.foe .m-condition, #gambits .m-cell.foe .m-cell-name { color: #ffaaaa; }
 #gambits .m-rule.ally .m-condition, #gambits .m-cell.ally .m-cell-name { color: #a8c4ff; }
 #gambits .m-cell.gold .m-cell-name { color: #ffe86e; }
@@ -132,7 +137,7 @@
   -ff-slice: 16;
   -ff-slice-scale: 1.6875;
 }
-.m-box-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 50.6px, #667dc4 50.6px, #667dc4 77.6px, #4a5daa 77.6px, #4a5daa 100%); }
+.m-box-band { background-image: linear-gradient(to bottom, #7ca4db 0px, #6986dd 50.6px, #657dc3 77.6px, #4a5da9 100%); }
 
 /* ---- Window Design (Settings): MENU_Common's sets 1..5 for designs 2..6 - the windows' and rows' frames, the scroll
    bars, the buttons and the wallpaper. ---- */

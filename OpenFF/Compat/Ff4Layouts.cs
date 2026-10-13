@@ -66,6 +66,9 @@ namespace OpenFF.Client
 		/// <summary>A babil_menu.msd text with its line breaks (Text joins them into one line).</summary>
 		public static string MenuPage(uint id, string fallback = null) => PageText("babil_menu.msd", id, fallback);
 
+		/// <summary>A line of any .msd (babil_music.msd's song names), its line breaks kept.</summary>
+		public static string Page(string file, uint id, string fallback = null) => PageText(file, id, fallback);
+
 		/// <summary>A message's first page whole: ReadNames' plain text drops the line breaks a window keeps.</summary>
 		private static string PageText(string file, uint id, string fallback)
 		{

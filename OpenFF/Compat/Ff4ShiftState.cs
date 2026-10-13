@@ -19,6 +19,11 @@ namespace OpenFF.Client
 		{
 			string name = engine.getString();
 			for (int i = 0; i < 5; i++) engine.getDword();
+			if (name != null && Ff4Extras.Request(name))
+			{
+				Log.Write(LogChannel.File, "script: FF4 shiftState " + name);
+				return;
+			}
 			if (name != null && States.TryGetValue(name, out Action state))
 			{
 				Log.Write(LogChannel.File, "script: FF4 shiftState " + name);
