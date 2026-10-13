@@ -401,7 +401,7 @@ namespace OpenFF.Client
 
 		private void Pray(Fighter who)
 		{
-			Acted(who, CmdPray, _party.FindAll(f => f.Alive).ToArray());
+			Acted(who, CmdPray, Allies(who).FindAll(f => f.Alive).ToArray());
 			if (_random.Next(100) >= 90)
 			{
 				// The failure, settled first: no invoke stage, "Prayer unanswered." for 40 frames.
@@ -411,7 +411,7 @@ namespace OpenFF.Client
 				return;
 			}
 			List<(Fighter F, int Hp, int Mp)> heals = new List<(Fighter, int, int)>();
-			foreach (Fighter f in _party)
+			foreach (Fighter f in Allies(who))
 			{
 				if (!f.Alive || Untargetable(f)) continue;
 				int mp = f.Member != null ? (_random.Next(6) + 5) * f.Member.MaxMp / 100 : 0;
@@ -483,7 +483,7 @@ namespace OpenFF.Client
 		private void Cry(Fighter who)
 		{
 			// calcMagic with magic_parameter 66: Cry (0x1d) on every foe - defence and magic defence halved; no numbers.
-			List<Fighter> foes = _foes.FindAll(f => f.Alive && !OutOfFight(f));
+			List<Fighter> foes = Opponents(who).FindAll(f => f.Alive && !OutOfFight(f));
 			Acted(who, CmdCry, foes.ToArray());
 			foreach (Fighter f in foes)
 			{
@@ -554,9 +554,10 @@ namespace OpenFF.Client
 					if (k == 8) Face(who, who.Facing);
 				});
 			}
+			int waited = 0;
 			void Settle()
 			{
-				if (who.Npc != null && !who.Npc.MotionDone) { After(1, Settle); return; }
+				if (who.Npc != null && !who.Npc.MotionDone && ++waited < 300) { After(1, Settle); return; }   // the wait bounded as the others
 				Play(who, who.IdleMotion, true, 2);
 				who.Acted = false;
 			}
@@ -593,9 +594,10 @@ namespace OpenFF.Client
 			PlayEffect(277, HitEffectSpot(foe));
 			Game.Audio.PlaySe(158, 2);
 			Fighter target = foe;
+			int waited = 0;
 			void Message()
 			{
-				if (who.Npc != null && !who.Npc.MotionDone) { After(1, Message); return; }
+				if (who.Npc != null && !who.Npc.MotionDone && ++waited < 300) { After(1, Message); return; }
 				string line;
 				if (item > 0)
 				{
@@ -663,10 +665,11 @@ namespace OpenFF.Client
 				if (!foe.Alive) Fell(foe, (int)damage);
 			}
 			After(14, Number);
+			int settled = 0;
 			void Settle()
 			{
 				// Steam's frames: 84 over, the poise until the turn is (the stance back after it - AfterAction).
-				if (who.Npc != null && !who.Npc.MotionDone) { After(1, Settle); return; }
+				if (who.Npc != null && !who.Npc.MotionDone && ++settled < 300) { After(1, Settle); return; }
 				Play(who, who.Poise > 0 ? who.Poise : who.IdleMotion, true, 3);
 				who.Acted = false;
 			}
@@ -776,9 +779,15 @@ namespace OpenFF.Client
 
 		// ---- Analyze (PABExamine: chain 32's record 28 on each target, then the line) ----
 
+		/// <summary>The other side from one acting: the monsters for a member, the party for a monster fighting as one.</summary>
+		private List<Fighter> Opponents(Fighter who) => who.IsMonster ? _party : _foes;
+
+		/// <summary>One's own side: the party for a member, the monsters for a monster fighting as one.</summary>
+		private List<Fighter> Allies(Fighter who) => who.IsMonster ? _foes : _party;
+
 		private void Analyze(Fighter who)
 		{
-			List<Fighter> targets = _foes.FindAll(f => f.Alive && !OutOfFight(f));
+			List<Fighter> targets = Opponents(who).FindAll(f => f.Alive && !OutOfFight(f));
 			Acted(who, CmdAnalyze, targets.ToArray());
 			EndTurn(who);
 			foreach (Fighter t in targets) t.Examined = true;   // calcBattleParameter case 0xe: flag 0xd on each
@@ -812,7 +821,7 @@ namespace OpenFF.Client
 				}
 			}
 			SpellDefinition spell = spellId > 0 ? Ff4Party.Tables.Spell(spellId) : null;
-			if (spell == null || who.Member == null || who.Member.Mp < MpCostOf(who, spell))
+			if (spell == null || who.Member != null && who.Member.Mp < MpCostOf(who, spell))
 			{
 				// The failure (or too little MP), settled first: no invoke; 6107 once, effect 275 on its second frame, the line for 60 frames.
 				Acted(who, CmdRecall);
@@ -830,16 +839,16 @@ namespace OpenFF.Client
 				Note(who.Name + " recalls " + (noMp ? spell.Name + " - not enough MP" : "nothing"));
 				return;
 			}
-			List<Fighter> targets = AutoTargets(spell);
+			List<Fighter> targets = AutoTargets(spell, who);
 			Note(who.Name + " recalls " + spell.Name);
 			Invoke(who, CmdRecall, () => Cast(who, spell, targets, invoked: true));
 		}
 
 		/// <summary>setRememberRetarget: an ally spell on the party, a foe spell on the foes - all of them when it hits all, else one at random.</summary>
-		private List<Fighter> AutoTargets(SpellDefinition spell)
+		private List<Fighter> AutoTargets(SpellDefinition spell, Fighter caster = null)
 		{
 			bool allies = Helps(spell);
-			List<Fighter> side = (allies ? _party : _foes).FindAll(f => (f.Alive || spell.Revives) && !Untargetable(f) && !OutOfFight(f));
+			List<Fighter> side = (caster != null ? (allies ? Allies(caster) : Opponents(caster)) : allies ? _party : _foes).FindAll(f => (f.Alive || spell.Revives) && !Untargetable(f) && !OutOfFight(f));
 			if (spell.HitsAll || side.Count == 0) return side;
 			return new List<Fighter> { side[_random.Next(side.Count)] };
 		}

@@ -896,6 +896,7 @@ namespace OpenFF.Client
 						monster.Queued = true;
 						(monster.DecidedAbility, monster.DecidedTarget) = DecideMonsterAction(monster);
 						// The turn keeps what was decided: an event's action in between (Asura's face turned before her spell) is its own.
+						monster.Braced = false;   // decideAbility: a decision ends Brace (a monster fighting as a member braces too)
 						(int decided, int decidedTarget) = (monster.DecidedAbility, monster.DecidedTarget);
 						_queue.Add((monster, () => { monster.DecidedAbility = decided; monster.DecidedTarget = decidedTarget; MonsterActs(monster); }));
 					}

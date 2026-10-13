@@ -107,6 +107,22 @@ namespace OpenFF.Client
 					AbilityMotions(foe, "b_pa_021");
 					Focus(foe);
 					return true;
+				// The developer room's members (Sho Takeuchi, the Dancer, Shirma, Asano): a member's commands from the monsters'
+				// side, as a member starts them (the ability's motions, the invoke stage), on the party.
+				case CmdAim:
+				{
+					Fighter struck = Target();
+					if (struck == null) return false;
+					AbilityMotions(foe, "b_aim");
+					Invoke(foe, CmdAim, () => MemberAttacks(foe, struck, aim: true));
+					return true;
+				}
+				case CmdAnalyze: Invoke(foe, CmdAnalyze, () => Analyze(foe)); return true;
+				case CmdBrace: Invoke(foe, CmdBrace, () => Brace(foe)); return true;
+				case CmdPray: AbilityMotions(foe, "b_pa_035"); Pray(foe); return true;
+				case CmdBluff: AbilityMotions(foe, "b_pa_039"); Invoke(foe, CmdBluff, () => Bluff(foe)); return true;
+				case CmdCry: AbilityMotions(foe, "b_pa_038"); Invoke(foe, CmdCry, () => Cry(foe)); return true;
+				case CmdRecall: AbilityMotions(foe, "b_pa_040"); Recall(foe); return true;
 				case CmdKick:
 					// Yang's Kick against the party (PABKick from the monsters' side): its invoke stage, then the kick.
 					AbilityMotions(foe, "b_pa_057");
