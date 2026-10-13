@@ -125,7 +125,7 @@ namespace OpenFF.Client
 					else line = c.Monster > 0 ? 1000124 : c.Hidden ? 1000126 : 1000122;
 					// The game's line (babil_common.msd), its %item% and %money% filled in.
 					string text = Ff4Layouts.CommonText((uint)line, c.Gil > 0 ? "Obtained %money% gil." : "Obtained %item%.")
-						.Replace("%item%", Ff4Party.Tables?.Item(c.Item)?.Name ?? ("item " + c.Item))
+						.Replace("%item%", ItemString(c.Item))
 						.Replace("%money%", c.Gil.ToString());
 					Game.Dialogue.Say(text);
 					_full = full;
@@ -166,6 +166,16 @@ namespace OpenFF.Client
 		}
 
 		private bool _full;
+
+		/// <summary>%item% as the game fills it (DGSMsdGetString of the item's id): its icon (U+E040 + its cell), then its name.</summary>
+		private static string ItemString(int id)
+		{
+			ItemDefinition item = Ff4Party.Tables?.Item(id);
+			if (item == null) return "item " + id;
+			string name = item.Name ?? "";
+			bool hasIcon = name.Length > 0 && name[0] >= '' && name[0] <= '';
+			return (item.Icon >= 0 && !hasIcon ? ((char)(0xE040 + item.Icon)).ToString() : "") + name;
+		}
 
 		private void PayOut(Chest c)
 		{

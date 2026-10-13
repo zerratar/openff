@@ -401,6 +401,37 @@ namespace OpenFF.Client
 			string align = v.TryGetValue("text-align", out string ta) ? ta.Trim().ToLowerInvariant() : "left";
 			string valign = v.TryGetValue("vertical-align", out string va) ? va.Trim().ToLowerInvariant() : "top";
 			bool middle = valign == "middle", central = valign == "central";
+			if (HasSymbol(text) && Cells.TryGetValue("symbol", out CellDrawer symbol))
+			{
+				// FF4's names open with an icon (U+E040 + its cell of BABIL_SYMBOL - an item's in "Obtained %item%."): each drawn as
+				// the symbol cell at Steam's lists' proportion (a 21px line's icon at 0.79: 1.13 em) with the text's shadow, in the
+				// line's place, the text around it as it was.
+				float iconScale = wanted * 1.13f / (54f * DrawList.ScreenHeight / 1080f);
+				MenuText.Shadow? shadow = look?.TextStyle != null && MenuText.Parse(look.TextStyle).Shadows is List<MenuText.Shadow> shades && shades.Count > 0 ? shades[0] : null;
+				float iconWidth = 54f * DrawList.ScreenHeight / 1080f * iconScale;
+				List<(string Text, int Icon)> parts = SymbolParts(text);
+				float total = 0f;
+				foreach ((string part, int icon) in parts) total += icon >= 0 ? iconWidth : d.MeasureText(part, drawn) * kx;
+				float px = align == "center" ? x + (w - total) / 2 : align == "right" ? x + w - total : x;
+				float py = middle ? y + (h - wanted * 1.3f) / 2 : central ? y + h / 2 - wanted * 0.879f : y;
+				uint tint = 0xFFFFFF00 | (uint)Math.Round(255 * opacity);
+				foreach ((string part, int icon) in parts)
+				{
+					if (icon >= 0)
+					{
+						float iy = py + wanted * 0.7f;
+						if (shadow is MenuText.Shadow sh) symbol(d, icon, px + sh.X * sx, iy + sh.Y * sy, iconScale, 1f, new Color((byte)(sh.Colour >> 24), (byte)(sh.Colour >> 16), (byte)(sh.Colour >> 8), (byte)Math.Round((sh.Colour & 0xFF) * opacity)));
+						symbol(d, icon, px, iy, iconScale, 1f, new Color((byte)(tint >> 24), (byte)(tint >> 16), (byte)(tint >> 8), (byte)(tint & 0xFF)));
+						px += iconWidth;
+						continue;
+					}
+					float pw = d.MeasureText(part, drawn) * kx;
+					Dictionary<string, string> left = new Dictionary<string, string>(v, StringComparer.OrdinalIgnoreCase) { ["text-align"] = "left", ["vertical-align"] = "top" };
+					DrawText(d, part, look, left, px, py, pw, h, sx, sy, opacity);
+					px += pw;
+				}
+				return;
+			}
 			float width = d.MeasureText(text, drawn) * kx;
 			float tx = align == "center" ? x + (w - width) / 2 : align == "right" ? x + w - width : x;
 			// middle: the line's box centred; central: the capitals' middle on the frame's (FF4.exe's text) - an Arial capital's
@@ -420,6 +451,29 @@ namespace OpenFF.Client
 				}
 			}
 			d.Text(text, tx, ty, new Color((byte)(colour >> 24), (byte)(colour >> 16), (byte)(colour >> 8), (byte)Math.Round((colour & 0xFF) * opacity)), drawn, kx, ky);
+		}
+
+		/// <summary>Whether a text holds one of FF4's name icons (U+E040..U+E05F, BABIL_SYMBOL's cells).</summary>
+		private static bool HasSymbol(string text)
+		{
+			foreach (char c in text) if (c >= '' && c <= '') return true;
+			return false;
+		}
+
+		/// <summary>A text cut at its icons: runs of text (icon -1) and the icons (their cell).</summary>
+		private static List<(string Text, int Icon)> SymbolParts(string text)
+		{
+			List<(string, int)> parts = new List<(string, int)>();
+			int start = 0;
+			for (int i = 0; i < text.Length; i++)
+			{
+				if (text[i] < '' || text[i] > '') continue;
+				if (i > start) parts.Add((text.Substring(start, i - start), -1));
+				parts.Add(("", text[i] - 0xE040));
+				start = i + 1;
+			}
+			if (start < text.Length) parts.Add((text.Substring(start), -1));
+			return parts;
 		}
 
 		/// <summary>CSS scale: one number (or percent) for both directions, or two; none is 1.</summary>
