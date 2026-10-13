@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenFF.Client
 {
@@ -159,6 +160,7 @@ namespace OpenFF.Client
 			ScriptOpTable ff4 = ScriptOpTable.Ff4;
 			ScriptOpTable ff3 = ScriptOpTable.Ff3;
 			GlobalScope.SCRIPT_COMMAND[] table = new GlobalScope.SCRIPT_COMMAND[ff4.Count];
+			HashSet<int> skippedAt = new HashSet<int>();
 			// FF4 renamed a few commands it kept: the same operands, FF3's handler.
 			Dictionary<string, string> aliases = new Dictionary<string, string>(StringComparer.Ordinal)
 			{
@@ -223,6 +225,7 @@ namespace OpenFF.Client
 				{
 					int opcode = i;
 					table[i] = engine => Skip(engine, opcode, op);
+					skippedAt.Add(i);
 				}
 			}
 			Log.Write(LogChannel.General, "script: FF4 table built - " + _reusedCount + " of " + table.Length + " commands run FF3's handler, the rest are skipped with their operands");
@@ -257,8 +260,66 @@ namespace OpenFF.Client
 				}
 				Log.Write(LogChannel.General, "script: FF4 skipped: " + string.Join(", ", skipped));
 			}
+			if (Options.Get("ff4usage") != null) ReportUsage(ff4, skippedAt);
 			_ff4 = table;
 			return table;
+		}
+
+		/// <summary>
+		/// --ff4usage: every command the install's scripts use (files/*.script, walked linearly with the FF4 table as
+		/// Ff4Exits does), with its uses and the scripts it is in, and whether it runs, is skipped on purpose (Quiet /
+		/// Cosmetic) or is skipped still - the porting list, written to logs/ff4-commands.txt, most used first.
+		/// </summary>
+		private static void ReportUsage(ScriptOpTable ff4, HashSet<int> skippedAt)
+		{
+			if (GameArchive.Chain == null) return;
+			Dictionary<int, int> uses = new Dictionary<int, int>();
+			Dictionary<int, HashSet<string>> where = new Dictionary<int, HashSet<string>>();
+			int scripts = 0, broken = 0;
+			foreach (string name in GameArchive.Chain.Names)
+			{
+				if (!name.EndsWith(".script", StringComparison.OrdinalIgnoreCase) || !name.StartsWith("files/", StringComparison.OrdinalIgnoreCase)) continue;
+				byte[] data = GameArchive.Read(name);
+				if (data == null || data.Length < 16 || data[0] != 'M' || data[1] != 'H' || data[2] != 'C' || data[3] != 'S') continue;
+				scripts++;
+				int at = 16 + (data[14] | (data[15] << 8)) * 16;
+				int end = (int)Math.Min((uint)(data[8] | (data[9] << 8) | (data[10] << 16) | (data[11] << 24)), (uint)data.Length);
+				string map = name.Substring(6, name.Length - 13);
+				while (at + 2 <= end)
+				{
+					int opcode = data[at] | (data[at + 1] << 8);
+					at += 2;
+					ScriptOp op = ff4.Get(opcode);
+					if (op == null) { broken++; break; }
+					foreach (Operand operand in op.Operands ?? Array.Empty<Operand>())
+					{
+						if (operand == Operand.Byte) at += 1;
+						else if (operand == Operand.Word) at += 2;
+						else if (operand == Operand.Dword) at += 4;
+						else { int zero = at < end ? Array.IndexOf(data, (byte)0, at, end - at) : -1; at = zero < 0 ? end + 1 : zero + 1; }
+					}
+					if (at > end) break;
+					uses.TryGetValue(opcode, out int n);
+					uses[opcode] = n + 1;
+					if (!where.TryGetValue(opcode, out HashSet<string> maps)) where[opcode] = maps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+					maps.Add(map);
+				}
+			}
+			List<string> lines = new List<string>();
+			int open = 0, quietCount = 0, running = 0;
+			foreach (KeyValuePair<int, int> u in uses.OrderByDescending(k => where[k.Key].Count).ThenByDescending(k => k.Value))
+			{
+				string name = ScriptOpTable.Simplify(ff4.Get(u.Key).Name);
+				bool quiet = Ff4Commands.Cosmetic.Contains(name) || Ff4Cutscene.Quiet.Contains(name);
+				string state = !skippedAt.Contains(u.Key) ? "runs" : quiet ? "quiet" : "OPEN";
+				if (state == "runs") running++; else if (state == "quiet") quietCount++; else open++;
+				string sample = string.Join(" ", where[u.Key].OrderBy(m => m, StringComparer.OrdinalIgnoreCase).Take(6));
+				lines.Add(state.PadRight(6) + u.Key.ToString().PadLeft(4) + "  " + name.PadRight(40) + where[u.Key].Count.ToString().PadLeft(5) + " scripts" + u.Value.ToString().PadLeft(7) + " uses   " + sample);
+			}
+			lines.Insert(0, "FF4 script commands in use: " + uses.Count + " across " + scripts + " scripts (" + broken + " walks stopped at an unknown opcode) - " + running + " run, " + quietCount + " skipped on purpose, " + open + " open");
+			string path = System.IO.Path.Combine(AppContext.BaseDirectory, "logs", "ff4-commands.txt");
+			System.IO.File.WriteAllLines(path, lines);
+			Log.Write(LogChannel.General, "script: " + lines[0] + " - " + path);
 		}
 
 		private static bool SameCommand(ScriptOp mine, ScriptOp theirs)
