@@ -1142,6 +1142,7 @@ namespace OpenFF.Client
 		/// <summary>A number over a spot in the world, FF4's damage digits: salmon for damage, green for a heal.</summary>
 		private void Pop(Vector3 at, int value, bool heal = false)
 		{
+			if (value < 0) { value = -value; heal = !heal; }   // Reverse turned it: damage shown as healing, healing as damage
 			_pops.Add(new PopUp { At = at, Value = Math.Min(99999, Math.Abs(value)), Heal = heal });
 		}
 
@@ -1562,8 +1563,7 @@ namespace OpenFF.Client
 					PlayEffect(member.HitEffect, HitEffectSpot(foe));
 					DamageFlash(foe);   // playFlash with the hand's hit effect
 					damage = Damage(member, foe);
-					foe.Hp = Math.Max(0, foe.Hp - damage);
-					if (foe.Member != null) foe.Member.Hp = foe.Hp;
+					damage = Hurt(foe, damage);
 					BlowLands(member, foe);
 					StartDamageAction(foe, damage);
 					// With the effect, its sound: the weapon system's own (playerWeaponSe - a sword's 106, 1).
@@ -1599,8 +1599,7 @@ namespace OpenFF.Client
 			else
 			{
 				int damage = Damage(member, foe);
-				foe.Hp = Math.Max(0, foe.Hp - damage);
-				if (foe.Member != null) foe.Member.Hp = foe.Hp;
+				damage = Hurt(foe, damage);
 				BlowLands(member, foe);
 				Pop(DamageSpot(foe), damage);
 				Game.Audio.PlaySe(0, 3);
@@ -1712,8 +1711,7 @@ namespace OpenFF.Client
 				if (!target.Alive) return;
 				if (hit)
 				{
-					target.Hp = Math.Max(0, target.Hp - damage);
-					if (target.Member != null) target.Member.Hp = target.Hp;
+					damage = Hurt(target, damage);
 					BlowLands(foe, target);
 					Note(foe.Name + " hits " + target.Name + " for " + damage + ".");
 				}
@@ -1764,7 +1762,7 @@ namespace OpenFF.Client
 				if (revive == target.Alive) return;
 				int before = target.Hp;
 				if (revive) target.Hp = Math.Max(1, target.MaxHp / 4);
-				else if (effect.Hp > 0) target.Hp = Math.Min(target.MaxHp, target.Hp + effect.Hp);
+				else if (effect.Hp > 0) Mend(target, effect.Hp);
 				target.Member.Hp = target.Hp;
 				if (effect.Mp > 0) target.Member.Mp = Math.Min(target.Member.MaxMp, target.Member.Mp + effect.Mp);
 				if (target.Hp != before) Pop(DamageSpot(target), target.Hp - before, true);

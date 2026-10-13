@@ -15,7 +15,7 @@ namespace OpenFF.Client
 		// ys::Condition ids (their names: babil_battle 70300 + id)
 		private const int CParalyze = 0, CSleep = 1, CConfuse = 2, CStone = 3, CToad = 4, CSilence = 5, CMini = 6, CBlind = 7, CPoison = 8,
 			CKO = 9, CCritical = 0xA, CPetrify = 0xB, CPig = 0xC, CCurse = 0xD, CBerserk = 0xE, CFloat = 0xF, CStop = 0x10, CSlow = 0x11,
-			CHaste = 0x12, CReflect = 0x14, CProtect = 0x15, CShell = 0x16, CBlink = 0x18, CSap = 0x20, CMagnetize = 0x21, CDoom = 0x25;
+			CHaste = 0x12, CReflect = 0x14, CProtect = 0x15, CShell = 0x16, CBlink = 0x18, CSap = 0x20, CMagnetize = 0x21, CDoom = 0x25, CReverse = 0x26;
 		private const int ConditionCount = 39;
 
 		private static bool Has(Fighter f, int id) => (f.Conditions >> id & 1) != 0;
@@ -193,6 +193,52 @@ namespace OpenFF.Client
 			if ((c?.Is(0) ?? false) || id == CToad) CutTurn(t);
 		}
 
+		/// <summary>BSCSetConditionAllMonster: the condition on every monster standing that can take it (canAddCondition), its timer
+		/// and effect as a spell's would start them.</summary>
+		private void ConditionAllMonsters(int id)
+		{
+			if (id < 0 || id >= ConditionCount) return;
+			foreach (Fighter f in _foes)
+			{
+				if (!f.Alive || OutOfFight(f) || Has(f, id) || !CanAdd(f, id)) continue;
+				ConditionOn(f, id);
+			}
+		}
+
+		/// <summary>BSCAllPlayerReverse: Reverse (0x26) toggled on everyone in the battle - on where it is off, off where it is on.</summary>
+		private void ReverseAllMembers()
+		{
+			List<Fighter> all = new List<Fighter>(_party);
+			all.AddRange(_foes);
+			foreach (Fighter f in all)
+			{
+				if (f.Npc == null && f.Member == null) continue;
+				if (Has(f, CReverse)) ConditionOff(f, CReverse); else ConditionOn(f, CReverse);
+			}
+		}
+
+		/// <summary>Damage taken: HP down - but under Reverse up (affectSelfDamage / affectSlipDamage add it instead). Returns the
+		/// damage, negative when it healed.</summary>
+		private static int Hurt(Fighter t, int damage)
+		{
+			if (Has(t, CReverse)) { t.Hp = Math.Min(t.MaxHp, t.Hp + damage); damage = -damage; }
+			else t.Hp = Math.Max(0, t.Hp - damage);
+			if (t.Member != null) t.Member.Hp = t.Hp;
+			return damage;
+		}
+
+		/// <summary>Healing: HP up - but under Reverse down, and the one it drains to nothing falls. Returns what it healed,
+		/// negative when it hurt.</summary>
+		private int Mend(Fighter t, int amount)
+		{
+			int before = t.Hp;
+			if (Has(t, CReverse)) t.Hp = Math.Max(0, t.Hp - amount);
+			else t.Hp = Math.Min(t.MaxHp, t.Hp + amount);
+			if (t.Member != null) t.Member.Hp = t.Hp;
+			if (before > 0 && t.Hp == 0) Fell(t, amount);
+			return t.Hp - before;
+		}
+
 		private void ConditionOff(Fighter t, int id)
 		{
 			t.Conditions &= ~(1UL << id);
@@ -278,8 +324,7 @@ namespace OpenFF.Client
 			if (Has(f, CSap) && (f.SapCount += rate / 2) >= Tick)
 			{
 				f.SapCount = 0;
-				f.Hp = Math.Max(0, f.Hp - 1);
-				if (f.Member != null) f.Member.Hp = f.Hp;
+				Hurt(f, 1);
 				f.HpSeen = f.Hp;
 				if (Has(f, CSleep)) ConditionOff(f, CSleep);
 				if (!f.Alive) Fell(f);
@@ -409,8 +454,7 @@ namespace OpenFF.Client
 		{
 			if (!f.Alive || !Has(f, CPoison)) return;
 			int damage = Math.Max(1, f.MaxHp / 100);
-			f.Hp = Math.Max(0, f.Hp - damage);
-			if (f.Member != null) f.Member.Hp = f.Hp;
+			damage = Hurt(f, damage);
 			Pop(DamageSpot(f), damage);
 			Note(f.Name + " takes " + damage + " from the poison.");
 			if (!f.Alive) Fell(f, damage);

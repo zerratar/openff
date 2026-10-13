@@ -272,6 +272,14 @@ namespace OpenFF.Client
 					case 45: { Fighter f = _b.ByBattleId(_b.BattleIdOfPlayer(R(1))); Set(R(2), f?.Hp ?? 0); return true; }   // GetPlayerHP
 					case 46: { Fighter f = _b.ByBattleId(_b.BattleIdOfMonster(R(1))); Set(R(2), f?.Hp ?? 0); return true; }  // GetMonsterHP
 					case 27: Set(R(1), _b._lastAbility); return true;                // GetAbility
+					case 34:                                                         // GetLegNumber dst: the Octomammoth's legs left
+					{
+						Fighter octo = _b._foes.Find(f => f.Monster?.Id == Octomammoth);
+						Set(R(1), octo != null ? LegsLeft(octo) : 0);
+						return true;
+					}
+					case 89: _b.ConditionAllMonsters(R(1)); return true;            // SetConditionAllMonster condition
+					case 86: _b.ReverseAllMembers(); return true;                    // AllPlayerReverse: Reverse on or off for everyone
 					case 36: Set(R(1), _b._clock); return true;                      // GetBattleTime
 					case 104: _b._frameCounterFrom = _b._clock; return true;          // ResetFrameCounter
 					case 105: Set(R(1), _b._clock - _b._frameCounterFrom); return true;   // GetFrameCounter (at the middle speed)

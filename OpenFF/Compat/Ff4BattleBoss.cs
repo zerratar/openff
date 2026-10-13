@@ -186,6 +186,27 @@ namespace OpenFF.Client
 				case 3000:   // MABOctManmosLegErase: legs come off
 					LegErase(foe);
 					return true;
+				case 3013:   // MABProfessorTransform: the Doctor (182) becomes Dr. Lugae (185) at full HP, statuses cleared, its gauge empty
+				{
+					Fighter doctor = _foes.Find(f => f.Monster?.Id == 182 && f.Alive) ?? foe;
+					Game.Audio.PlaySe(120, 9);
+					Swap(10, () => { ReplaceMonster(doctor, 185, full: true); doctor.Gauge = 0f; });
+					return true;
+				}
+				case 3016:   // MABBringPerson: the King and Queen of Eblan come back to themselves - each monster's texture _01, new music
+					Game.Audio.PlaySe(114, 2);
+					StopMusic(10);
+					Swap(10, () =>
+					{
+						foreach (Fighter f in _foes)
+						{
+							if (f.Npc == null || f.Monster == null) continue;
+							string tex = "m" + f.Monster.Family.ToString("000") + "_00_01";
+							if (GlobalScope.ds.g_File.getSize("/OBJ/MONSTER/" + tex + ".ntxp.lz") != 0 && f.Npc is LegacyNpc npc) npc.Retexture(tex);
+						}
+						PlayMusic(0x11);
+					});
+					return true;
 				case 3017:   // MABDrawSword: Odin raises his sword (motion 102 once, then held) - Zantetsuken comes next
 					foe.SwordDrawn = true;
 					PlayToEnd(foe, 102);

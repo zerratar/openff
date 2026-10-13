@@ -113,8 +113,7 @@ namespace OpenFF.Client
 						return;
 					}
 					if (critical) WhiteFlash();
-					foe.Hp = Math.Max(0, foe.Hp - damage);
-					if (foe.Member != null) foe.Member.Hp = foe.Hp;
+					damage = Hurt(foe, damage);
 					BlowLands(member, foe);
 					DamageFlash(foe);
 					StartDamageAction(foe, damage);

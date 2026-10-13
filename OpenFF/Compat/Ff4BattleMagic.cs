@@ -54,7 +54,7 @@ namespace OpenFF.Client
 					if (!t.Alive) return;
 					if (cures != 0) Commit(t, cures);
 					int before = t.Hp;
-					t.Hp = Math.Min(t.MaxHp, t.Hp + value);
+					Mend(t, value);
 					if (t.Member != null) t.Member.Hp = t.Hp;
 					Pop(DamageSpot(t), t.Hp - before, true);
 					Note(caster.Name + " casts " + name + ": " + t.Name + " +" + (t.Hp - before) + ".");
@@ -99,8 +99,7 @@ namespace OpenFF.Client
 			return () =>
 			{
 				if (!t.Alive) return;
-				t.Hp = Math.Max(0, t.Hp - damage);
-				if (t.Member != null) t.Member.Hp = t.Hp;
+				damage = Hurt(t, damage);
 				Pop(DamageSpot(t), damage);
 				Note(caster.Name + " casts " + name + ": " + t.Name + " takes " + damage + ".");
 				if (!t.Alive) Fell(t, damage);

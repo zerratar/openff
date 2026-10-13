@@ -428,7 +428,7 @@ namespace OpenFF.Client
 					foreach (var h in heals)
 					{
 						if (!h.F.Alive) continue;
-						h.F.Hp = Math.Min(h.F.MaxHp, h.F.Hp + h.Hp);
+						Mend(h.F, h.Hp);
 						if (h.F.Member != null)
 						{
 							h.F.Member.Hp = h.F.Hp;
@@ -537,10 +537,9 @@ namespace OpenFF.Client
 				foreach (var b in blows)
 				{
 					if (!b.Hit) { PopWord(DamageSpot(b.T), Ff4Ui.WordMiss); continue; }
-					b.T.Hp = Math.Max(0, b.T.Hp - b.Damage);
-					if (b.T.Member != null) b.T.Member.Hp = b.T.Hp;
+					int dealt = Hurt(b.T, b.Damage);
 					BlowLands(who, b.T);
-					Pop(DamageSpot(b.T), b.Damage);
+					Pop(DamageSpot(b.T), dealt);
 					if (!b.T.Alive) Fell(b.T, b.Damage);
 				}
 				Note(who.Name + " kicks " + blows.Count + " foe(s).");
@@ -655,8 +654,7 @@ namespace OpenFF.Client
 			{
 				if (TurnEffectsPlaying()) { After(1, Number); return; }
 				if (!hit) { PopWord(DamageSpot(foe), Ff4Ui.WordMiss); Note(who.Name + " throws " + weapon.Name + " and misses."); return; }
-				foe.Hp = Math.Max(0, foe.Hp - (int)damage);
-				if (foe.Member != null) foe.Member.Hp = foe.Hp;
+				damage = Hurt(foe, (int)damage);
 				StartDamageAction(foe, (int)damage);
 				Pop(DamageSpot(foe), (int)damage);
 				Note(who.Name + " throws " + weapon.Name + " at " + foe.Name + " for " + damage + ".");
@@ -754,7 +752,7 @@ namespace OpenFF.Client
 					if (!t.Alive || !Ff4Party.Party.RemoveItem(itemId, 1)) continue;
 					used++;
 					int before = t.Hp;
-					if (effect.Hp > 0) t.Hp = Math.Min(t.MaxHp, t.Hp + effect.Hp);
+					if (effect.Hp > 0) Mend(t, effect.Hp);
 					if (t.Member != null) { t.Member.Hp = t.Hp; if (effect.Mp > 0) t.Member.Mp = Math.Min(t.Member.MaxMp, t.Member.Mp + effect.Mp); }
 					if (t.Hp != before) Pop(DamageSpot(t), t.Hp - before, true);
 				}
@@ -975,8 +973,7 @@ namespace OpenFF.Client
 					if (!m.Alive || Has(m, CStone) || Untargetable(m)) continue;
 					int heal = Math.Max(1, m.MaxHp / 20);
 					int before = m.Hp;
-					m.Hp = Math.Min(m.MaxHp, m.Hp + heal);
-					if (m.Member != null) m.Member.Hp = m.Hp;
+					this.Mend(m, heal);
 					Pop(DamageSpot(m), m.Hp - before, true);
 				}
 			}
