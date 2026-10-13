@@ -290,6 +290,15 @@ internal static partial class GlobalScope
 				}
 			}
 
+			/// <summary>PORT (FF4): eff::CEffectMng::setRotation - the effect object's x, y and z turns (0..0xffff).</summary>
+			public void setRotation(int _id, int x, int y, int z)
+			{
+				if (isEffectObject(_id))
+				{
+					effect_[_id].object_.SetRotationXYZ(x, y, z);
+				}
+			}
+
 			public void enableBoxCulling(int _id, bool enable)
 			{
 				if (isEffectObject(_id))
