@@ -322,6 +322,35 @@ namespace OpenFF.Client
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: jump failed: " + ex.Message); }
 					break;
 				}
+				case "hich":
+				{
+					// hich: the map's cast table as the engine read it - each entry's id, kind and character index.
+					var com = GlobalScope.evt.CHichParameterManager.getInstance().getHichManParam();
+					List<string> rows = new List<string>();
+					for (int i = 0; i < com.m_NumMan && i < com.m_HichInd.Length; i++)
+						rows.Add(i + ": id " + com.m_HichInd[i].m_Id + " " + com.m_HichInd[i].m_CharaName + " at " + string.Join(",", com.m_HichInd[i].m_Position) + " kind " + com.m_HichInd[i].m_Kind + " param " + com.m_HichInd[i].m_KindParam + " chara " + GlobalScope.evt.CHichParameterManager.getInstance().CharaIndex(i));
+					Log.Write(LogChannel.General, "drive: hich " + com.m_NumMan + " entries | " + string.Join(" | ", rows));
+					break;
+				}
+				case "approach":
+				{
+					// approach <cast>: the hero 14 units south of that cast's place in the map's cast table (a chest), facing it, to press the action key at.
+					try
+					{
+						uint hich = uint.Parse(step.Arg.Trim());
+						var table = GlobalScope.evt.CHichParameterManager.getInstance().getHichManParam();
+						OpenFF.Vector3? found = null;
+						for (int i = 0; i < table.m_NumMan && i < table.m_HichInd.Length; i++)
+							if (table.m_HichInd[i].m_Id == hich) found = new OpenFF.Vector3(table.m_HichInd[i].m_Position[0], table.m_HichInd[i].m_Position[1], table.m_HichInd[i].m_Position[2]);
+						if (found == null) { Log.Write(LogChannel.General, "drive: approach - no cast " + hich + " in the map's cast table"); break; }
+						OpenFF.Vector3 at = found.Value;
+						OpenFF.Game.Hero.Teleport(new OpenFF.Vector3(at.X, at.Y, at.Z + 14f));
+						OpenFF.Game.Hero.Face(180f);
+						Log.Write(LogChannel.File, "drive: approach " + hich + " at " + at);
+					}
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: approach failed: " + ex.Message); }
+					break;
+				}
 				case "characters":
 					Log.Write(LogChannel.General, "drive: characters" + GlobalScope.characterMng.DescribeCharacters());
 					break;

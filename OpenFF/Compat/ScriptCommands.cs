@@ -276,6 +276,8 @@ namespace OpenFF.Client
 			Dictionary<int, int> uses = new Dictionary<int, int>();
 			Dictionary<int, HashSet<string>> where = new Dictionary<int, HashSet<string>>();
 			int scripts = 0, broken = 0;
+			string opsOf = Options.Get("ff4ops");   // --ff4ops=<command>: each use with its operands, to logs/ff4-ops.txt
+			List<string> opLines = new List<string>();
 			foreach (string name in GameArchive.Chain.Names)
 			{
 				if (!name.EndsWith(".script", StringComparison.OrdinalIgnoreCase) || !name.StartsWith("files/", StringComparison.OrdinalIgnoreCase)) continue;
@@ -289,6 +291,7 @@ namespace OpenFF.Client
 				{
 					int opcode = data[at] | (data[at + 1] << 8);
 					at += 2;
+					int opStart = at;
 					ScriptOp op = ff4.Get(opcode);
 					if (op == null) { broken++; break; }
 					foreach (Operand operand in op.Operands ?? Array.Empty<Operand>())
@@ -299,6 +302,7 @@ namespace OpenFF.Client
 						else { int zero = at < end ? Array.IndexOf(data, (byte)0, at, end - at) : -1; at = zero < 0 ? end + 1 : zero + 1; }
 					}
 					if (at > end) break;
+					if (opsOf != null && string.Equals(ScriptOpTable.Simplify(op.Name), opsOf, StringComparison.OrdinalIgnoreCase)) opLines.Add(map + " @" + (opStart - 2) + ": " + Operands(data, opStart, op));
 					uses.TryGetValue(opcode, out int n);
 					uses[opcode] = n + 1;
 					if (!where.TryGetValue(opcode, out HashSet<string> maps)) where[opcode] = maps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -317,9 +321,24 @@ namespace OpenFF.Client
 				lines.Add(state.PadRight(6) + u.Key.ToString().PadLeft(4) + "  " + name.PadRight(40) + where[u.Key].Count.ToString().PadLeft(5) + " scripts" + u.Value.ToString().PadLeft(7) + " uses   " + sample);
 			}
 			lines.Insert(0, "FF4 script commands in use: " + uses.Count + " across " + scripts + " scripts (" + broken + " walks stopped at an unknown opcode) - " + running + " run, " + quietCount + " skipped on purpose, " + open + " open");
+			if (opsOf != null) System.IO.File.WriteAllLines(System.IO.Path.Combine(AppContext.BaseDirectory, "logs", "ff4-ops.txt"), opLines);
 			string path = System.IO.Path.Combine(AppContext.BaseDirectory, "logs", "ff4-commands.txt");
 			System.IO.File.WriteAllLines(path, lines);
 			Log.Write(LogChannel.General, "script: " + lines[0] + " - " + path);
+		}
+
+		/// <summary>An instruction's operands as text, read from <paramref name="at"/> (just past its opcode).</summary>
+		private static string Operands(byte[] data, int at, ScriptOp op)
+		{
+			List<string> parts = new List<string>();
+			foreach (Operand operand in op.Operands ?? Array.Empty<Operand>())
+			{
+				if (operand == Operand.Byte) { parts.Add(data[at].ToString()); at += 1; }
+				else if (operand == Operand.Word) { parts.Add(BitConverter.ToUInt16(data, at).ToString()); at += 2; }
+				else if (operand == Operand.Dword) { parts.Add(BitConverter.ToInt32(data, at).ToString()); at += 4; }
+				else { int zero = Array.IndexOf(data, (byte)0, at); parts.Add("\"" + System.Text.Encoding.UTF8.GetString(data, at, zero - at) + "\""); at = zero + 1; }
+			}
+			return string.Join(", ", parts);
 		}
 
 		private static bool SameCommand(ScriptOp mine, ScriptOp theirs)
