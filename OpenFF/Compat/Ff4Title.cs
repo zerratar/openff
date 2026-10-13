@@ -369,6 +369,7 @@ namespace OpenFF.Client
 				Ff4NaviMap.NewGame();
 				Ff4Bestiary.NewGame();
 				Ff4Names.NewGame();
+				Ff4Vehicles.NewGame();
 				Ff4Party.NewGame();
 				if (GlobalScope.flags != null) Array.Clear(GlobalScope.flags);
 				Leave(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_WHITE);

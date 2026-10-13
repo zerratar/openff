@@ -49,6 +49,7 @@ namespace OpenFF.Client
 		{
 			Ff4Party.NewGamePlus();
 			Ff4Names.Summon = null;   // SummonSaveParameter::initialize
+			Ff4Vehicles.NewGame();    // the vehicles' places and turns back to nothing
 			_open = true;
 			_mode = Mode.Browse;
 			_question = false;

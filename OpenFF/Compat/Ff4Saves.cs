@@ -40,6 +40,8 @@ namespace OpenFF.Client
 			public Dictionary<int, int> Bestiary;
 			/// <summary>Whyt's name and the ability's as set at the name entry (null: the game's own).</summary>
 			public string SummonName, AbilityName;
+			/// <summary>The vehicles' places and turns, the magiship's Earth and Moon spots, the black chocobo's home.</summary>
+			public Ff4Vehicles.Saved Vehicles;
 		}
 
 		public string ChunkId => "ff4/field";
@@ -72,6 +74,7 @@ namespace OpenFF.Client
 			d.Bestiary = Ff4Bestiary.ForSave();
 			d.SummonName = Ff4Names.Summon;
 			d.AbilityName = Ff4Names.Ability;
+			d.Vehicles = Ff4Vehicles.ForSave();
 			Log.Write(LogChannel.General, "save: field - " + d.Map + " at " + d.X.ToString("0") + "," + d.Y.ToString("0") + "," + d.Z.ToString("0") + " rot " + d.Rotation + ", " + d.Flags.Count + " flag(s)");
 			return d;
 		}
@@ -101,6 +104,7 @@ namespace OpenFF.Client
 			Ff4Names.NewGame();
 			if (!string.IsNullOrEmpty(d.SummonName)) Ff4Names.Summon = d.SummonName;
 			Ff4Names.Ability = d.AbilityName;
+			Ff4Vehicles.Restore(d.Vehicles);
 			Log.Write(LogChannel.General, "load: field - " + (d.Map ?? "?") + " at " + d.X.ToString("0") + "," + d.Y.ToString("0") + "," + d.Z.ToString("0") + ", " + d.Flags.Count + " flag(s)");
 		}
 	}

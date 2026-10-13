@@ -51,7 +51,13 @@ namespace OpenFF.Client
 			{ "setMapMaterialAlpha", SetMapMaterialAlpha },                   // (material, alpha 0..31, ?, ?)
 			{ "clippingBBSetting", ClippingBBSetting },                       // (cast, x, y, z, w, h, d): the box the view-volume test uses
 			{ "callEndRoll", Ff4EndRoll.CallEndRoll },                        // (?, ?, ?): the staff roll over the ending
-			{ "bootProgram", Ff4Cutscene.BootProgram },                       // (kind, event, part, ...): the ending's scene, or a scene after the next event battle
+			{ "bootProgram", Ff4Cutscene.BootProgram },
+			// The vehicles' state (WSCVehicle, Ff4Vehicles): FF4's numbers, not FF3's vehicle table.
+			{ "setVehiclePosition", Ff4Vehicles.SetVehiclePosition },        // (n, x, y, z, rx, ry, rz)
+			{ "setVehicleRot", Ff4Vehicles.SetVehicleRot },                  // (n, rx, ry, rz)
+			{ "storeMagishipPos", Ff4Vehicles.StoreMagishipPos },            // (0 Earth / 1 Moon, ?, ?)
+			{ "loadMagishipPos", Ff4Vehicles.LoadMagishipPos },              // (0 Earth / 1 Moon, ?, ?)
+			{ "setBackChocoboBackPoint", Ff4Vehicles.SetBackChocoboBackPoint }, // (x, y, z, ?, ?)                       // (kind, event, part, ...): the ending's scene, or a scene after the next event battle
 			{ "saveCameraPosAndTarget", Ff4Extras.SaveCamera },               // (?, ?): the camera kept for the Fat Chocobo's window to go back to
 			{ "shiftState", Ff4ShiftState.ShiftState },                       // (state, ...): another world state once the event lets go
 			{ "setMapJumpObject", SetMapJumpObject },                         // (name, map, x, y, z, ?, ?, ?, at x, y, z): an exit box
