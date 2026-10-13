@@ -47,6 +47,7 @@ namespace OpenFF.Client
 			{ "messagePermission", MessagePermission },                       // (allow): whether a press may turn the message on
 			{ "clearCountJump", ClearCountJump },                             // (count, label): jumps when the game has been cleared `count` times
 			// The chests (Ff4Chests): FF4's script makes each one; FF3's handler only dresses a cast the map already has.
+			{ "eventCameraVibratLoopSetting", VibrationLoop },                // (1 loop / 0 not, ?, ?): the camera shake held going
 			{ "setMapMaterialAlpha", SetMapMaterialAlpha },                   // (material, alpha 0..31, ?, ?)
 			{ "clippingBBSetting", ClippingBBSetting },                       // (cast, x, y, z, w, h, d): the box the view-volume test uses
 			{ "glayScaleMap", Ff4ColorScale.Map },                            // (frames, from %, to %): the stage greyed
@@ -599,6 +600,14 @@ namespace OpenFF.Client
 		/// (FF3's handler allowed it whatever the operand, so a press cleared the text and left the window empty). In a
 		/// story scene it only marks the scene's message as allowed (EventConteManager +0x635), as FF3's did.
 		/// </summary>
+		private static void VibrationLoop(GlobalScope.ScriptEngine engine)
+		{
+			bool loop = engine.getDword() == 1;
+			engine.getByte();
+			engine.getByte();
+			Ff4Cutscene.Guard("vibration loop", () => GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera().composit2.Loop = loop);
+		}
+
 		/// <summary>setMapMaterialAlpha(material, alpha, ?, ?): CStageMng::setMaterialAlpha - a part of the map faded or gone.</summary>
 		private static void SetMapMaterialAlpha(GlobalScope.ScriptEngine engine)
 		{

@@ -277,8 +277,13 @@ internal static partial class GlobalScope
 
 								private VecFx32 m_PeakOffset = new VecFx32();
 
+								/// <summary>PORT (FF4): eventCameraVibratLoopSetting - while set the shake keeps going, its frames not counted down
+								/// (libff4's CCameraVibration byte 4); a stop clears it.</summary>
+								public bool Loop;
+
 								public void initialize()
 								{
+									Loop = false;
 									m_Turn = false;
 									m_State = VIBRATION_STATE.VIBRATION_ERR;
 									m_CountFrame = 0;
@@ -302,7 +307,7 @@ internal static partial class GlobalScope
 									{
 										return;
 									}
-									if (m_CountFrame-- < 0)
+									if (!Loop && m_CountFrame-- < 0)
 									{
 										initialize();
 									}
