@@ -120,7 +120,7 @@ drawn sword and Asura's three faces, Dr. Lugae's transformation, the King and Qu
 Yang's Kick from the monsters' side, Rydia joining the Golbez fight unseen and showing herself (AddPlayer, BABShow),
 Golbez and FuSoYa's Twin Meteor against Zemus (PairMagic), Golbez's Crystal at Zeromus, the events' own models (the
 friends' prayers over the last fight, Anna over Edward's), an event's kill ending the fight, the win's motions as
-addWinningMotion binds them (b_pl<type>_ending, the pig's and the toad's). Not FF4's yet: hit reactions; the developer
+addWinningMotion binds them (b_pl<type>_ending, the pig's and the toad's). Not FF4's yet: the developer
 room's monsters that fight with members' commands (Aim, Analyze, Brace, Kick, Recall, Bluff, Pray); an event's
 OffInvokeProdaction (the ability's name still shown).
 
