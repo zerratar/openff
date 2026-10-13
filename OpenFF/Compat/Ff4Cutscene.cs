@@ -1224,6 +1224,7 @@ namespace OpenFF.Client
 			if (_binds.Count > 0) TickBinds();
 			if (_autoRot.Count > 0) TickAutoRotation();
 			Ff4ColorScale.Tick();
+			Ff4FieldBg.Tick();
 			foreach (Plate plate in _plates.Values)
 			{
 				if (plate.AlphaFrames <= 0) continue;
@@ -1775,6 +1776,7 @@ namespace OpenFF.Client
 			_nextBattle = null;
 			_autoRot.Clear();
 			Ff4ColorScale.Clear();
+			Ff4FieldBg.Clear();
 			_slots.Clear();
 			// The hero comes back only from a story scene left halfway (it hid them); a map's own event that hid them
 			// (DisplayCharacter 0 at its start, as the castle's arrival does) shows them again itself.

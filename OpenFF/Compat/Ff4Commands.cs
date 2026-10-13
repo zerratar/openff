@@ -50,6 +50,10 @@ namespace OpenFF.Client
 			{ "eventCameraVibratLoopSetting", VibrationLoop },                // (1 loop / 0 not, ?, ?): the camera shake held going
 			{ "setMapMaterialAlpha", SetMapMaterialAlpha },                   // (material, alpha 0..31, ?, ?)
 			{ "clippingBBSetting", ClippingBBSetting },                       // (cast, x, y, z, w, h, d): the box the view-volume test uses
+			{ "bgLoad", Ff4FieldBg.BgLoad },                                  // (plane, ?, ?, screen, char, palette): a 2D picture over the field
+			{ "bgAlphaBlendSetting", Ff4FieldBg.BlendSetting },               // (plane 1, plane 2, ev1, ev2)
+			{ "createBGAlphaBlendControlTask", Ff4FieldBg.Fade },             // (ev1 from, to, frames, ev2 from, to, frames)
+			{ "setVisiblePlane", Ff4FieldBg.VisiblePlane },                   // (plane, on)
 			{ "glayScaleMap", Ff4ColorScale.Map },                            // (frames, from %, to %): the stage greyed
 			{ "glayScaleCharacter", Ff4ColorScale.Character },                // (cast, frames, from %, to %)
 			{ "glayScaleCharaAll", Ff4ColorScale.CharaAll },                  // (frames, from %, to %)
