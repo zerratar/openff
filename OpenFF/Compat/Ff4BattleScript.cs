@@ -540,6 +540,8 @@ namespace OpenFF.Client
 				Cast(actor, spell, targets.Count > 0 ? targets : _foes.FindAll(f => f.Alive));
 				return true;
 			}
+			// A monster's own specials (a boss's action, the mist, a summons) as its turn would run them.
+			if (actor.IsMonster && (QuietTurn(actor, ability) || EnemySummon(actor, ability) || MistTurn(actor, ability) || BossTurn(actor, ability))) return true;
 			Log.First(LogChannel.File, "battle-event-ability-" + ability, 1, () => "battle: event action ability " + ability + " not in yet");
 			return false;
 		}

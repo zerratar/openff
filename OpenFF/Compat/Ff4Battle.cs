@@ -114,6 +114,7 @@ namespace OpenFF.Client
 			public Npc MistNpc;
 			public int[] Free = new int[5];   // the battle events' variables on it (BaseBattleCharacter's free variables)
 			public int DecidedAbility, DecidedTarget = 1;   // its turnAction as decided: the ability (1 Attack, a spell's or item's id...) and a monster's target type
+			public bool SwordDrawn;           // Odin's sword raised (MABDrawSword): motion 102 its idle until it next acts
 			public bool NotDeath;             // an event's NotDeathFlagOn: it cannot fall
 			public int AtwLeft, AtwMax;       // a decided action's wait before it joins the turns (ATG state 2), 1/4096ths of a frame
 			public Action Pending;            // the action waiting it out
@@ -749,7 +750,7 @@ namespace OpenFF.Client
 				if (!f.Alive || !f.Acted || f.Npc == null) continue;
 				if (!f.Npc.MotionDone) continue;
 				if (f.PlayerType >= 0) { f.IdleMotion = EnemyPlayerIdle(f); Play(f, f.IdleMotion, true, 4); }
-				else { try { f.Npc.PlayMotion(101, true, 4); } catch (Exception) { } }
+				else { try { f.Npc.PlayMotion(MonsterIdle(f), true, 4); } catch (Exception) { } }
 				f.Acted = false;
 			}
 		}
@@ -841,7 +842,9 @@ namespace OpenFF.Client
 						Fighter monster = f;
 						monster.Queued = true;
 						(monster.DecidedAbility, monster.DecidedTarget) = DecideMonsterAction(monster);
-						_queue.Add((monster, () => MonsterActs(monster)));
+						// The turn keeps what was decided: an event's action in between (Asura's face turned before her spell) is its own.
+						(int decided, int decidedTarget) = (monster.DecidedAbility, monster.DecidedTarget);
+						_queue.Add((monster, () => { monster.DecidedAbility = decided; monster.DecidedTarget = decidedTarget; MonsterActs(monster); }));
 					}
 				}
 			}
@@ -1665,7 +1668,7 @@ namespace OpenFF.Client
 				target = coverer;
 			}
 			Acted(foe, foe.DecidedAbility > 1 ? foe.DecidedAbility : 1, target);   // an ability not in yet is struck as a blow, but known by its id
-			try { foe.Npc.PlayMotion(style != null && style.Motion > 0 ? style.Motion : 201, false, 3); foe.Acted = true; } catch (Exception) { }
+			try { foe.Npc.PlayMotion(style != null && style.Motion > 0 ? style.Motion : MonsterAttackMotion(foe), false, 3); foe.Acted = true; } catch (Exception) { }
 			foe.Gauge = 0f;
 			bool hit = Hits(foe, target);
 			int damage = hit ? Damage(foe, target) * (style?.Factor ?? 1) : 0;

@@ -10,10 +10,36 @@ namespace OpenFF.Client
 {
 	internal sealed partial class Ff4Battle
 	{
+		private const int Asura = 190, Odin = 195;
+
+		/// <summary>A monster's idle loop: 101, but Asura's by her face (BattleAsura::startIdleMotion: 101 + face) and Odin's with
+		/// his sword drawn (MABDrawSword: 102).</summary>
+		private static int MonsterIdle(Fighter f)
+		{
+			int id = f.Monster?.Id ?? -1;
+			if (id == Asura) return 101 + Math.Clamp(f.Free[0], 0, 2);
+			if (id == Odin && f.SwordDrawn) return 102;
+			return 101;
+		}
+
+		/// <summary>A monster's plain attack motion: 201, but Asura's by her face (startAttackMotion: 201 + face).</summary>
+		private static int MonsterAttackMotion(Fighter f) => f.Monster?.Id == Asura ? 201 + Math.Clamp(f.Free[0], 0, 2) : 201;
+
+		/// <summary>A one-shot motion played to its end, then the action is over (the handlers' isEndOfMotion wait).</summary>
+		private void PlayToEnd(Fighter foe, int motion)
+		{
+			try { foe.Npc?.PlayMotion(motion, false, 5); } catch (Exception) { }
+			foe.Acted = true;
+			int waited = 0;
+			void Wait() { if (foe.Npc != null && !foe.Npc.MotionDone && ++waited < 300) After(1, Wait); }
+			After(1, Wait);
+		}
+
 		/// <summary>A boss's own action (3000..3038 but the mist's, done elsewhere). True when the ability was one.</summary>
 		private bool BossTurn(Fighter foe, int ability)
 		{
 			int id = foe.Monster?.Id ?? -1;
+			if (ability != 3017) foe.SwordDrawn = false;   // Odin's raised sword lasts until he next acts
 			switch (ability)
 			{
 				case 3003:   // BABGrowingGigantic: Mom Bomb grows - the encounter becomes 954, the new one keeping the HP
@@ -160,10 +186,27 @@ namespace OpenFF.Client
 				case 3000:   // MABOctManmosLegErase: legs come off
 					LegErase(foe);
 					return true;
-				case 3017: case 3021:
-					Log.First(LogChannel.File, "battle-boss-" + ability, 1, () => "battle: boss action " + ability + " (" + foe.Name + ") not in yet - a pause in its place");
-					After(30, () => { });
+				case 3017:   // MABDrawSword: Odin raises his sword (motion 102 once, then held) - Zantetsuken comes next
+					foe.SwordDrawn = true;
+					PlayToEnd(foe, 102);
 					return true;
+				case 3020:   // MABChangeOfExpression: Asura turns her face (motion 301 + face), the next one (2 back to 0) - her opening event's
+				{
+					int face = Math.Clamp(foe.Free[0], 0, 2);
+					PlayToEnd(foe, 301 + face);
+					foe.Free[0] = face == 2 ? 0 : face + 1;
+					Note(foe.Name + " turns to face " + foe.Free[0]);
+					return true;
+				}
+				case 3021:   // MABReChangeOfExpression: Asura turns her face (motion 401 + face), one face back, free variable 1 set
+				{
+					int face = Math.Clamp(foe.Free[0], 0, 2);
+					PlayToEnd(foe, 401 + face);
+					foe.Free[0] = face == 0 ? 2 : face - 1;
+					foe.Free[1] = 1;
+					Note(foe.Name + " turns to face " + foe.Free[0]);
+					return true;
+				}
 			}
 			return false;
 		}
