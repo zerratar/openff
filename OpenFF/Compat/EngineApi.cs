@@ -324,6 +324,10 @@ namespace OpenFF.Client
 			GlobalScope.characterMng.removeMotion(id, set);
 		}
 
+		/// <summary>A character gone: its slot's sets forgotten, so the next character in the slot (an event's model made again)
+		/// binds its own.</summary>
+		internal static void ForgetMotions(int id) => _boundMotions.Remove(id);
+
 		internal static void Warn(string key, string message)
 		{
 			Log.First(LogChannel.General, "api-" + key, 3, () => "engine api: " + message);
@@ -1101,6 +1105,9 @@ namespace OpenFF.Client
 			p.setDirection(new GlobalScope.VecFx32(d));
 		}
 
+		/// <summary>The shadow's transparency, 0..31 (CCharacterMng::setShadowAlpha).</summary>
+		public void ShadowAlpha(int alpha) => Player?.setShadowAlpha(alpha);
+
 		/// <summary>The model turned about all three axes, in degrees (CCharacterMng::setRotation) - a part placed as its table has it.</summary>
 		public void RotateExactly(float x, float y, float z)
 		{
@@ -1202,6 +1209,7 @@ namespace OpenFF.Client
 			_removed = true;
 			if (p != null)
 			{
+				EngineApi.ForgetMotions(p.getCharacterId());
 				Game.Guard("Npc.Remove", p.terminate);
 			}
 		}
