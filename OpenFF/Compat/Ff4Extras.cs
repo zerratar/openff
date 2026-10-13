@@ -9,6 +9,11 @@
 // babil_music.msd id, the length in seconds - a song's flag set as its BGM first loads (setFlagOnLoadBGMHook). A song chosen
 // plays for its length; then Play one stops it (faded over 15 frames), Play all goes on down the list, and Looping starts
 // the one again or the list over (settingBGM, updatePlaying).
+//
+// The Event Theatre (et::ETSubState) lists theater_data.bbd's scenes whose flag is up - 8-byte records: the event and its
+// part (eNN_PP), the flag (701...; each scene sets its own as it plays), the name's babil_theater.msd id. One chosen plays
+// with flag 0/700 up (the scenes' scripts pass over their story's business on it); its end comes back here rather than
+// going on with the story (ContEventPart::eventEnd), the party where it stood. Back puts 700 down.
 
 using System;
 using System.Collections.Generic;
@@ -113,6 +118,70 @@ namespace OpenFF.Client
 
 		private static void Se(int number) => Game.Audio.PlaySe(0, number);   // playSECommon: 0 buzzer, 1 decide, 2 cancel, 3 cursor
 
+		// ---- the scenes ----
+
+		private sealed class Scene
+		{
+			public int Event, Part, Flag;
+			public uint Name;
+		}
+
+		private static List<Scene> _scenes;
+
+		private static List<Scene> Scenes
+		{
+			get
+			{
+				if (_scenes != null) return _scenes;
+				_scenes = new List<Scene>();
+				try
+				{
+					if (GameArchive.Chain != null && TableFiles.ReadAny(GameArchive.Chain, "theater_data.bbd", out byte[] d))
+					{
+						for (int at = 0; at + 8 <= d.Length; at += 8)
+						{
+							_scenes.Add(new Scene { Event = d[at], Part = d[at + 1], Flag = BitConverter.ToUInt16(d, at + 2), Name = BitConverter.ToUInt32(d, at + 4) });
+						}
+					}
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "extras: theater_data.bbd: " + ex.Message); }
+				return _scenes;
+			}
+		}
+
+		private const int TheatreFlag = 700;
+		private List<Scene> _seen = new List<Scene>();
+		private static int _theatreCursor, _theatreScroll;
+		private static string _theatreMap;
+		private static GlobalScope.VecFx32 _theatrePosition;
+
+		/// <summary>A scene ends: one the Event Theatre played goes back to where the party stood and the list comes up again
+		/// (ContEventPart::eventEnd with flag 700 up: part 15, no battle after it). False when the theatre is not playing.</summary>
+		public static bool TheatreSceneEnds()
+		{
+			if (!Flag(TheatreFlag) || _theatreMap == null) return false;
+			Log.Write(LogChannel.General, "extras: the theatre's scene is over - back to " + _theatreMap);
+			Ff4Cutscene.ReturnFromTheatre(_theatreMap, _theatrePosition);
+			_theatreMap = null;
+			_pending = Page.Theatre;
+			return true;
+		}
+
+		private void PlayScene(Scene scene)
+		{
+			string name = "e" + scene.Event.ToString("00") + "_" + scene.Part.ToString("00");
+			_theatreCursor = _cursor;
+			_theatreScroll = _scroll;
+			_theatreMap = Game.Field.Map;
+			try { GlobalScope.VecFx32 at = EngineApi.HeroPlayer?.getPosition(); _theatrePosition = at == null ? null : new GlobalScope.VecFx32(at.x, at.y, at.z); }
+			catch (Exception) { _theatrePosition = null; }
+			SetFlag(TheatreFlag);
+			_page = Page.None;
+			Game.Input.Capture = false;
+			Log.Write(LogChannel.General, "extras: the theatre plays " + name + " (from " + _theatreMap + ")");
+			Ff4Cutscene.PlayFromTheatre(name);
+		}
+
 		// ---- opening and closing ----
 
 		private int _fieldBgm = -1;
@@ -134,6 +203,13 @@ namespace OpenFF.Client
 				_playing = -1;
 				// MPSubState unloads the field's sound: its tune stops as the Music Box comes up.
 				try { GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(0, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0); } catch (Exception) { }
+			}
+			if (page == Page.Theatre)
+			{
+				_seen = Scenes.FindAll(s => Flag(s.Flag));
+				_cursor = Math.Min(_theatreCursor, Math.Max(0, _seen.Count - 1));
+				_scroll = Math.Min(_theatreScroll, _cursor);
+				_theatreCursor = _theatreScroll = 0;
 			}
 			Log.Write(LogChannel.File, "extras: " + page);
 		}
@@ -168,6 +244,7 @@ namespace OpenFF.Client
 			{
 				case Page.Launcher: UpdateLauncher(input); break;
 				case Page.Music: UpdateMusic(input); break;
+				case Page.Theatre: UpdateTheatre(input); break;
 				default:
 					if (input.Pressed(Pad.B)) { Se(2); Close(); }
 					break;
@@ -207,6 +284,33 @@ namespace OpenFF.Client
 			if (input.Pressed(Pad.B)) { Se(2); Close(); return; }
 			if (input.Pressed(Pad.A) && n > 0) { Se(1); PlaySong(_cursor); }
 			TickSong();
+		}
+
+		private void UpdateTheatre(InputState input)
+		{
+			int n = _seen.Count;
+			if (n > 0)
+			{
+				if (input.Pressed(Pad.Up) && _cursor > 0) { _cursor--; Se(3); }
+				if (input.Pressed(Pad.Down) && _cursor < n - 1) { _cursor++; Se(3); }
+				if (_cursor < _scroll) _scroll = _cursor;
+				if (_cursor >= _scroll + 8) _scroll = _cursor - 7;
+			}
+			if (input.Pressed(Pad.B))
+			{
+				// ETSubState: Back puts the theatre's flag down and goes back to the field.
+				byte[,] flags = GlobalScope.flags;
+				if (flags != null) flags[0, TheatreFlag] = 0;
+				Se(2);
+				Close();
+				return;
+			}
+			if (input.Pressed(Pad.A) && n > 0)
+			{
+				if (!Flag(_seen[_cursor].Flag)) { Se(0); return; }
+				Se(1);
+				PlayScene(_seen[_cursor]);
+			}
 		}
 
 		private void PlaySong(int index)
@@ -285,6 +389,19 @@ namespace OpenFF.Client
 					row.Name = row.Present ? Music(_heard[i].Name, "") : "";
 				}
 				Ff4MenuHud.Scroll(h.ListScroll, _heard.Count, 8, _scroll, 864 - 67.5f, always: true);
+			}
+			if (_page == Page.Theatre)
+			{
+				h.Title = Ff4Layouts.Text(51502, "Event Theatre");
+				for (int k = 0; k < 8; k++)
+				{
+					int i = _scroll + k;
+					Ff4MenuHud.CommandRow row = h.ListRow[k];
+					row.Present = i < _seen.Count;
+					row.Lit = i == _cursor;
+					row.Name = row.Present ? Ff4Layouts.Page("babil_theater.msd", _seen[i].Name, "") : "";
+				}
+				Ff4MenuHud.Scroll(h.ListScroll, _seen.Count, 8, _scroll, 864 - 67.5f, always: true);
 			}
 			Ff4MenuHud.Draw(h);
 		}

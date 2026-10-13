@@ -233,6 +233,7 @@ namespace OpenFF.Client
 			Guard("message bar", () => GlobalScope.CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().releaseWindow());
 			Log.Write(LogChannel.General, "script: FF4 cutscene ends, " + _slots.Count + " character(s) still up (step " + LegacyStep.Count + ")");
 			ScriptCommands.ReportDropped("scene " + (SceneStage ?? GlobalScope.stg.CStageMng.CurrentName));
+			if (Ff4Extras.TheatreSceneEnds()) return;
 			if (StartNextBattle())
 			{
 				ShowHero();
@@ -365,6 +366,22 @@ namespace OpenFF.Client
 			Log.Write(LogChannel.General, "script: FF4 story scene " + scene + ", back to " + returnMap + " at (" + x / 4096 + "," + y / 4096 + "," + z / 4096 + ")");
 			Ff4MapChange.ConteJump();
 			JumpTo(scene, new GlobalScope.VecFx32(0, 0, 0));
+		}
+
+		/// <summary>The Event Theatre plays a scene (the event part on its own, eNN_PP).</summary>
+		internal static void PlayFromTheatre(string scene)
+		{
+			ReturnMap = null;
+			Ff4MapChange.ConteJump();
+			JumpTo(scene, new GlobalScope.VecFx32(0, 0, 0));
+		}
+
+		/// <summary>The theatre's scene is over: no battle after it, no story to go on with - back to the field it was chosen on.</summary>
+		internal static void ReturnFromTheatre(string map, GlobalScope.VecFx32 position)
+		{
+			_nextBattle = null;
+			ReturnMap = null;
+			JumpTo(map, position ?? new GlobalScope.VecFx32(0, 0, 0));
 		}
 
 		private static void SetConteNextPart(GlobalScope.ScriptEngine engine)
