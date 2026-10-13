@@ -46,6 +46,9 @@ namespace OpenFF.Client
 			{ "setMessageAlignment", SetMessageAlignment },                   // (align, ?, ?): 0 left, 1 centred, 2 right, until set again
 			{ "messagePermission", MessagePermission },                       // (allow): whether a press may turn the message on
 			{ "clearCountJump", ClearCountJump },                             // (count, label): jumps when the game has been cleared `count` times
+			// The chests (Ff4Chests): FF4's script makes each one; FF3's handler only dresses a cast the map already has.
+			{ "setTreasureItem", Ff4Chests.SetTreasureItem },                 // (cast, item, flag group, flag index, encounter, hidden)
+			{ "setTreasureMoney", Ff4Chests.SetTreasureMoney },               // (cast, gil, flag group, flag index, encounter, hidden)
 			// The party (Ff4PartyCommands).
 			{ "savePartySetting", Ff4PartyCommands.SavePartySetting },        // (withFormation, ?)
 			{ "restorePartySetting", Ff4PartyCommands.RestorePartySetting },  // (withFormation, ?)

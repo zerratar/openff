@@ -59,6 +59,7 @@ namespace OpenFF.Client
 			else OpenFF.Game.Services.Register(new LegacyItems());
 			// FF3's menu part cannot read FF4's party; the engine draws a status menu for FF4 (Ff4Menu).
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4NaviMap());
+			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Chests());
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Menu());
 			// FF4's logos and title are parts of the game's loop; what they show is drawn here (Ff4Title).
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Title.Screen());
