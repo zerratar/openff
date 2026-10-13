@@ -260,6 +260,12 @@ namespace OpenFF.Client
 				Ff4EndRoll.Fill(_rollHud);
 				Ff4MenuHud.Draw(_rollHud, "ff4_roll");
 			}
+			else if (Ff4ScenePrograms.Showing)
+			{
+				// A scene's 2D program's texts (the original staff, a message) on the roll's rows.
+				Ff4ScenePrograms.Fill(_rollHud);
+				Ff4MenuHud.Draw(_rollHud, "ff4_roll");
+			}
 			if (_page == Page.None)
 			{
 				if (_pending == Page.None || !EngineApi.InWorld || Ff4Menu.EventBusy() || Ff4Cutscene.Active) return;

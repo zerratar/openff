@@ -61,7 +61,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>The map's message file (CAST_EVENT_MSD's &lt;map&gt;.msd, UTF-16 in the Steam build), every message's first page.</summary>
-		private static Dictionary<uint, string> MapTexts(string map)
+		internal static Dictionary<uint, string> MapTexts(string map)
 		{
 			Dictionary<uint, string> texts = new Dictionary<uint, string>();
 			try

@@ -215,8 +215,6 @@ namespace OpenFF.Client
 			"setBattleBGM", "bgmContinueForConteEvent", "soundReset", "bgmDivideLoadDataTypeSpecific",
 			// checkCharacterStatusJump jumps when a member carries a status condition (none does here).
 			"checkCharacterStatusJump",
-			// The sub-plane visibility of the DS's second screen.
-			"ce_CallProgParam",
 		};
 
 		/// <summary>

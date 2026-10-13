@@ -139,6 +139,8 @@ namespace OpenFF.Client
 			{ "ce_EndVoice", EndVoice },                     // (): waits for the line to finish
 			// The 2D plates come in a scene spelling (ce_3DS*) and a field one (3DS*, which
 			// Simplify prefixes with "_"); same operands, same handlers.
+			{ "ce_CallProgram", Ff4ScenePrograms.CallProgram },  // (n): the scene's own 2D program (Ff4ScenePrograms)
+			{ "ce_CallProgParam", Ff4ScenePrograms.CallProgParam }, // (6 values): what the program is given
 			{ "ce_3DSSetup", SpriteSetup },                  // (slot, .ncer, .nanr, .ncbr, .nclr): a 2D plate over the scene
 			{ "ce_3DSRelease", SpriteRelease },              // (slot)
 			{ "ce_3DSSetAlpha", SpriteSetAlpha },            // (slot, from, to, frames): 0..31
@@ -227,6 +229,7 @@ namespace OpenFF.Client
 		{
 			_active = false;
 			_autoRot.Clear();
+			Ff4ScenePrograms.Clear();
 			// EventConteManager's cleanup: the skip state goes with the scene. A skipped scene's own fade-in was passed
 			// over; unless a battle or a map follows (each fades itself in), the field comes back from black.
 			bool skipped = EventSkipping || EventSkip == 3;
@@ -1280,6 +1283,7 @@ namespace OpenFF.Client
 			if (_active)
 			{
 				SceneFrame++;   // after this frame's scripts, as eventExecute counts it
+				Ff4ScenePrograms.Tick();
 				try { EngineApi.HeroPlayer?.setHidden(true); } catch (Exception) { }
 				// ContEventPart::onExecutePart: the ending's last scene (conte 0x1b) holds "The End" on flag 10:3 until a
 				// button (or a touch) lets it go.
@@ -1847,6 +1851,7 @@ namespace OpenFF.Client
 		{
 			_nextBattle = null;
 			_autoRot.Clear();
+			Ff4ScenePrograms.Clear();
 			Ff4ColorScale.Clear();
 			Ff4FieldBg.Clear();
 			Ff4FieldEffects.Clear();
