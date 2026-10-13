@@ -667,6 +667,28 @@ internal static partial class GlobalScope
 			}
 		}
 
+		/// <summary>Whether the character's slots hold the motion set now (its data among the slot's eight).</summary>
+		public bool hasMotion(int ctrl, string motname)
+		{
+			if (!isValidCharacter(ctrl))
+			{
+				return false;
+			}
+			int num = motionDataMng.searchDataIndex(const_cast<string>(motname));
+			if (-1 == num)
+			{
+				return false;
+			}
+			for (byte b = 0; b < 8; b++)
+			{
+				if (num == Character[ctrl].motDataIdx[b])
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
 		public void removeMotion(int ctrl, string motname)
 		{
 			if (!isValidCharacter(ctrl))

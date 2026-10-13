@@ -225,8 +225,8 @@ namespace OpenFF.Client
 		// The motion sets a character's model was not loaded with: the battle binds "b_b01" (and a
 		// job's own) onto the same party models it uses on the field, and "b_f<family>" onto a
 		// monster's; the field can do the same. Eight slots per character; a set already bound is
-		// not bound twice.
-		private static readonly Dictionary<int, HashSet<string>> _boundMotions = new Dictionary<int, HashSet<string>>();
+		// not bound twice - asked of the character's own slots (CCharacterMng::hasMotion), which a new character in the
+		// slot starts empty.
 
 		// A motion a mod asked for, held against the field's own motion control: the turn system
 		// and the walk restart the wait/walk motions at every transition, which would cut a cast
@@ -309,24 +309,16 @@ namespace OpenFF.Client
 		internal static void BindMotions(GlobalScope.pl.CBasePlayer player, string set)
 		{
 			int id = player.getCharacterId();
-			if (!_boundMotions.TryGetValue(id, out HashSet<string> sets))
-			{
-				_boundMotions[id] = sets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-			}
-			if (!sets.Add(set)) return;
+			if (GlobalScope.characterMng.hasMotion(id, set)) return;
 			GlobalScope.characterMng.addMotion(id, set);
 		}
 
 		/// <summary>A set bound with BindMotions let go again (CCharacterMng::removeMotion) - a character has eight slots, so the battle's ability sets come and go.</summary>
 		internal static void UnbindMotions(int id, string set)
 		{
-			if (!_boundMotions.TryGetValue(id, out HashSet<string> sets) || !sets.Remove(set)) return;
+			if (!GlobalScope.characterMng.hasMotion(id, set)) return;
 			GlobalScope.characterMng.removeMotion(id, set);
 		}
-
-		/// <summary>A character gone: its slot's sets forgotten, so the next character in the slot (an event's model made again)
-		/// binds its own.</summary>
-		internal static void ForgetMotions(int id) => _boundMotions.Remove(id);
 
 		internal static void Warn(string key, string message)
 		{
@@ -1209,7 +1201,6 @@ namespace OpenFF.Client
 			_removed = true;
 			if (p != null)
 			{
-				EngineApi.ForgetMotions(p.getCharacterId());
 				Game.Guard("Npc.Remove", p.terminate);
 			}
 		}
