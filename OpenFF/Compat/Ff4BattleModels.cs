@@ -119,7 +119,8 @@ namespace OpenFF.Client
 		{
 			EventModel m = EventModelOf(handle);
 			if (m == null) return;
-			try { m.Npc.PlayMotion(motion, loop, blend); } catch (Exception) { }
+			// A field set's motions register under OpenFF's field numbers (GameProfile.FieldMotionId: Anna's 1000 is 1001).
+			try { m.Npc.PlayMotion((int)GameProfile.FieldMotionId((uint)motion), loop, blend); } catch (Exception) { }
 		}
 	}
 }
