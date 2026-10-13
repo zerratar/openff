@@ -51,6 +51,7 @@ namespace OpenFF.Client
 			{ "setMapMaterialAlpha", SetMapMaterialAlpha },                   // (material, alpha 0..31, ?, ?)
 			{ "clippingBBSetting", ClippingBBSetting },                       // (cast, x, y, z, w, h, d): the box the view-volume test uses
 			{ "callEndRoll", Ff4EndRoll.CallEndRoll },                        // (?, ?, ?): the staff roll over the ending
+			{ "bootProgram", Ff4Cutscene.BootProgram },                       // (kind, event, part, ...): the ending's scene, or a scene after the next event battle
 			{ "saveCameraPosAndTarget", Ff4Extras.SaveCamera },               // (?, ?): the camera kept for the Fat Chocobo's window to go back to
 			{ "shiftState", Ff4ShiftState.ShiftState },                       // (state, ...): another world state once the event lets go
 			{ "setMapJumpObject", SetMapJumpObject },                         // (name, map, x, y, z, ?, ?, ?, at x, y, z): an exit box
@@ -475,14 +476,19 @@ namespace OpenFF.Client
 			_eventBattle = 1;
 			engine.suspendRedo();
 			int opening = type == 1 ? Ff4Battle.OpenBack : type == 2 ? Ff4Battle.OpenSurprise : Ff4Battle.OpenNormal;
+			string scene = Ff4Cutscene.TakeBootScene();
 			BlurRotate.StartEncounter(() =>
 			{
 				_eventBattle = 2;
 				Ff4Battle.Instance?.SetNextOpening(opening);
+				// bootProgram(1): the battle goes on to its scene, not back to the field.
+				if (scene != null && Ff4Battle.Instance != null) Ff4Battle.Instance.AfterBattle = () => Ff4Cutscene.PlayBootScene(scene);
 				if (Ff4Battle.Instance == null || !Ff4Battle.Instance.StartParty(party))
 				{
 					Log.Write(LogChannel.General, "script: bootEventBattle " + party + " could not start");
 					Ff4Battle.Instance?.SetNextOpening(Ff4Battle.OpenNormal);
+					if (Ff4Battle.Instance != null) Ff4Battle.Instance.AfterBattle = null;
+					if (scene != null) Ff4Cutscene.PlayBootScene(scene);
 				}
 			});
 		}

@@ -216,8 +216,12 @@ namespace OpenFF.Client
 			// The casts' shadows follow their "kosi" joint (ce_ShadowSetting) and drop onto the stage's
 			// collision under it, as FF4's shadow does through its ground interface.
 			GlobalScope.ds.sys3d.CShadowObject.GroundQuery = LegacyField.GroundHitFx;
-			Log.Write(LogChannel.General, "script: FF4 cutscene starts on " + GlobalScope.stg.CStageMng.CurrentName + " (step " + LegacyStep.Count + ")");
+			_scene = GlobalScope.stg.CStageMng.CurrentName;
+			_stageSwapped = false;
+			Log.Write(LogChannel.General, "script: FF4 cutscene starts on " + _scene + " (step " + LegacyStep.Count + ")");
 		}
+
+		private static string _scene;
 
 		private static void EndEvent(GlobalScope.ScriptEngine engine)
 		{
@@ -242,7 +246,9 @@ namespace OpenFF.Client
 			}
 			// FF4's event part hands back to the world at the return map; here the scene ran on the
 			// world part all along, so the hand-back is a map jump.
-			if (!string.IsNullOrEmpty(ReturnMap) && !string.Equals(ReturnMap, GlobalScope.stg.CStageMng.CurrentName, StringComparison.OrdinalIgnoreCase))
+			bool swapped = _stageSwapped;
+			_stageSwapped = false;
+			if (!string.IsNullOrEmpty(ReturnMap) && (swapped || !string.Equals(ReturnMap, GlobalScope.stg.CStageMng.CurrentName, StringComparison.OrdinalIgnoreCase)))
 			{
 				// The hero stays unseen through the steps before the map goes (Steam's scene has no field hero on stage):
 				// leaving the map shows them (MapLeft), and the next map's own arrival hides them again if it wants.
@@ -364,6 +370,44 @@ namespace OpenFF.Client
 			ReturnPosition = new GlobalScope.VecFx32(x, y, z);
 			string scene = "e" + ev.ToString("00") + "_" + part.ToString("00");
 			Log.Write(LogChannel.General, "script: FF4 story scene " + scene + ", back to " + returnMap + " at (" + x / 4096 + "," + y / 4096 + "," + z / 4096 + ")");
+			Ff4MapChange.ConteJump();
+			JumpTo(scene, new GlobalScope.VecFx32(0, 0, 0));
+		}
+
+		// bootProgram(kind, event, part, ...): babilCommand_BootProgram. 0 - the ending's last scene now (part 7 with the conte
+		// 0x1b: e27_00, the screens faded out; it goes back to t24_00 itself); 1 - the next event battle goes on to the scene
+		// e<event>_<part> rather than back to the field (OutsideToBattle's flag 2, its next part 7).
+		private static string _bootScene;
+
+		internal static void BootProgram(GlobalScope.ScriptEngine engine)
+		{
+			int kind = (short)engine.getWord();
+			int ev = (int)engine.getDword() & 0xFF, part = (int)engine.getDword() & 0xFF;
+			engine.getDword(); engine.getDword(); engine.getDword();
+			if (kind == 0)
+			{
+				Log.Write(LogChannel.General, "script: FF4 bootProgram - the ending's scene e27_00");
+				PlayBootScene("e27_00");
+			}
+			else if (kind == 1)
+			{
+				_bootScene = "e" + ev.ToString("00") + "_" + part.ToString("00");
+				Log.Write(LogChannel.General, "script: FF4 bootProgram - " + _bootScene + " after the next event battle");
+			}
+		}
+
+		/// <summary>The scene bootProgram(1) left for the next event battle to go on to (null for none); taken once.</summary>
+		internal static string TakeBootScene()
+		{
+			string scene = _bootScene;
+			_bootScene = null;
+			return scene;
+		}
+
+		internal static void PlayBootScene(string scene)
+		{
+			ReturnMap = null;
+			_nextBattle = null;
 			Ff4MapChange.ConteJump();
 			JumpTo(scene, new GlobalScope.VecFx32(0, 0, 0));
 		}
@@ -1237,6 +1281,10 @@ namespace OpenFF.Client
 			{
 				SceneFrame++;   // after this frame's scripts, as eventExecute counts it
 				try { EngineApi.HeroPlayer?.setHidden(true); } catch (Exception) { }
+				// ContEventPart::onExecutePart: the ending's last scene (conte 0x1b) holds "The End" on flag 10:3 until a
+				// button (or a touch) lets it go.
+				if (_scene == "e27_00" && GlobalScope.FlagManager.singleton().get(10, 3) != 0 && (Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B)))
+					GlobalScope.FlagManager.singleton().reset(10, 3);
 			}
 			if (_binds.Count > 0) TickBinds();
 			if (_autoRot.Count > 0) TickAutoRotation();
@@ -1699,6 +1747,10 @@ namespace OpenFF.Client
 		/// </summary>
 		public static bool StageSwapPending;
 
+		// The scene put its own stage up (ce_SetMap): its end is a field of that name loaded afresh, its scripts run (e27_00
+		// plays on t24_00 and hands back to t24_00), not the scene's stage kept.
+		private static bool _stageSwapped;
+
 		private static void SetMap(GlobalScope.ScriptEngine engine)
 		{
 			string map = engine.getString();
@@ -1707,6 +1759,7 @@ namespace OpenFF.Client
 			Guard("ce_SetMap " + map, () =>
 			{
 				StageSwapPending = true;
+				_stageSwapped = true;
 				GlobalScope.sceneMng.gotoStage(map);
 				GlobalScope.stageMng.setStage(map);
 				Log.Write(LogChannel.General, "script: FF4 ce_SetMap " + map + " replaces " + from + " within the scene");
