@@ -47,6 +47,9 @@ namespace OpenFF.Client
 			{ "messagePermission", MessagePermission },                       // (allow): whether a press may turn the message on
 			{ "clearCountJump", ClearCountJump },                             // (count, label): jumps when the game has been cleared `count` times
 			// The chests (Ff4Chests): FF4's script makes each one; FF3's handler only dresses a cast the map already has.
+			{ "glayScaleMap", Ff4ColorScale.Map },                            // (frames, from %, to %): the stage greyed
+			{ "glayScaleCharacter", Ff4ColorScale.Character },                // (cast, frames, from %, to %)
+			{ "glayScaleCharaAll", Ff4ColorScale.CharaAll },                  // (frames, from %, to %)
 			{ "createBindObject", Ff4Cutscene.CreateBindObject },             // (cast, model, joint, x, y, z, rx, ry, rz): a model on a cast's joint
 			{ "setVisibleBindObject", Ff4Cutscene.SetVisibleBindObject },     // (cast, joint, shown)
 			{ "deleteBindObject", Ff4Cutscene.DeleteBindObject },             // (cast, joint)

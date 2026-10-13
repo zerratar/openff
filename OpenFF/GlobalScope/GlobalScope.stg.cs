@@ -539,6 +539,9 @@ internal static partial class GlobalScope
 
             private CFileData BoxData = new CFileData();
 
+            /// <summary>The stage's model (CModelSet's model in use), for the grey-scale fades.</summary>
+            public NNSG3dResMdl ModelResource => m_ModelSet.getMdlResource();
+
             /// <summary>stg::CStageMng::enableFog: with a stage up, G3X fog on or off and every stage material fogged.</summary>
             public void enableFog(bool on)
             {
