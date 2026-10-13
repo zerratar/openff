@@ -87,6 +87,7 @@ namespace OpenFF.Client
 		{
 			_help = BattleText(0x11231, "The party escaped!");
 			_helpUntil = -1;
+			LastResult = 2;
 			Note("the party escapes: " + _help);
 			Game.Audio.PlaySe(0x65, 5);
 			List<Fighter> running = _party.FindAll(f => f.Alive && CanAct(f));

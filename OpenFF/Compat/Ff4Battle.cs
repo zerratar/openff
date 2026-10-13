@@ -2094,6 +2094,10 @@ namespace OpenFF.Client
 		private bool _closing;
 		private bool _gameOver;   // the loss ends the game: the title comes once the fight is closed
 
+		/// <summary>How the last fight ended, as BattleBehaviorManager::sendResultTypeToOutside tells the field (battleResultJump):
+		/// 0 won, 1 lost, 2 escaped.</summary>
+		public static int LastResult;
+
 		/// <summary>The last foe is down: the panel goes and the screens fade to black, the result coming in as they return.</summary>
 		private void BeginWin()
 		{
@@ -2215,6 +2219,7 @@ namespace OpenFF.Client
 				_pages.Add(items);
 			}
 			if (!Ff4BattleStage.Active) foreach (Fighter f in _party) { if (f.Alive) Play(f, 2007); }   // on the stage VictoryPose has posed them
+			LastResult = 0;
 			Log.Write(LogChannel.General, "battle: won - " + _expWon + " exp, " + _gilWon + " gil. " + string.Join(" ", lines));
 		}
 
@@ -2227,6 +2232,7 @@ namespace OpenFF.Client
 			if (!BattleParameterFlag(0xB)) { _help = BattleText(0x70, "Your party has been defeated."); _helpUntil = -1; }
 			// Every slot: a scene's battle plays its music in whichever slot its script chose.
 			try { for (int slot = 0; slot < 4; slot++) GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(15, (GlobalScope.MatrixSound.enMtxBGMSlot)slot); } catch (Exception) { }
+			LastResult = 1;
 			Log.Write(LogChannel.General, "battle: lost - " + (_help ?? "(no line)"));
 		}
 

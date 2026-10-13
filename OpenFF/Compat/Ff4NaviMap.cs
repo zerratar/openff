@@ -30,7 +30,7 @@ namespace OpenFF.Client
 		// The seen cells of every map visited, by map name: 24 rows of 32 bits, cell c = bit 31 - c (NavimapSaveData's order).
 		private static readonly Dictionary<string, uint[]> _seen = new Dictionary<string, uint[]>(StringComparer.OrdinalIgnoreCase);
 
-		private sealed class Icon { public string Bank; public int Cell = -1; public int Anim; public float Fx, Fz; public int Flag = -1; public int OpenCell = -1; public bool Always; public bool Place; }
+		private sealed class Icon { public string Bank; public int Cell = -1; public int Anim; public float Fx, Fz; public int Flag = -1; public int FlagGroup = 1; public int OpenCell = -1; public bool Always; public bool Place; }
 
 		/// <summary>One map's picture and data (SetMapData): its .nmi geometry and icons, its .nmd walkable cells, what is seen.</summary>
 		private sealed class MapData
@@ -121,6 +121,8 @@ namespace OpenFF.Client
 				if (Kind == 'f') { fx -= (float)Math.Floor(fx); fz -= (float)Math.Floor(fz); }   // the world wraps
 				return (fx, fz);
 			}
+
+			public Icon Place(Icon icon, int x, int z) => At(icon, x, z);
 
 			private Icon At(Icon icon, int x, int z)
 			{
@@ -238,7 +240,29 @@ namespace OpenFF.Client
 			// A town is seen whole; elsewhere what was kept, or nothing yet.
 			if (_map.Kind == 't') _map.SeeAll();
 			else if (_seen.TryGetValue(_map.Name, out uint[] rows)) { for (int r = 0; r < 24; r++) for (int c = 0; c < 32; c++) _map.Cells[r, c] = (rows[r] >> (31 - c) & 1) != 0; }
+			foreach ((string Stage, Icon Icon, int X, int Z) chest in _scriptChests) if (string.Equals(chest.Stage, stage, StringComparison.OrdinalIgnoreCase)) _map.Icons.Add(_map.Place(chest.Icon, chest.X, chest.Z));
+			_scriptChests.RemoveAll(c => !string.Equals(c.Stage, stage, StringComparison.OrdinalIgnoreCase));
 			Log.Write(LogChannel.File, "navimap: " + stage + " -> " + _map.Name + " (" + _map.Icons.Count + " icon(s), " + _map.Total + " cell(s) to see)");
+		}
+
+		// A map's script's own chests (NewTBoxIcon), kept for the stage they were made on.
+		private static readonly List<(string Stage, Icon Icon, int X, int Z)> _scriptChests = new List<(string, Icon, int, int)>();
+
+		/// <summary>babilCommand_NewTBoxIcon(x, y, z, flag group, flag index, ?): a chest's icon on this map's sheet (NMITBox, cell
+		/// 1, cell 2 once its flag is set) - one the map's own table does not hold.</summary>
+		public static void NewTBoxIcon(GlobalScope.ScriptEngine engine)
+		{
+			int x = (int)engine.getDword();
+			engine.getDword();
+			int z = (int)engine.getDword();
+			int group = (int)engine.getDword(), index = (int)engine.getDword();
+			engine.getDword();
+			string stage = Game.Field.Map;
+			Ff4NaviMap navi = Instance;
+			Icon icon = new Icon { Bank = "map_mark_common", Cell = 1, OpenCell = 2, FlagGroup = group, Flag = index };
+			if (navi?._map != null && string.Equals(navi._stage, stage, StringComparison.OrdinalIgnoreCase)) navi._map.Icons.Add(navi._map.Place(icon, x, z));
+			else if (stage != null) _scriptChests.Add((stage, icon, x, z));
+			Log.Write(LogChannel.File, "navimap: a script's chest at " + x + ", " + z + " (flag " + group + ":" + index + ")");
 		}
 
 		/// <summary>PassagePointChange: the 31 cells about the party's are seen where they count; kept, and a floor all seen complete.</summary>
@@ -395,7 +419,7 @@ namespace OpenFF.Client
 			{
 				if (!shown(icon)) continue;
 				int cell = icon.Cell;
-				if (icon.OpenCell >= 0 && Flag(1, icon.Flag)) cell = icon.OpenCell;
+				if (icon.OpenCell >= 0 && Flag(icon.FlagGroup, icon.Flag)) cell = icon.OpenCell;
 				float y = MapTop + icon.Fz * 384 * Px;
 				if (icon.Anim == 6)
 				{

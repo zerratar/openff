@@ -46,6 +46,24 @@ namespace OpenFF.Client
 			{ "setMessageAlignment", SetMessageAlignment },                   // (align, ?, ?): 0 left, 1 centred, 2 right, until set again
 			{ "messagePermission", MessagePermission },                       // (allow): whether a press may turn the message on
 			{ "clearCountJump", ClearCountJump },                             // (count, label): jumps when the game has been cleared `count` times
+			// The party (Ff4PartyCommands).
+			{ "savePartySetting", Ff4PartyCommands.SavePartySetting },        // (withFormation, ?)
+			{ "restorePartySetting", Ff4PartyCommands.RestorePartySetting },  // (withFormation, ?)
+			{ "setMemberForOrder", Ff4PartyCommands.SetMemberForOrder },      // (type, place)
+			{ "setFormation", Ff4PartyCommands.SetFormation },                // (form, ?, ?)
+			{ "resurrectionDeadMember", Ff4PartyCommands.ResurrectionDeadMember }, // (?, ?, ?)
+			{ "setCondition", Ff4PartyCommands.SetCondition },                // (type or 15, condition number)
+			{ "conditionRecoveryByCharacter", Ff4PartyCommands.ConditionRecoveryByCharacter }, // (type, five condition numbers)
+			{ "hpSetting", Ff4PartyCommands.HpSetting },                      // (type, hp, ?)
+			{ "syncCharacterLv", Ff4PartyCommands.SyncCharacterLv },          // (a, b, grown, to, test, ?)
+			{ "evaluateMagneticEquipment", Ff4PartyCommands.EvaluateMagneticEquipment }, // (on)
+			{ "disarmamentByID_SiteSpecification", Ff4PartyCommands.DisarmamentBySite }, // (type, site, item, ?, ?)
+			{ "budgetAdjust", Ff4PartyCommands.BudgetAdjust },                // (amount, ?, ?)
+			{ "battleResultJump", Ff4PartyCommands.BattleResultJump },        // (won, lost, escaped)
+			{ "checkTopPlayer", Ff4PartyCommands.CheckTopPlayer },            // (type, label)
+			{ "setTelepo", Ff4PartyCommands.SetTelepo },                      // (map, x, y, z, facing)
+			{ "setTresureBattleMapID", Ff4PartyCommands.SetTresureBattleMapID }, // (stage, ?, ?)
+			{ "newTBoxIcon", Ff4NaviMap.NewTBoxIcon },                        // (x, y, z, flag group, flag index, ?)
 			{ "setChacterOffset", SetCharacterOffset },                       // (cast, x, y, z): a draw offset for a cast's model
 			// The field event camera (Ff4EventCamera): FF3's handlers put these through MODE_FREE, which
 			// rebuilds the position from a distance FF4's maps never set.

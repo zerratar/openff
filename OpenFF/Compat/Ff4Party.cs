@@ -124,6 +124,37 @@ namespace OpenFF.Client
 			for (int i = 0; i < members.Count; i++) members[i].Slot = i;
 		}
 
+		/// <summary>Who stands in place <paramref name="place"/> (0..4), by type, or -1.</summary>
+		public static int TypeAt(int place)
+		{
+			foreach (Character c in Party.Members) if (PositionOf(c.Id) == place) return c.Id;
+			return -1;
+		}
+
+		/// <summary>
+		/// PlayerParty::setMemberForOrder: <paramref name="type"/> into place <paramref name="place"/> - from wherever it stood, or
+		/// into the party if it was out (at its join level, its default commands) - and whoever stood there out of the party;
+		/// -1 empties the place. The line-up follows the places.
+		/// </summary>
+		public static void Seat(int type, int place)
+		{
+			if (place < 0 || place > 4) return;
+			int there = TypeAt(place);
+			if (there >= 0 && there != type)
+			{
+				Party.Leave(there);
+				_positions.Remove(there);
+			}
+			if (type >= 0)
+			{
+				if (Party.Get(type)?.InParty != true && !Join(type, place)) return;
+				_positions[type] = place;
+			}
+			List<Character> members = Party.Members;
+			members.Sort((x, y) => PositionOf(x.Id).CompareTo(PositionOf(y.Id)));
+			for (int i = 0; i < members.Count; i++) members[i].Slot = i;
+		}
+
 		private static int FreePosition()
 		{
 			for (int at = 0; at < 5; at++) if (!_positions.ContainsValue(at)) return at;

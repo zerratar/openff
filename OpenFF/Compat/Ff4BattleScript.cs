@@ -609,6 +609,7 @@ namespace OpenFF.Client
 			_timer = 0;
 			GlobalScope.dgs.CFade.Main().fadeOut(WinEndFade, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
 			GlobalScope.dgs.CFade.Sub().fadeOut(WinEndFade, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+			LastResult = 0;   // BSCEndBattle: the fight over as won
 			Note("an event ends the battle (step " + LegacyStep.Count + ")");
 		}
 	}
