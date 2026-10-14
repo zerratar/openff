@@ -707,7 +707,26 @@ namespace OpenFF.Client
 		public override void OnUpdate()
 		{
 			if (_waitFrames > 0) _waitFrames--;
-			if (_state == State.Foot && _inReach != null && FreeOnFoot()) DrawBalloon();
+			if (_state == State.Foot && (_inReach != null || CanAct()) && FreeOnFoot()) DrawBalloon();
+		}
+
+		/// <summary>What Enter would act on (CPlayerHumanAction::checkAction, its key doors left out): a character the lead
+		/// touches and faces, to talk to or to check. Steam's "!" shows for these too (Baron Castle's guards and chests).</summary>
+		private static bool CanAct()
+		{
+			try
+			{
+				if (!(EngineApi.HeroPlayer is GlobalScope.pl.CPlayerCharacter p) || !p.isOperater() || !p.InputPermission()) return false;
+				int act = p.getNowAct();
+				if (act < 0 || act > 3 || (p.getColType() & 2) == 0) return false;
+				GlobalScope.chr.CCharacterEureka t = p.getTarget();
+				if (t == null || t.getCharacterId() == -1 || t.getNowAct() == 4 || t.getNowAct() == 5) return false;
+				if (t.CharaKind() == GlobalScope.chr.CHARACTER_KIND.CHARACTER_KIND_PLAYER_VEHICLE) return false;
+				if (t.CharaCheckType() == GlobalScope.chr.CHARACTER_CHECK_TYPE.CHARACTER_CHECK_TYPE_TALK)
+					return !(t is GlobalScope.pl.CPlayerCharacter c && c.NPCAiManager().AiKind() == GlobalScope.pl.CNPCAiManager.AI_KIND.AI_KIND_AUTO_FOLLOW);
+				return t.CharaCheckType() == GlobalScope.chr.CHARACTER_CHECK_TYPE.CHARACTER_CHECK_TYPE_CHECK;
+			}
+			catch (Exception) { return false; }
 		}
 
 		/// <summary>Steam's "!" (fukidashi.NCBR, 64 x 64 at the menus' scale) over the lead: centred on it, its foot 194 of
