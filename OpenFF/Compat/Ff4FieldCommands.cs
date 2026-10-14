@@ -27,6 +27,8 @@ namespace OpenFF.Client
 		private static bool _result;
 		private static long _openedFrame;
 		private static string _yesText = "Yes", _noText = "No";
+		private static bool _showGil;
+		private static readonly Ff4MenuHud.Data _hud = new Ff4MenuHud.Data();
 
 		public static bool IsOpen => _open;
 
@@ -82,7 +84,7 @@ namespace OpenFF.Client
 		private static readonly HashSet<GlobalScope.ScriptEngine> _asking = new HashSet<GlobalScope.ScriptEngine>();
 
 		/// <summary>Opens the box for a command of its own and holds the engine until it is answered; true, with the answer, once it is.</summary>
-		public static bool Ask(GlobalScope.ScriptEngine engine, string yes, string no, out bool answer)
+		public static bool Ask(GlobalScope.ScriptEngine engine, string yes, string no, out bool answer, bool gil = false)
 		{
 			answer = false;
 			if (!_asking.Contains(engine))
@@ -90,6 +92,7 @@ namespace OpenFF.Client
 				_asking.Add(engine);
 				_yesText = yes ?? "Yes";
 				_noText = no ?? "No";
+				_showGil = gil;
 				_open = true;
 				_decided = false;
 				_yes = true;
@@ -102,6 +105,7 @@ namespace OpenFF.Client
 			}
 			_asking.Remove(engine);
 			_open = false;
+			_showGil = false;
 			answer = _result;
 			return true;
 		}
@@ -154,6 +158,18 @@ namespace OpenFF.Client
 
 		private static void Draw()
 		{
+			if (GameProfile.IsFf4 && Ff4MenuHud.Available)
+			{
+				// Steam's: menu::ConfirmWindow over the message window's right end, the inn's GillWindow over its left.
+				_hud.Asking = true;
+				_hud.AskYes = _yes;
+				_hud.AskYesLabel = _yesText;
+				_hud.AskNoLabel = _noText;
+				_hud.AskGil = _showGil;
+				_hud.AskGilText = Ff4Party.Party.Gil + " " + Ff4Menu.KeyText(50446, "Gil");
+				Ff4MenuHud.Draw(_hud);
+				return;
+			}
 			DrawList draw = OpenFF.Game.Draw;
 			float w = Math.Max(BoxW, Math.Max(draw.MeasureText(_yesText, 16), draw.MeasureText(_noText, 16)) + 60);
 			float x = BoxX + BoxW - w;

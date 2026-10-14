@@ -490,6 +490,7 @@ namespace OpenFF.Client
 			h.MenuLabel = Ff4Menu.KeyText(60205, "Menu");
 			Ff4Ride.KeyHints(out bool dismount, out bool raise, out bool lower);
 			h.Riding = dismount && !_open;
+			h.Talk = !_open && Ff4Ride.BalloonShown;
 			h.Raise = raise && !_open;
 			h.Lower = lower && !_open;
 			h.DismountLabel = Ff4Menu.KeyText(60208, "Dismount");

@@ -184,3 +184,8 @@
 .m-count-up { -ff-background-rect: 0 0 48 48; }
 .m-count-down { -ff-background-rect: 0 48 48 48; }
 #shop .m-place.back .m-face { left: 33.8px; }
+
+/* The field's Yes / No: the words in the message's letters (30 px), white over a black shadow; the key bar's balloon
+   (MENU_Common's fukidashi, 64 x 64 at 0.95). */
+.m-ask-text { color: #ffffff; font-size: 30px; line-height: 67.5px; text-shadow: 3.375px 3.375px #000000; }
+.m-talk-icon { background-image: resource("files/MENU_Common.dat/fukidashi.NCBR"); }

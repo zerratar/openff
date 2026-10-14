@@ -423,32 +423,53 @@ namespace OpenFF.Client
 
 		// ---- the inn: babilCommand_BootInn opens the message, gil and confirm windows and holds; selectEndWait reads the answer ----
 
-		private static bool _innAccepted;
+		private static bool _innYes;
+		private static int _innPrice;
+		private static readonly HashSet<GlobalScope.ScriptEngine> _innTold = new HashSet<GlobalScope.ScriptEngine>();
 
-		/// <summary>bootInn(price, ?, ?): "Stay the night?" - taken when the party can pay.</summary>
+		/// <summary>bootInn(price, ?, ?): babilCommand_BootInn - the message window with 1000107 ("Our beds are 50 gil for the
+		/// night. Will you be staying?", the price in it), and once it is typed the Yes / No and the gil window; the answer is
+		/// selectEndWait's.</summary>
 		private static void BootInn(GlobalScope.ScriptEngine engine)
 		{
 			int price = (int)engine.getWord();
 			engine.getDword();
 			engine.getDword();
-			if (!Ff4FieldCommands.Ask(engine, price > 0 ? "Stay (" + price + " gil)" : "Stay", "No", out bool yes)) return;
-			OpenFF.Data.Party party = Ff4Party.Party;
-			if (yes && party.Gil < price)
+			GlobalScope.wld.CMessageWindow window = GlobalScope.CCastCommandTransit.getInstance().cast_Field2D().MessageWindow();
+			if (!_innTold.Contains(engine))
 			{
-				OpenFF.Game.Dialogue.Say("I'm afraid you're short on gil.");
-				yes = false;
+				_innTold.Add(engine);
+				_innPrice = price;
+				string line = "Our beds are %SCC00% gil for the night.\nWill you be staying?";
+				try { line = GlobalScope.dgs.msg.CMessageSys.getInstance().Main().getMessage(1000107) ?? line; } catch (Exception) { }
+				line = System.Text.RegularExpressions.Regex.Replace(line, "%SCC[0-9]*%|%d|%gil%", price.ToString());
+				if (!window.isMadeWindow()) window.createWindow(0);
+				window.createText(line, 0);
+				engine.suspendRedo();
+				return;
 			}
-			if (yes) party.Gil -= price;
-			_innAccepted = yes;
-			Log.Write(LogChannel.General, "script: inn " + (yes ? "taken for " + price + " gil (" + party.Gil + " left)" : "declined"));
+			if (window.isMadeMessage() && !window.isPageFinished()) { engine.suspendRedo(); return; }
+			if (!Ff4FieldCommands.Ask(engine, Ff4Menu.KeyText(60274, "Yes"), Ff4Menu.KeyText(60275, "No"), out bool yes, gil: true)) return;
+			_innTold.Remove(engine);
+			_innYes = yes;
 		}
 
-		/// <summary>selectEndWait(label, ?, ?, ?, ?): after bootInn, the script jumps to the label when the party did not stay.</summary>
+		/// <summary>selectEndWait(yes, no, short, ?, ?): babilCommand_SelectEndWait - Yes with the gil takes the price and jumps
+		/// to the night; Yes without it to the third label ("You don't have enough money."); No to the second.</summary>
 		private static void SelectEndWait(GlobalScope.ScriptEngine engine)
 		{
-			uint label = engine.getDword();
-			engine.getDword(); engine.getDword(); engine.getDword(); engine.getDword();
-			if (!_innAccepted && label != 0) engine.jump(label);
+			uint yes = engine.getDword(), no = engine.getDword(), shortOf = engine.getDword();
+			engine.getDword(); engine.getDword();
+			OpenFF.Data.Party party = Ff4Party.Party;
+			uint target = no;
+			if (_innYes && party.Gil >= _innPrice)
+			{
+				party.Gil = Math.Clamp(party.Gil - _innPrice, 0, 9999999);
+				target = yes;
+			}
+			else if (_innYes) target = shortOf;
+			Log.Write(LogChannel.General, "script: inn " + (target == yes ? "taken for " + _innPrice + " gil (" + party.Gil + " left)" : target == shortOf ? "wanted, short of gil" : "declined"));
+			if (target != 0) engine.jump(target);
 		}
 
 		/// <summary>setRecovery2(order, ?, ?, amount): hit and magic points back for one member (order 1..) or all (0); 9999 is everything.</summary>

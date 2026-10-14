@@ -96,7 +96,7 @@ namespace OpenFF.Client
 			d.Window = !d.Bar;
 			(d.OpenX, d.OpenY) = window.Ff4Openness;
 			d.Text = window.Ff4Text ?? "";
-			d.Next = window.Ff4Next;
+			d.Next = window.Ff4Next && !Ff4FieldCommands.IsOpen;   // the Yes / No up: no page arrow (bootInn clears it, as libff4's)
 			int who = window.Ff4NameWho;
 			d.Speaker = null;
 			d.NameWidth = 0;

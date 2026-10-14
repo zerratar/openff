@@ -1407,12 +1407,16 @@ namespace OpenFF.Client
 		/// <summary>The presses since the last step: the pad's edges are the frame's, the ride's steps the game's (fewer).</summary>
 		private static bool _latchA, _latchB, _pressA, _pressB;
 
+		/// <summary>The "!" is over the lead this frame (Enter has something to do): the key bar shows Enter and the balloon.</summary>
+		public static bool BalloonShown { get; private set; }
+
 		public override void OnUpdate()
 		{
 			if (OpenFF.Game.Input.Pressed(Pad.A)) _latchA = true;
 			if (OpenFF.Game.Input.Pressed(Pad.B)) _latchB = true;
 			if (_waitFrames > 0) _waitFrames--;
-			if (_state == State.Foot && (_inReach != null || CanAct()) && FreeOnFoot()) DrawBalloon();
+			BalloonShown = _state == State.Foot && (_inReach != null || CanAct()) && FreeOnFoot();
+			if (BalloonShown) DrawBalloon();
 		}
 
 		/// <summary>What Enter would act on (CPlayerHumanAction::checkAction, its key doors left out): a character the lead

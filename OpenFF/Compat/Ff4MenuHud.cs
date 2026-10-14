@@ -134,6 +134,11 @@ namespace OpenFF.Client
 			public bool FieldKeys, MapOpen, MapClosed, HasMap;
 			/// <summary>Aboard a vehicle: Backspace Dismount on the field's key bar.</summary>
 			public bool Riding;
+			/// <summary>On foot with something to talk to or check: Enter and the balloon on the key bar.</summary>
+			public bool Talk;
+			/// <summary>The field's Yes / No (the inn, the scripts' confirm) and the inn's gil window.</summary>
+			public bool Asking, AskYes, AskGil;
+			public string AskYesLabel = "Yes", AskNoLabel = "No", AskGilText = "";
 			public string DismountLabel = "Dismount";
 			/// <summary>The Enterprise's hook on the key bar: Enter Raise / Enter Lower (babil_menu 60209 / 60210).</summary>
 			public bool Raise, Lower;

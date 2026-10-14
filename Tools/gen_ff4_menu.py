@@ -157,6 +157,11 @@ field_keys = '\n'.join([
         frame('lowerKey', 1358.9, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 43'),
         frame('lowerLabel', 1419.7, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.lowerLabel}"'),
     ]), 1)),
+    # Something to talk to or check in reach: Enter and the balloon (fukidashi) ahead of Map (Steam's, by Baron's innkeeper).
+    frame('talk', 0, 0, 1920, 1080, None, 'bind-display="menu.talk"', indent('\n'.join([
+        frame('talkKey', 1389.3, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 43'),
+        frame('talkIcon', 1460.3, 995.6, 60.75, 60.75, 'm-talk-icon'),
+    ]), 1)),
     frame('mapClosed', 0, 0, 1920, 1080, None, 'bind-display="menu.mapClosed"', indent('\n'.join([
         frame('mapKey', 1548.2, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 52'),
         frame('mapLabel', 1609, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.mapLabel}"'),
@@ -168,6 +173,30 @@ field_keys = '\n'.join([
     frame('menuKey', 1710.4, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 16'),
     frame('menuLabel', 1771.3, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.menuLabel}"'),
 ])
+# The field's Yes / No (menu::ConfirmWindow, the inn's and the scripts' confirm) over the message window's right end: two
+# rows of 135, the lit one's band and the hand, the words in the message's letters; the inn's gil (menu::GillWindow) over
+# its left end. Steam's frames at Baron's inn.
+ask = '\n'.join([
+    frame('frame', -6.75, -6.75, 378.6, 283.5, 'm-window'),
+    frame('yes', 0, 0, 365.1, 135, 'm-command', '', indent('\n'.join([
+        frame('band', 0, 0, 365.1, 135, 'lit-band', 'bind-visible="menu.askYes"'),
+        frame('label', 81.8, 40, 280, 67.5, 'm-ask-text', 'bind-text="{menu.askYesLabel}"'),
+        frame('hand', 74.3, 0, 1, 135, 'hand', 'bind-visible="menu.askYes" style="-ff-cell-origin: 0 54px"'),
+    ]), 1)),
+    frame('no', 0, 135, 365.1, 135, 'm-command', '', indent('\n'.join([
+        frame('band', 0, 0, 365.1, 135, 'lit-band', 'bind-visible="!menu.askYes"'),
+        frame('label', 81.8, 40, 280, 67.5, 'm-ask-text', 'bind-text="{menu.askNoLabel}"'),
+        frame('hand', 74.3, 0, 1, 135, 'hand', 'bind-visible="!menu.askYes" style="-ff-cell-origin: 0 54px"'),
+    ]), 1)),
+])
+gil_box = '\n'.join([
+    frame('frame', -6.75, -6.75, 324.5, 80.9, 'm-window'),
+    frame('value', 0, 3.4, 290.7, 60.75, 'm-text m-right', 'bind-text="{menu.askGilText}"'),
+])
+out.append(indent("<!-- The field's Yes / No and the inn's gil, over the message window (menu.asking, askYes, askYesLabel, askNoLabel,\n     askGil, askGilText). -->", 1))
+out.append(indent(frame('askBox', 1385.9, 546.8, 365.1, 270, 'm-pane', 'bind-display="menu.asking"', indent(ask, 1)), 1))
+out.append(indent(frame('askGil', 169, 749.2, 311, 67.4, 'm-pane', 'bind-display="menu.askGil"', indent(gil_box, 1)), 1))
+
 out.append(indent("<!-- The field's key hints (Ff4NaviMap draws them): M Map / Quit Map, Tab Menu over a dark bar - slid down out of sight\n     while the party walks and back up once it has stood half a second (menu.fieldKeysDrop: 0 up, 108 gone). -->", 1))
 out.append(indent(frame('fieldKeys', 0, 0, 1920, 1080, None, 'bind-display="menu.fieldKeys" bind-style="top: {menu.fieldKeysDrop}px"', indent(field_keys, 1)), 1))
 
