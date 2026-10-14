@@ -175,6 +175,9 @@ namespace OpenFF.Client
 			_places[Magiship][2] = at[2];
 		}
 
+		/// <summary>Where the black chocobo flies home to (wscGetBlackChocoboBackPosition).</summary>
+		public static int[] BlackChocoboBack => _chocoboBack;
+
 		/// <summary>setBackChocoboBackPoint(x, y, z, ...): where the black chocobo flies home to.</summary>
 		public static void SetBackChocoboBackPoint(GlobalScope.ScriptEngine engine)
 		{

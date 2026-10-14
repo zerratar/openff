@@ -40,7 +40,7 @@ namespace OpenFF.Client
 
 		public override bool WantsUpdate => true;
 
-		private enum State { Foot, Boarding, TakeOff, Riding, Landing, GettingOff, ChocoboOff, Descending, Leaving, LiftUp, LiftOff }
+		private enum State { Foot, Boarding, TakeOff, Riding, Landing, GettingOff, ChocoboOff, Descending, Leaving, LiftUp, LiftOff, HomeComing }
 
 		private static State _state = State.Foot;
 
@@ -236,6 +236,7 @@ namespace OpenFF.Client
 					case State.Descending: Descending(); break;
 					case State.LiftUp: LiftUp(); break;
 					case State.LiftOff: LiftOff(); break;
+					case State.HomeComing: HomeComing(); break;
 				}
 			}
 			catch (Exception ex)
@@ -352,6 +353,7 @@ namespace OpenFF.Client
 			}
 			StepCamera(_frame, 30);
 			if (_frame < 60) return;
+			if (_ride.Type == 5 && !_arrived) { StartHomeComing(); return; }
 			_state = State.Riding;
 			_turnStep = 0x800;
 			StartEngine();
@@ -365,6 +367,17 @@ namespace OpenFF.Client
 			Hero.setMCLCol(false);
 			Hero.setHidden(true);
 			OpenFF.Game.Input.Capture = true;
+			if (v.Type == 5)
+			{
+				// WSPrepare::wsProcessStateScheduling: the black chocobo arrived on takes off from where it stands ("takeoff").
+				Characters.startMotion(v.Ctrl, Motion(0x3e9), true, 0);
+				_ride.GroundY = v.Y;
+				Place(v);
+				FollowHero();
+				_arrived = true;
+				StartTakeOff();
+				return;
+			}
 			if (v.Type == 3)
 			{
 				// WSPrepare::wsProcessStateScheduling for the magiship: the trip between the worlds comes down from 60 above its
@@ -607,6 +620,78 @@ namespace OpenFF.Client
 			h.X = _ride.X; h.Z = _ride.Z; h.RotY = _ride.RotY;
 			h.Y = fromY + (int)((toY - fromY) * t);
 			Place(h);
+		}
+
+		// ---- the black chocobo flying home (WSBCHomeComming, WSVehicleLandingBCHomeComming) ----
+
+		private static int _homeX, _homeZ, _homeY;
+
+		/// <summary>Its theme (32), then straight for its home (the nearest of the point and its copies a world's size on, as
+		/// FUN_004cf408 picks it) at 3 a frame, turned to it.</summary>
+		private static void StartHomeComing()
+		{
+			_state = State.HomeComing;
+			_frame = 0;
+			PlayBgm(32);
+			Log.Write(LogChannel.General, "ride: the black chocobo flies home");
+		}
+
+		private static void HomeComing()
+		{
+			int[] back = Ff4Vehicles.BlackChocoboBack;
+			GlobalScope.stg.CStageMng stage = GlobalScope.stageMng;
+			GlobalScope.VecFx32 size = new GlobalScope.VecFx32(stage.getSize());
+			long best = long.MaxValue;
+			int tx = back[0], tz = back[2];
+			foreach (int ox in new[] { 0, size.x })
+				foreach (int oz in new[] { 0, size.z })
+				{
+					long dx = back[0] + ox - _ride.X, dz = back[2] + oz - _ride.Z;
+					if (dx * dx + dz * dz < best) { best = dx * dx + dz * dz; tx = back[0] + ox; tz = back[2] + oz; }
+				}
+			double d = Math.Sqrt(best);
+			if (d <= 0x3000)
+			{
+				_ride.X = tx; _ride.Z = tz;
+				Wrap(_ride);
+				Place(_ride);
+				FollowHero();
+				StartHomeLanding();
+				return;
+			}
+			_ride.X += (int)((double)(tx - _ride.X) * 0x3000 / d);
+			_ride.Z += (int)((double)(tz - _ride.Z) * 0x3000 / d);
+			Turn(Yaw(tx - _ride.X, tz - _ride.Z));
+			Wrap(_ride);
+			Place(_ride);
+			FollowHero();
+		}
+
+		/// <summary>Down to its forest ("landing_bc": the landing's 30 frames, the camera back, its sound 2/0), then the party in
+		/// its forest town - t17_00 by flag 911, else t22_00 - and the black chocobo gone (flag 908 down).</summary>
+		private static void StartHomeLanding()
+		{
+			GroundKind(_ride, out int groundY, out _, false);
+			_homeY = groundY;
+			_fromY = _ride.Y;
+			_frame = 0;
+			_state = State.Landing;
+			_toY = _homeY;
+			CameraBack();
+			PlaySe(2, 0);
+			_homeLanding = true;
+		}
+
+		private static bool _homeLanding;
+
+		private static void HomeArrived()
+		{
+			_homeLanding = false;
+			GlobalScope.FlagManager.singleton().reset(0, 908);
+			Characters.setHidden(_ride.Ctrl, true);
+			_ride.Shown = false;
+			if (Flag(911)) JumpTo("t17_00", 0, 0, 0x96000);
+			else JumpTo("t22_00", -0x74000, 0, 0xc3000);
 		}
 
 		// ---- the engine's sound (WSVehicleMove::wsInitialize: archive 0, 21 the hovercraft, 22 the airships, 23 the magiship) ----
@@ -886,6 +971,7 @@ namespace OpenFF.Client
 			}
 			StepCamera(_frame, 30);
 			if (_frame < 40) return;
+			if (_homeLanding) { HomeArrived(); return; }
 			if (_ride.Type == 3)
 			{
 				// WSVehicleMove's magiship: down ("landing_ms", its place and turn kept), then into it at its door (t21_00 at
