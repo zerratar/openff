@@ -43,6 +43,10 @@ namespace OpenFF.Client
 		/// Moon, 1 back; -1 for none.</summary>
 		public static int MoonTrip = -1;
 
+		/// <summary>The hole the next arrival comes out of (wscGetWorldJump): 0 down into the Underworld, 2 up onto the
+		/// Overworld; -1 for none.</summary>
+		public static int WorldJump = -1;
+
 		/// <summary>WSPrepare::wsProcess's names for a jump's map: "back_from_magiship" (the world the magiship stays on, at
 		/// its place), "goto_moon" / "goto_earth" (the trip's arrival), "come_from_moon" / "come_from_earth" (aboard it),
 		/// "d12_99" (d12_17). False for any other map.</summary>
@@ -117,6 +121,7 @@ namespace OpenFF.Client
 			ArriveOn = -1;
 			LiftHover = false;
 			MoonTrip = -1;
+			WorldJump = -1;
 		}
 
 		private static int Slot(uint n) => n >= 1 && n <= SlotOf.Length ? SlotOf[n - 1] : -1;

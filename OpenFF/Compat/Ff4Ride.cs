@@ -40,7 +40,7 @@ namespace OpenFF.Client
 
 		public override bool WantsUpdate => true;
 
-		private enum State { Foot, Boarding, TakeOff, Riding, Landing, GettingOff, ChocoboOff, Descending, Leaving, LiftUp, LiftOff, HomeComing }
+		private enum State { Foot, Boarding, TakeOff, Riding, Landing, GettingOff, ChocoboOff, Descending, Leaving, LiftUp, LiftOff, HomeComing, Hole }
 
 		private static State _state = State.Foot;
 
@@ -237,6 +237,7 @@ namespace OpenFF.Client
 					case State.LiftUp: LiftUp(); break;
 					case State.LiftOff: LiftOff(); break;
 					case State.HomeComing: HomeComing(); break;
+					case State.Hole: Hole(); break;
 				}
 			}
 			catch (Exception ex)
@@ -367,6 +368,31 @@ namespace OpenFF.Client
 			Hero.setMCLCol(false);
 			Hero.setHidden(true);
 			OpenFF.Game.Input.Capture = true;
+			if ((v.Type == 1 || v.Type == 2) && Ff4Vehicles.WorldJump >= 0)
+			{
+				// WSDiveFromHole / WSRiseFromHole: out of the hole, turned to 0xC000, 15 down (or up) to the flying height at
+				// 0.25 a frame while the screen fades in over 60 frames.
+				bool down = Ff4Vehicles.WorldJump == 0;
+				Ff4Vehicles.WorldJump = -1;
+				v.X = down ? 2308915 : -784261; v.Z = down ? -2700780 : 4574823;
+				v.Y = down ? 0x28000 : 0xa000;
+				v.RotY = 0xC000;
+				_fromY = v.Y;
+				_toY = Heights[v.Type];
+				_settleStep = 0x400;
+				Characters.setMotionPause(v.Ctrl, false);
+				if (Characters.isMotion(v.Ctrl, Motion(0x3e9))) Characters.startMotion(v.Ctrl, Motion(0x3e9), true, 0);
+				CameraTo(0x6e000, 0x87000, -0x42000, -0x50000);
+				StepCamera(1, 1);
+				Place(v);
+				FollowHero();
+				GlobalScope.dgs.CFade.Main().fadeIn(60);
+				GlobalScope.dgs.CFade.Sub().fadeIn(60);
+				_state = State.Descending;
+				_frame = 0;
+				Log.Write(LogChannel.General, "ride: out of the hole " + (down ? "into the Underworld" : "onto the Overworld"));
+				return;
+			}
 			if (v.Type == 5)
 			{
 				// WSPrepare::wsProcessStateScheduling: the black chocobo arrived on takes off from where it stands ("takeoff").
@@ -932,6 +958,13 @@ namespace OpenFF.Client
 		private static void TryGetOff()
 		{
 			if (_waitFrames > 0) return;
+			// WSVehicleMove::wsProcess: the Enterprise or the Falcon over the hole (its ground's bit 17) with flag 909 goes
+			// through it - "divetohole" from the Overworld, "risetohole" from the Underworld.
+			if ((_ride.Type == 1 || _ride.Type == 2) && Flag(909))
+			{
+				GroundKind(_ride, out _, out uint flags, false);
+				if ((flags & (1u << 17)) != 0) { StartHole(); return; }
+			}
 			if (!CanGetOff(_ride, out int groundY))
 			{
 				// FUN_004cd0cc and a 30-frame wait (WSWait) before the pad steers again.
@@ -1088,13 +1121,88 @@ namespace OpenFF.Client
 		private static void Descending()
 		{
 			_frame++;
-			_ride.Y = Math.Max(_toY, _fromY - _frame * 0x2000);
+			_ride.Y = _toY < _fromY ? Math.Max(_toY, _fromY - _frame * _settleStep) : Math.Min(_toY, _fromY + _frame * _settleStep);
 			Place(_ride);
 			FollowHero();
-			if (_ride.Y > _toY) return;
+			if (_ride.Y != _toY) return;
+			_settleStep = 0x2000;
 			_state = State.Riding;
 			_turnStep = 0x800;
 			StartEngine();
+		}
+
+		private static int _settleStep = 0x2000;
+
+		// ---- through the hole between the worlds (WSDiveToHole / WSRiseToHole) ----
+
+		private static bool _holeDown;
+
+		/// <summary>Over the hole in 15 frames (the Overworld's at -191.5, 25, 1116.9; the Underworld's at 563.7, 25, -659.4),
+		/// turned to 0xC000 in 15 more, then 15 down (or up) at 0.25 a frame while the screen fades out over 60.</summary>
+		private static void StartHole()
+		{
+			_holeDown = _world == 0;
+			_state = State.Hole;
+			_liftPhase = 0;
+			_frame = 0;
+			_fromX = _ride.X; _fromY = _ride.Y; _fromZ = _ride.Z;
+			StopEngine();
+			GlobalScope.FlagManager.singleton().set(0, 444);
+			Log.Write(LogChannel.General, "ride: through the hole " + (_holeDown ? "down" : "up"));
+		}
+
+		private static void Hole()
+		{
+			_frame++;
+			int hx = _holeDown ? -784261 : 2308915, hz = _holeDown ? 4574823 : -2700780;
+			switch (_liftPhase)
+			{
+				case 0:
+				{
+					float t = Math.Min(1f, _frame / 15f);
+					_ride.X = _fromX + (int)((hx - _fromX) * t);
+					_ride.Z = _fromZ + (int)((hz - _fromZ) * t);
+					_ride.Y = _fromY + (int)((0x19000 - _fromY) * t);
+					if (_fromX != hx || _fromZ != hz) Turn(Yaw(hx - _fromX, hz - _fromZ));
+					if (_frame >= 15) { _liftPhase = 1; _frame = 0; _heroFromRot = _ride.RotY; }
+					break;
+				}
+				case 1:
+				{
+					int d = (short)(0xC000 - _heroFromRot);
+					_ride.RotY = (_heroFromRot + d * Math.Min(_frame, 15) / 15) & 0xFFFF;
+					if (_frame >= 15)
+					{
+						_liftPhase = 2; _frame = 0;
+						GlobalScope.dgs.CFade.Main().fadeOut(60, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+						GlobalScope.dgs.CFade.Sub().fadeOut(60, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+					}
+					break;
+				}
+				case 2:
+					_ride.Y = 0x19000 + (_holeDown ? -1 : 1) * Math.Min(_frame, 60) * 0x400;
+					if (_frame >= 61)
+					{
+						// wsProcessDive / wsProcessRise: the other world, aboard, the vehicle kept there.
+						int type = _ride.Type, world = _holeDown ? 1 : 0;
+						int ax = _holeDown ? 2308915 : -784261, az = _holeDown ? -2700780 : 4574823, ay = _holeDown ? 0x28000 : 0xa000;
+						Ff4Vehicles.SetPlace(type, ax, ay, az, 0xC000);
+						Ff4Vehicles.SetStay(type, world);
+						Ff4Vehicles.ArriveOn = type;
+						Ff4Vehicles.WorldJump = _holeDown ? 0 : 2;
+						GlobalScope.VecFx32 at = new GlobalScope.VecFx32(ax, 0, az);
+						string map = JumpPart.WithChip(_holeDown ? "f01" : "f00", at);
+						_state = State.Leaving;
+						GlobalScope.CCastCommandTransit transit = GlobalScope.CCastCommandTransit.getInstance();
+						transit.castParam_MapJump().initialize();
+						transit.castParam_MapJump().setUp(map, 0, at, new GlobalScope.VecFx32(0, 0xC000, 0), _Flag: true);
+						transit.cast_BaseSystem().setMapJump(b: true);
+						return;
+					}
+					break;
+			}
+			Place(_ride);
+			FollowHero();
 		}
 
 		/// <summary>A map jump of the ride's own (the magiship's inside): the keys and the state wait for the map to change.</summary>
