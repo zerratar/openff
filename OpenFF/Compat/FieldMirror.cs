@@ -35,12 +35,12 @@ namespace OpenFF.Client
 		{
 			get
 			{
+				// Off for FF4 as well (2026-10-14): set beside Steam's frames, the unmirrored world is FF4's - the Enterprise at
+				// (-224, 681.5) over the same shore, Baron's arrival in the same shallows; mirrored, every raw world position (a
+				// worldMapWarp, a vehicle, a save) stood on the terrain of (x, -z). The town exits' arrivals agreed only because
+				// FF4's setOutsideMapJump takes its z negated (Ff4Exits), which the mirror had cancelled for the world map.
 				string option = Options.Get("fieldmirror");
-				if (option == "off")
-				{
-					return false;
-				}
-				return GameProfile.IsFf4 || option == "force";
+				return option == "on" || option == "force";
 			}
 		}
 
