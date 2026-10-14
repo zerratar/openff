@@ -5,10 +5,9 @@
 // - a 32-byte label ("Baron Weapon"), the shopkeeper's title (51220 Weaponsmith, 51221
 // Armorer, 51222 Sundries in babil_menu.msd), six line ids (51260 "How might I be of
 // service?", 51261 "Which item?", 51262 "How many?", 51263 "Thank you!", 51264 short on gil,
-// 51265 cannot hold more) and up to sixteen item ids. FF4's own shop screen is not ported;
-// this service draws one over the field with Game.Draw: Buy (the row's wares at the record's
-// buying price), Sell (the bag at the record's selling price), Leave; Left/Right change the
-// count, L/R by ten, A confirms, B backs out.
+// 51265 cannot hold more) and up to sixteen item ids. The screen is the menu's (Ff4MenuShop, Steam's
+// PC shop measured off its draws); without the menu's layout this service draws a plain one over the
+// field with Game.Draw: Buy, Sell, Leave; Left/Right change the count, L/R by ten, A confirms, B backs out.
 // The script that called bootShop holds until the shop closes. Game.Shops on FF4.
 
 using System;
@@ -20,7 +19,8 @@ namespace OpenFF.Client
 {
 	internal sealed class Ff4Shop : GameService, IShops
 	{
-		private sealed class Row
+		/// <summary>A row of babil_shop.bbd: the label, the keeper's title, the six lines and the wares.</summary>
+		internal sealed class Stock
 		{
 			public int Index;
 			public string Label;
@@ -34,10 +34,11 @@ namespace OpenFF.Client
 		private static Ff4Shop _instance;
 		public static Ff4Shop Instance => _instance;
 
-		private List<Row> _rows;
+		private List<Stock> _rows;
 		private Dictionary<uint, string> _texts;
 		private bool _open;
-		private Row _row;
+		private Stock _row;
+		private bool _plain;   // drawn by this service (no menu layout), not the menu's screen
 		private Page _page;
 		private int _cursor, _scroll, _count = 1;
 		private string _notice;
@@ -51,23 +52,23 @@ namespace OpenFF.Client
 
 		public override bool WantsUpdate => true;
 
-		public bool IsOpen => _open;
+		public bool IsOpen => _open && (_plain || (Ff4Menu.Instance?.ShopOpen ?? false));
 
 		// ---- the table ----
 
-		private List<Row> Rows
+		private List<Stock> Rows
 		{
 			get
 			{
 				if (_rows != null) return _rows;
-				_rows = new List<Row>();
+				_rows = new List<Stock>();
 				try
 				{
 					if (GameArchive.Chain != null && TableFiles.ReadAny(GameArchive.Chain, "babil_shop.bbd", out byte[] data))
 					{
 						for (int at = 0; at + 124 <= data.Length; at += 124)
 						{
-							Row row = new Row { Index = at / 124 };
+							Stock row = new Stock { Index = at / 124 };
 							int end = Array.IndexOf(data, (byte)0, at);
 							row.Label = System.Text.Encoding.ASCII.GetString(data, at, Math.Max(0, Math.Min(32, (end < 0 ? at + 32 : end) - at)));
 							row.TitleId = ChainPack.S32(data, at + 32);
@@ -92,27 +93,29 @@ namespace OpenFF.Client
 			}
 		}
 
-		private string Text(int id, string fallback) => _texts != null && id > 0 && _texts.TryGetValue((uint)id, out string s) ? s : fallback;
+		internal string Text(int id, string fallback) => _texts != null && id > 0 && _texts.TryGetValue((uint)id, out string s) ? s : fallback;
 
 		// ---- IShops ----
 
 		public bool Open(int index, string table = null)
 		{
-			if (!EngineApi.InWorld || _open) return false;
-			Row row = index >= 0 && index < Rows.Count ? Rows[index] : null;
+			if (!EngineApi.InWorld || IsOpen) return false;
+			Stock row = index >= 0 && index < Rows.Count ? Rows[index] : null;
 			if (row == null) { Log.Write(LogChannel.General, "shop: no row " + index); return false; }
 			_row = row;
 			_open = true;
 			_page = Page.Menu;
 			_cursor = 0; _scroll = 0; _count = 1;
-			Game.Input.Capture = true;
+			_plain = !Ff4MenuHud.Available || Ff4Menu.Instance == null;
+			if (_plain) Game.Input.Capture = true;
+			else Ff4Menu.Instance.OpenShop(row);
 			Log.Write(LogChannel.General, "shop: open row " + index + " '" + row.Label + "' (" + Text(row.TitleId, "shop") + "): " + string.Join(", ", row.Items.ConvertAll(id => Ff4Party.Tables?.Item(id)?.Name ?? id.ToString())));
 			return true;
 		}
 
 		public ShopInfo Info(int index, string table = null)
 		{
-			Row row = index >= 0 && index < Rows.Count ? Rows[index] : null;
+			Stock row = index >= 0 && index < Rows.Count ? Rows[index] : null;
 			if (row == null) return null;
 			ShopInfo info = new ShopInfo { Index = index, Kind = row.TitleId == 51220 ? 0 : row.TitleId == 51221 ? 1 : 3 };
 			info.ItemIds.AddRange(row.Items);
@@ -130,12 +133,13 @@ namespace OpenFF.Client
 
 		public override void OnUpdate()
 		{
-			if (!_open)
+			if (_open && !IsOpen)
 			{
-				// A test shop: O opens Baron's weaponsmith (row 1) on any FF4 map.
-				if (EngineApi.InWorld && !Game.Input.Capture && !Ff4Cutscene.Active && !Ff4Battle.Active && Game.Input.KeyPressed("O")) Open(1);
-				return;
+				// The menu's screen was left: the shop is over.
+				_open = false;
+				Log.Write(LogChannel.File, "shop: closed with " + Ff4Party.Party.Gil + " gil");
 			}
+			if (!_open || !_plain) return;
 			if (_noticeFrames > 0) _noticeFrames--;
 			InputState input = Game.Input;
 			switch (_page)
@@ -185,33 +189,36 @@ namespace OpenFF.Client
 			if (_cursor >= _scroll + 8) _scroll = _cursor - 7;
 		}
 
-		private static int PriceOf(ItemDefinition item) => item == null ? 0 : item.BuyPrice > 0 ? item.BuyPrice : item.SellPrice;
+		internal static int PriceOf(ItemDefinition item) => item == null ? 0 : item.BuyPrice > 0 ? item.BuyPrice : item.SellPrice;
 		/// <summary>The record's own selling price (the s32 at 0x20, half the buying price for FF4's wares), else half of what it costs.</summary>
-		private static int SellPriceOf(ItemDefinition item) => item == null ? 0 : Math.Max(1, item.SellPrice > 0 && item.SellPrice < item.BuyPrice ? item.SellPrice : PriceOf(item) / 2);
+		internal static int SellPriceOf(ItemDefinition item) => item == null ? 0 : Math.Max(1, item.SellPrice > 0 && item.SellPrice < item.BuyPrice ? item.SellPrice : PriceOf(item) / 2);
 
-		private void Buy(int itemId, int count)
+		/// <summary>Buys <paramref name="count"/> of a ware at its buying price; false when the gil or the bag will not have it.</summary>
+		internal bool Buy(int itemId, int count)
 		{
 			Party party = Ff4Party.Party;
 			ItemDefinition item = Ff4Party.Tables?.Item(itemId);
-			if (item == null) return;
+			if (item == null || count <= 0) return false;
 			int price = PriceOf(item) * count;
-			if (party.Gil < price) { Notice(Text(_row.LineIds[4], "I'm afraid you're short on gil.")); return; }
-			if (party.CountItem(itemId) + count > 99) { Notice(Text(_row.LineIds[5], "You cannot hold any more.")); return; }
+			if (party.Gil < price) { Notice(Text(_row.LineIds[4], "I'm afraid you're short on gil.")); return false; }
+			if (party.CountItem(itemId) + count > 99) { Notice(Text(_row.LineIds[5], "You cannot hold any more.")); return false; }
 			party.Gil -= price;
 			party.AddItem(itemId, count);
 			EngineHooks.ItemGained(itemId, count);
 			Notice(Text(_row.LineIds[3], "Thank you!"));
 			Log.Write(LogChannel.File, "shop: bought " + count + " x " + item.Name + " for " + price + " (" + party.Gil + " gil left)");
 			_count = 1;
+			return true;
 		}
 
-		private void Sell(int itemId, int count)
+		/// <summary>Sells <paramref name="count"/> of an item from the bag at its selling price.</summary>
+		internal bool Sell(int itemId, int count)
 		{
 			Party party = Ff4Party.Party;
 			ItemDefinition item = Ff4Party.Tables?.Item(itemId);
-			if (item == null) return;
+			if (item == null) return false;
 			count = Math.Min(count, party.CountItem(itemId));
-			if (count <= 0) return;
+			if (count <= 0) return false;
 			int price = SellPriceOf(item) * count;
 			party.RemoveItem(itemId, count);
 			party.Gil += price;
@@ -224,6 +231,7 @@ namespace OpenFF.Client
 				if (_sellChoices.Count == 0) { _page = Page.Menu; _cursor = 1; }
 				else _cursor = Math.Min(_cursor, _sellChoices.Count - 1);
 			}
+			return true;
 		}
 
 		private void Notice(string text)

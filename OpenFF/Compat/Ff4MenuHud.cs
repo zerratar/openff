@@ -141,6 +141,14 @@ namespace OpenFF.Client
 			public float FieldKeysDrop;   // how far the field's key bar has slid down (0 up, 108 out of sight)
 			// Sight (MSSSightro): the floors or the world's places down the right, seven in view; the map is Ff4NaviMap's.
 			public bool Sight;
+			// The shop (Ff4MenuShop): the wares and their prices, the count's "x n" on the lit row (shopCountTop down the list),
+			// the gil, how many of the lit item the bag holds and the party wears, the party's faces by place.
+			public bool Shop, ShopCounting, ShopWornShown;
+			public List<CellRow> ShopRow = Rows<CellRow>(6);
+			public ScrollData ShopScroll = new ScrollData();
+			public List<MemberRow> ShopPlace = Rows<MemberRow>(5);
+			public float ShopCountTop;
+			public string ShopCount = "1", ShopGil = "", ShopHave = "", ShopWorn = "", InventoryLabel = "Inventory", EquippedLabel = "Equipped", ShopToggleLabel = "Sell";
 			public List<CommandRow> SightRow = Rows<CommandRow>(7);
 			public ScrollData SightScroll = new ScrollData();
 			public string MapLabel = "Map", MenuLabel = "Menu";

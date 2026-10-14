@@ -176,3 +176,11 @@
 .m-roll.centre { text-align: center; }
 .m-roll.right { text-align: right; }
 .m-roll.blue { color: #7c7ed6; }
+
+/* The shop: its rows' band as Magic's (108 high); the count's arrows (MENU_Common's icon_16dot: up at 0 0, down at 0 48,
+   48 x 48 each); the back row's faces further in. */
+#shop .m-cell .lit-band { background-image: linear-gradient(to bottom, #7ca4db 0px, #6986dd 43.9px, #657dc3 67.5px, #4a5da9 100%); }
+.m-count-up, .m-count-down { background-image: resource("files/MENU_Common.dat/icon_16dot.NCGR"); }
+.m-count-up { -ff-background-rect: 0 0 48 48; }
+.m-count-down { -ff-background-rect: 0 48 48 48; }
+#shop .m-place.back .m-face { left: 33.8px; }

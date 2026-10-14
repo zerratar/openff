@@ -540,6 +540,53 @@ ne = '\n'.join([
 ])
 screens.append(frame('nameEntry', 0, 0, 1920, 1080, None, 'bind-display="menu.nameEntry"', indent(ne, 1)))
 
+# The shop (bootShop: Steam's PC screen, measured off its draws at Baron's weaponsmith): straight into Buy - the lit ware's
+# line, the gil, how many of it the bag holds and the party wears, the party's five places (faces 145.8 apart, the back
+# row's further in), the wares in rows of 108 with their prices and the scroll bar; C turns to Sell (the bag at its
+# selling price). Enter on a row asks how many: "x n" between two arrows in the row, its band gone, Confirm / Back below.
+def shop_cell(id_, source, y):
+    inner = '\n'.join([
+        frame('band', 0, 0, 1027.6, 108, 'lit-band', 'bind-visible="lit"'),
+        frame('edge', 0, 0, 1027.6, 108, 'm-edge'),
+        frame('icon', 81.1, 0, 36, 108, 'm-icon', 'bind-style="-ff-cell: symbol {icon}"'),
+        frame('name', 121.5, 0, 800, 108, 'm-cell-name', 'bind-text="{name}"'),
+        frame('count', 0, 0, 949.6, 108, 'm-cell-count', 'bind-text="{count}"'),
+        frame('hand', 81, 0, 1, 108, 'hand', 'bind-visible="lit" style="-ff-cell-origin: 0 40.5px"'),
+        frame('pointer', 81, 0, 1, 108, 'hand', 'bind-visible="gold" style="-ff-cell-origin: 0 40.5px"'),
+    ])
+    return frame(id_, 0, y, 1027.6, 108, 'm-cell', 'data-source="%s" bind-display="present" bind-class="lit: lit; dim: dim"' % source, indent(inner, 1))
+
+shop_cells = [shop_cell('ware%d' % k, 'menu.shopRow[%d]' % k, k * 108) for k in range(6)]
+shop_places = [frame('place%d' % k, 0, k * 145.8, 500.3, 145.8, 'm-place', 'data-source="menu.shopPlace[%d]" bind-class="back: back; dim: dim"' % k,
+                     indent(frame('face', 6.8, 9.4, 135, 135, 'm-face', 'bind-display="present" bind-style="-ff-cell: face {face}"'), 1)) for k in range(5)]
+shop_spin = frame('spin', 0, 0, 1027.6, 108, None, 'bind-display="menu.shopCounting" bind-style="top: {menu.shopCountTop}px"', indent('\n'.join([
+    frame('times', 486.8, 0, 60, 108, 'm-cell-name', 'bind-text="&#215;"'),
+    frame('count', 554.4, 0, 120, 108, 'm-cell-name', 'bind-text="{menu.shopCount}"'),
+    frame('up', 513.8, -33.8, 81, 81, 'm-count-up'),
+    frame('down', 513.8, 67.4, 81, 81, 'm-count-down'),
+]), 1))
+sh = '\n'.join([
+    window('help', 155.5, 87.75, 1609, 54, 'm-pane', '', frame('helpLine', 74.4, -3.4, 1500, 60.75, 'm-text', 'bind-text="{menu.help}"')),
+    window('gil', 155.5, 155.25, 500.3, 54, 'm-pane', '', frame('gilValue', 0, -3.4, 429.2, 60.75, 'm-text m-right', 'bind-text="{menu.shopGil}"')),
+    window('have', 669.3, 155.25, 540.8, 54, 'm-pane', '', '\n'.join([
+        frame('label', 74.4, -3.4, 300, 60.75, 'm-text', 'bind-text="{menu.inventoryLabel}"'),
+        frame('value', 0, -3.4, 466.5, 60.75, 'm-text m-right', 'bind-text="{menu.shopHave}"'),
+    ])),
+    window('worn', 1223.7, 155.25, 540.8, 54, 'm-pane', '', '\n'.join([
+        frame('label', 74.4, -3.4, 300, 60.75, 'm-text', 'bind-display="menu.shopWornShown" bind-text="{menu.equippedLabel}"'),
+        frame('value', 0, -3.4, 466.5, 60.75, 'm-text m-right', 'bind-display="menu.shopWornShown" bind-text="{menu.shopWorn}"'),
+    ])),
+    window('places', 155.5, 222.75, 500.3, 729, 'm-pane', '', '\n'.join(shop_places)),
+    window('wares', 669.3, 222.75, 1095.2, 729, 'm-pane', '', '\n'.join([
+        frame('cells', 0, 0, 1027.6, 729, None, '', indent('\n'.join(shop_cells), 1)),
+        shop_spin,
+        scroll('scroll', 1031, 0, 729, 'menu.shopScroll'),
+    ])),
+    keys('browseKeys', '!menu.shopCounting', [(48, 1200.0, '{menu.shopToggleLabel}'), (43, 1348.7, '{menu.confirm}'), (15, 1568.5, '{menu.back}')]),
+    keys('countKeys', 'menu.shopCounting', [(43, 1348.7, '{menu.confirm}'), (15, 1568.5, '{menu.back}')]),
+])
+screens.append(frame('shop', 0, 0, 1920, 1080, None, 'bind-display="menu.shop"', indent(sh, 1)))
+
 # The staff roll (Ff4EndRoll, world::EndingPlayer): up to 66 placed columns over whatever plays, each a frame 1000 wide hung
 # left of, about or right of its spot (menu.rollRow[n]: left, top, opacity, centre / right / blue).
 roll = [frame('roll%d' % k, 0, 0, 1000, 60.75, 'm-roll', 'data-source="menu.rollRow[%d]" bind-display="present" bind-text="{text}" '

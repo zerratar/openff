@@ -29,7 +29,7 @@ namespace OpenFF.Client
 {
 	internal sealed partial class Ff4Menu : GameService
 	{
-		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Gambits, Party, Settings, Save, Load, Quicksave, Difficulty, Sight }
+		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Gambits, Party, Settings, Save, Load, Quicksave, Difficulty, Sight, Shop }
 		private enum Mode { Browse, PickMember, EquipSlot, EquipItem, ItemTarget, SwapMember }
 
 		private sealed class Command
@@ -164,7 +164,7 @@ namespace OpenFF.Client
 			InputState input = Game.Input;
 			ApplySettingsOnce();
 			// Steam's menu closes the field camera in on the lead, from the root and its question; the full screens cover it.
-			Ff4MenuCamera.Step(_open && !_fromTitle && !_fromEnding);
+			Ff4MenuCamera.Step(_open && !_fromTitle && !_fromEnding && _screen != Screen.Shop);
 			if (!_open)
 			{
 				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !EventBusy() && !Game.Battle.InBattle && !Ff4Battle.Active
@@ -197,6 +197,7 @@ namespace OpenFF.Client
 				case Screen.Equipment: UpdateEquipment(input); break;
 				case Screen.Magic: UpdateMemberScreen(input, ListCount()); break;
 				case Screen.Sight: UpdateSight(input); break;
+				case Screen.Shop: UpdateShop(input); break;
 				case Screen.Gambits: UpdateGambits(input); break;
 				case Screen.Abilities:
 					if (Ff4MenuHud.Available) { UpdateAbilities(input); break; }
@@ -745,6 +746,7 @@ namespace OpenFF.Client
 					DrawSlots(d); break;
 				case Screen.Difficulty: DrawDifficulty(); break;
 				case Screen.Sight: DrawScreenLayout(); break;
+				case Screen.Shop: DrawScreenLayout(); break;
 				case Screen.Load:
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawSlots(d); break;
@@ -854,8 +856,10 @@ namespace OpenFF.Client
 			h.Party = _screen == Screen.Party;
 			h.Save = _screen == Screen.Save || _screen == Screen.Load;
 			h.Sight = _screen == Screen.Sight;
+			h.Shop = _screen == Screen.Shop && _shop != null;
 			h.NoTitle = h.Party || h.Save || h.Sight;
 			if (h.Sight) FillSight(h);
+			if (h.Shop) FillShop(h);
 			if (h.Save) FillSave(h);
 			h.Settings = _screen == Screen.Settings;
 			if (h.Settings) FillSettings(h);
