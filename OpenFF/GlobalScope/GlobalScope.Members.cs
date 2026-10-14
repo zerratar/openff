@@ -15794,12 +15794,25 @@ internal static partial class GlobalScope
 							uint word = engine.getWord();
 							string text = engine.getString();
 							int index = CCastCommandTransit.getInstance().changeHichNumber(word);
+							// PORT: FF4's babilCommand_ChangeColorCharacter skips a cast it cannot find and binds the texture set by the
+							// whole name the script gives ("n007_00_01"); FF3's gives the variant alone, after the cast's model.
+							if (OpenFF.Client.GameProfile.IsFf4 && index == -1)
+							{
+								return;
+							}
 							int characterId = CCastCommandTransit.getInstance().cast_PlayerMng().Player(index)
 								.getCharacterId();
-							int manCastIndex = evt.CHichParameterManager.getInstance().getManCastIndex(word);
-							string charaName = evt.CHichParameterManager.getInstance().getSubParam(manCastIndex).m_CharaName;
 							string arg = "";
-							sprintf(out arg, "%s_%s", charaName, text);
+							if (OpenFF.Client.GameProfile.IsFf4)
+							{
+								arg = text;
+							}
+							else
+							{
+								int manCastIndex = evt.CHichParameterManager.getInstance().getManCastIndex(word);
+								string charaName = evt.CHichParameterManager.getInstance().getSubParam(manCastIndex).m_CharaName;
+								sprintf(out arg, "%s_%s", charaName, text);
+							}
 							characterMng.releaseTex(characterId);
 							characterMng.bindReplaceTex(characterId, arg);
 							TexDivideLoader.getSingleton().tdlForceLoad();
