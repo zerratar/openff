@@ -3,10 +3,11 @@ menus/sprites.json), the empty place's silhouette, the backdrop.
 
     python tools/art.py [originals folder]      (default: the repository's Content/UI, where they were painted)
 
-Needs Pillow and numpy."""
+Needs Pillow, numpy and scipy."""
 import json, os, sys
 from PIL import Image, ImageFilter
 import numpy as np
+from scipy import ndimage
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.normpath(os.path.join(HERE, "..", "..", "..", "Content", "UI"))
@@ -75,10 +76,14 @@ def cut(src, out, names, cols, even=False):
     for k, (b, name) in enumerate(zip(boxes, names)):
         piece = sheet.crop((b[1].start, b[0].start, b[1].stop, b[0].stop))
         if even:
-            # A neighbour's glow reaching over the line: a band round the cell cleared before trimming.
-            band = int(min(piece.width, piece.height) * 0.05)
+            # A neighbour's glow reaching over the line: the islands touching the cell's edge cleared, all but the icon's
+            # own (the biggest) - a blanket band round the cell clipped the icons that reach their edge.
             px = np.array(piece)
-            px[:band, :, 3] = 0; px[-band:, :, 3] = 0; px[:, :band, 3] = 0; px[:, -band:, 3] = 0
+            lab, n = ndimage.label(px[..., 3] > 24)
+            if n > 1:
+                own = 1 + int(np.argmax(ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))))
+                edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0, own}
+                px[np.isin(ndimage.grey_dilation(lab * np.isin(lab, list(edge)), size=3), list(edge)), 3] = 0
             piece = Image.fromarray(px, "RGBA")
         cell = fit(piece, CELL)
         x, y = (k % cols) * CELL, (k // cols) * CELL
