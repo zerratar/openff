@@ -1263,6 +1263,9 @@ internal static partial class GlobalScope
                                 m_StageType = STAGE_TYPE.STAGE_TYPE_FIELD01;
                             }
                             MirrorZ = OpenFF.Client.FieldMirror.Active(m_StageType);
+                            // PORT (FF4): the world map is named for its world (f00, f01, f02) - the field set no name and
+                            // the last town's stood: the overworld saved as "t00_01", the map watchers never saw it.
+                            if (OpenFF.Client.GameProfile.IsFf4) CurrentName = name.Length >= 3 ? name.Substring(0, 3) : name;
                             m_State = STATE_TYPE.STATE_TYPE_NORMAL;
                             sprintf(out m_stagePath, "/MAP/FIELD/F%02d", b);
                             FS_ChangeDir(m_stagePath);
