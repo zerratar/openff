@@ -143,6 +143,11 @@ out.append(indent(frame('keys', 1497.5, 995.6, 480, 60.75, None, 'bind-display="
 # "Tab Menu" - with the field map up "M Quit Map", the M pair further left; no Map on this stage: Tab Menu alone.
 field_keys = '\n'.join([
     frame('bar', 0, 972, 1920, 108, 'm-key-bar'),
+    # Aboard a vehicle (Ff4Ride): Backspace Dismount ahead of Map (Steam's, measured off its frame).
+    frame('dismount', 0, 0, 1920, 1080, None, 'bind-display="menu.riding"', indent('\n'.join([
+        frame('dismountKey', 1302.7, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 15'),
+        frame('dismountLabel', 1363.5, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.dismountLabel}"'),
+    ]), 1)),
     frame('mapClosed', 0, 0, 1920, 1080, None, 'bind-display="menu.mapClosed"', indent('\n'.join([
         frame('mapKey', 1548.2, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 52'),
         frame('mapLabel', 1609, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.mapLabel}"'),

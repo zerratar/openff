@@ -38,6 +38,8 @@ namespace OpenFF.Client
 		private static Ff4Ride _instance;
 		public Ff4Ride() { _instance = this; }
 
+		public override bool WantsUpdate => true;
+
 		private enum State { Foot, Boarding, TakeOff, Riding, Landing, GettingOff, ChocoboOff }
 
 		private static State _state = State.Foot;
@@ -221,6 +223,8 @@ namespace OpenFF.Client
 			}
 		}
 
+		private static Vehicle _inReach;
+
 		private static bool FreeOnFoot() => !Ff4Cutscene.Active && !Ff4Menu.EventBusy() && !(Ff4Menu.Instance?.IsOpen ?? false)
 			&& !OpenFF.Game.Dialogue.IsOpen && !Ff4Battle.Active && !Ff4Extras.Busy && !Ff4Chests.Busy && !EncounterZoom.Playing
 			&& !BlurRotate.Playing && !(Ff4NaviMap.Instance?.IsOpen ?? false);
@@ -237,10 +241,10 @@ namespace OpenFF.Client
 				int d = Distance(at.x, at.y, at.z, v.X, v.Y, v.Z);
 				if (d < best) { best = d; near = v; }
 			}
-			bool closer = best < _lastDist;
-			_lastDist = best;
-			if (near == null || best >= BoardDistance || !closer || !FreeOnFoot()) return;
-			Board(near);
+			// Steam's: in reach (VehicleObject::collision's 10), the "!" balloon over the lead and Enter boards - walking
+			// through a vehicle does nothing (Steam's frames: Cecil walked through the Enterprise, then boarded it on Enter).
+			_inReach = near != null && best < BoardDistance && FreeOnFoot() ? near : null;
+			if (_inReach != null && OpenFF.Game.Input.Pressed(Pad.A)) Board(_inReach);
 		}
 
 		private static int Distance(int ax, int ay, int az, int bx, int by, int bz)
@@ -251,6 +255,7 @@ namespace OpenFF.Client
 
 		private static void Board(Vehicle v)
 		{
+			_inReach = null;
 			_ride = v;
 			_state = State.Boarding;
 			_frame = 0;
@@ -349,7 +354,8 @@ namespace OpenFF.Client
 			// The menu gives the keys back when it shuts; aboard they stay the vehicle's.
 			OpenFF.Game.Input.Capture = true;
 			InputState input = OpenFF.Game.Input;
-			if (!map && input.Pressed(Pad.A)) { TryGetOff(); return; }
+			// Steam's key bar aboard: Backspace Dismount (babil_menu 60208, key_assign01); Enter is the Enterprise's hook (60209/10).
+			if (!map && input.Pressed(Pad.B)) { TryGetOff(); return; }
 			Steer(input);
 		}
 
@@ -701,6 +707,19 @@ namespace OpenFF.Client
 		public override void OnUpdate()
 		{
 			if (_waitFrames > 0) _waitFrames--;
+			if (_state == State.Foot && _inReach != null && FreeOnFoot()) DrawBalloon();
+		}
+
+		/// <summary>Steam's "!" (fukidashi.NCBR, 64 x 64 at the menus' scale) over the lead: centred on it, its foot 194 of
+		/// Steam's 1080 pixels above the lead's feet (Steam's frame by the Enterprise).</summary>
+		private static void DrawBalloon()
+		{
+			Texture sheet = Ff4Ui.Sheet("fukidashi.NCBR");
+			Vector2? feet = OpenFF.Game.Camera.WorldToScreen(OpenFF.Game.Hero.Position);
+			if (sheet == null || !OpenFF.Game.Hero.Present) return;
+			if (!feet.HasValue) return;
+			float size = 64f * Ff4Ui.Scale, bottom = feet.Value.Y - 194f * 480f / 1080f;
+			OpenFF.Game.Draw.Sprite(sheet, feet.Value.X - size / 2, bottom - size, size, size);
 		}
 	}
 }

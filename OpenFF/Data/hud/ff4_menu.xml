@@ -212,6 +212,11 @@
     <frame bind-display="menu.fieldKeys" bind-style="top: {menu.fieldKeysDrop}px">
     <id>fieldKeys</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
       <frame class="m-key-bar"><id>bar</id><x>0</x><y>972</y><width>1920</width><height>108</height></frame>
+      <frame bind-display="menu.riding">
+      <id>dismount</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+        <frame class="key-cap" style="-ff-cell: key 15"><id>dismountKey</id><x>1302.7</x><y>995.6</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.dismountLabel}"><id>dismountLabel</id><x>1363.5</x><y>995.6</y><width>300</width><height>60.75</height></frame>
+      </frame>
       <frame bind-display="menu.mapClosed">
       <id>mapClosed</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
         <frame class="key-cap" style="-ff-cell: key 52"><id>mapKey</id><x>1548.2</x><y>995.6</y><width>60.75</width><height>60.75</height></frame>
