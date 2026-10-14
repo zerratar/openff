@@ -39,6 +39,30 @@ namespace OpenFF.Client
 		/// <summary>The Enterprise carries the hovercraft (wscGetLiftHoverFlag).</summary>
 		public static bool LiftHover;
 
+		/// <summary>The magiship's trip between the worlds the next arrival ends (WSCMapJump's 0x208): 0 from the Earth to the
+		/// Moon, 1 back; -1 for none.</summary>
+		public static int MoonTrip = -1;
+
+		/// <summary>WSPrepare::wsProcess's names for a jump's map: "back_from_magiship" (the world the magiship stays on, at
+		/// its place), "goto_moon" / "goto_earth" (the trip's arrival), "come_from_moon" / "come_from_earth" (aboard it),
+		/// "d12_99" (d12_17). False for any other map.</summary>
+		public static bool ResolveMap(ref string map, ref GlobalScope.VecFx32 pos)
+		{
+			switch (map)
+			{
+				case "back_from_magiship":
+					map = _stay[Magiship] == 2 ? "f02" : "f00";
+					pos = new GlobalScope.VecFx32(_places[Magiship][0], _places[Magiship][1], _places[Magiship][2]);
+					return true;
+				case "goto_moon": map = "f02"; MoonTrip = 0; return true;
+				case "goto_earth": map = "f00"; MoonTrip = 1; return true;
+				case "come_from_moon": ArriveOn = Magiship; map = "f00"; return true;
+				case "come_from_earth": ArriveOn = Magiship; map = "f02"; return true;
+				case "d12_99": map = "d12_17"; return true;
+				default: return false;
+			}
+		}
+
 		/// <summary>A type's place: x, y, z (fx32) and the turn about x, y, z (16-bit angles).</summary>
 		public static int[] Place(int type) => type >= 0 && type < Slots ? _places[type] : null;
 
@@ -92,6 +116,7 @@ namespace OpenFF.Client
 			_stay = (int[])DefaultStay.Clone();
 			ArriveOn = -1;
 			LiftHover = false;
+			MoonTrip = -1;
 		}
 
 		private static int Slot(uint n) => n >= 1 && n <= SlotOf.Length ? SlotOf[n - 1] : -1;

@@ -386,6 +386,15 @@ namespace OpenFF.Client
 			uint vehicle = engine.getDword();
 			engine.getWord();
 			Ff4Vehicles.ArriveOn = vehicle >= 2 && vehicle <= 9 ? Ff4Vehicles.TypeOf(vehicle) : -1;
+			Ff4Vehicles.ResolveMap(ref map, ref pos);
+			// Aboard an airship, the magiship or the black chocobo the party comes down where the vehicle is kept (the scripts
+			// place it first; Steam's Enterprise flew from its stored spot, not the warp's) - the world's chip by that place.
+			int arrive = Ff4Vehicles.ArriveOn;
+			if (arrive == 1 || arrive == 2 || arrive == 3 || arrive == 5)
+			{
+				int[] at = Ff4Vehicles.Place(arrive);
+				pos = new GlobalScope.VecFx32(at[0], pos.y, at[2]);
+			}
 			GlobalScope.VecFx32 rot = new GlobalScope.VecFx32(0, dir <= 7 ? (int)dir * 0x2000 : 0, 0);
 			GlobalScope.CCastCommandTransit transit = GlobalScope.CCastCommandTransit.getInstance();
 			transit.castParam_MapJump().initialize();

@@ -116,7 +116,10 @@ namespace OpenFF.Client
 				GlobalScope.VecFx32 rot = new GlobalScope.VecFx32(0, exit.Facing * 8192, 0);
 				GlobalScope.CCastCommandTransit.CAST_MAPJUMP jump = GlobalScope.CCastCommandTransit.getInstance().castParam_MapJump();
 				jump.initialize();
-				jump.setUp(exit.Destination, 0, pos, rot, _Flag: true);
+				string destination = exit.Destination;
+				// The magiship's doors (t21_00's "back_from_magiship"): out by it, on the world it stays on.
+				if (Ff4Vehicles.ResolveMap(ref destination, ref pos) && destination.Length == 3) destination = JumpPart.WithChip(destination, pos);
+				jump.setUp(destination, 0, pos, rot, _Flag: true);
 				world.setMapJump(b: true);
 				return;
 			}

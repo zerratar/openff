@@ -40,7 +40,7 @@ namespace OpenFF.Client
 
 		public override bool WantsUpdate => true;
 
-		private enum State { Foot, Boarding, TakeOff, Riding, Landing, GettingOff, ChocoboOff }
+		private enum State { Foot, Boarding, TakeOff, Riding, Landing, GettingOff, ChocoboOff, Descending, Leaving }
 
 		private static State _state = State.Foot;
 
@@ -111,7 +111,12 @@ namespace OpenFF.Client
 			// The field's own setup sweeps the characters away with the map.
 			for (int i = 0; i < 6; i++) _vehicles[i] = null;
 			_world = -1;
-			if (_state != State.Foot) Log.Write(LogChannel.General, "ride: the map left aboard " + (_ride?.Type ?? -1));
+			if (_state != State.Foot)
+			{
+				Log.Write(LogChannel.General, "ride: the map left aboard " + (_ride?.Type ?? -1));
+				// The keys are the next map's (the magiship's inside, the world arrived aboard takes them again).
+				OpenFF.Game.Input.Capture = false;
+			}
 			_ride = null;
 			_state = State.Foot;
 		}
@@ -199,11 +204,14 @@ namespace OpenFF.Client
 		/// <summary>The game's steps (LegacyStep): the vehicles' states advance once each.</summary>
 		public static void Step()
 		{
+			bool a = _latchA, b = _latchB;
+			_latchA = _latchB = false;
 			if (!GameProfile.IsFf4 || !EngineApi.InWorld || Hero == null) return;
 			// Arriving aboard (a worldMapWarp's vehicle): the lead must not walk the world's exits before the ride takes it - the
 			// chocobo forests set the party down on their own entrance.
 			if (Ff4Vehicles.ArriveOn >= 0 && _world < 0 && WorldOf(GlobalScope.stg.CStageMng.CurrentName) >= 0) Hero.setMCLCol(false);
 			if (_world < 0) return;
+			_pressA = a; _pressB = b;
 			try
 			{
 				switch (_state)
@@ -215,6 +223,7 @@ namespace OpenFF.Client
 					case State.Landing: Landing(); break;
 					case State.GettingOff: GettingOff(); break;
 					case State.ChocoboOff: ChocoboOff(); break;
+					case State.Descending: Descending(); break;
 				}
 			}
 			catch (Exception ex)
@@ -244,7 +253,7 @@ namespace OpenFF.Client
 			// Steam's: in reach (VehicleObject::collision's 10), the "!" balloon over the lead and Enter boards - walking
 			// through a vehicle does nothing (Steam's frames: Cecil walked through the Enterprise, then boarded it on Enter).
 			_inReach = near != null && best < BoardDistance && FreeOnFoot() ? near : null;
-			if (_inReach != null && OpenFF.Game.Input.Pressed(Pad.A)) Board(_inReach);
+			if (_inReach != null && _pressA) Board(_inReach);
 		}
 
 		private static int Distance(int ax, int ay, int az, int bx, int by, int bz)
@@ -256,6 +265,7 @@ namespace OpenFF.Client
 		private static void Board(Vehicle v)
 		{
 			_inReach = null;
+			_arrived = false;
 			_ride = v;
 			_state = State.Boarding;
 			_frame = 0;
@@ -284,8 +294,12 @@ namespace OpenFF.Client
 			Hero.setHidden(true);
 			if (_ride.Type == 3)
 			{
-				// The Lunar Whale's inside (a map jump to t21_00) is still to come: it lifts off like the airships for now.
-				Log.First(LogChannel.General, "ride-whale-inside", 1, () => "ride: the Lunar Whale's inside (t21_00) is not in yet - it flies as the airships do");
+				// WSIntoVehicle::wsProcessEnd for the magiship: into its inside (t21_00 at -23, 0, 24.1), its place kept; the field's
+				// music stops unless flag 445 keeps it.
+				Ff4Vehicles.SetPlace(3, _ride.X, _ride.Y, _ride.Z, _ride.RotY);
+				if (!Flag(445)) StopBgm(15);
+				JumpTo("t21_00", -0x17066, 0, 0x18204);
+				return;
 			}
 			StartTakeOff();
 		}
@@ -297,6 +311,15 @@ namespace OpenFF.Client
 			_fromY = _ride.Y;
 			_toY = _ride.Type == 4 ? _ride.Y : Heights[_ride.Type];
 			if (_ride.Type != 4) Characters.setMotionPause(_ride.Ctrl, false);
+			// WSVehicleTakeOff::wsProcessInit's sound: the hovercraft's 5/1, the airships' 6/0, the magiship's 7/0, the black
+			// chocobo's 2/0 (not when arrived on); the chocobo none.
+			switch (_ride.Type)
+			{
+				case 0: PlaySe(5, 1); break;
+				case 1: case 2: PlaySe(6, 0); break;
+				case 3: PlaySe(7, 0); break;
+				case 5: if (!_arrived) PlaySe(2, 0); break;
+			}
 			if (Characters.isMotion(_ride.Ctrl, Motion(0x3e9))) Characters.startMotion(_ride.Ctrl, Motion(0x3e9), true, 2);
 			// The camera to the flying one (WTWCameraLinearMoveByFrame to 0x2bc9c4 / 0x2bc9d0), not for the hovercraft.
 			if (_ride.Type != 0 && _ride.Type != 4) CameraTo(0x6e000, 0x87000, -0x42000, -0x50000);
@@ -329,6 +352,36 @@ namespace OpenFF.Client
 			Hero.setMCLCol(false);
 			Hero.setHidden(true);
 			OpenFF.Game.Input.Capture = true;
+			if (v.Type == 3)
+			{
+				// WSPrepare::wsProcessStateScheduling for the magiship: the trip between the worlds comes down from 60 above its
+				// place (WSFromEarthToMoon / WSFromMoonToEarth); otherwise it takes off where it stands ("takeoff").
+				int trip = Ff4Vehicles.MoonTrip;
+				Ff4Vehicles.MoonTrip = -1;
+				Characters.setMotionPause(v.Ctrl, false);
+				if (Characters.isMotion(v.Ctrl, Motion(0x3e9))) Characters.startMotion(v.Ctrl, Motion(0x3e9), true, 0);
+				_ride.GroundY = v.Y;
+				FollowHero();
+				if (trip >= 0)
+				{
+					_fromY = Heights[3] + 0x3c000;
+					_toY = Heights[3];
+					v.Y = _fromY;
+					Place(v);
+					FollowHero();
+					CameraTo(0x6e000, 0x87000, -0x42000, -0x50000);
+					StepCamera(1, 1);
+					_state = State.Descending;
+					_frame = 0;
+					Log.Write(LogChannel.General, "ride: the magiship arrives from " + (trip == 0 ? "the Earth" : "the Moon"));
+					return;
+				}
+				Place(v);
+				_arrived = true;
+				StartTakeOff();
+				Log.Write(LogChannel.General, "ride: arrived aboard the magiship - it takes off");
+				return;
+			}
 			if (v.Type != 0 && v.Type != 4)
 			{
 				v.Y = Heights[v.Type];
@@ -355,7 +408,7 @@ namespace OpenFF.Client
 			OpenFF.Game.Input.Capture = true;
 			InputState input = OpenFF.Game.Input;
 			// Steam's key bar aboard: Backspace Dismount (babil_menu 60208, key_assign01); Enter is the Enterprise's hook (60209/10).
-			if (!map && input.Pressed(Pad.B)) { TryGetOff(); return; }
+			if (!map && _pressB) { TryGetOff(); return; }
 			Steer(input);
 		}
 
@@ -540,6 +593,8 @@ namespace OpenFF.Client
 		}
 
 		private static int _waitFrames;
+		/// <summary>The ride began by arriving on it (WSCVehicle's 0x17a down: the black chocobo's take-off sound left out).</summary>
+		private static bool _arrived;
 
 		private static void TryGetOff()
 		{
@@ -557,6 +612,15 @@ namespace OpenFF.Client
 			_fromY = _ride.Y;
 			_toY = groundY;
 			if (_ride.Type != 0) CameraBack();
+			// WSVehicleLanding::wsInitialize's sound: the hovercraft's 5/2, the airships' 6/1, the magiship's 7/1, the black
+			// chocobo's 2/0.
+			switch (_ride.Type)
+			{
+				case 0: PlaySe(5, 2); break;
+				case 1: case 2: PlaySe(6, 1); break;
+				case 3: PlaySe(7, 1); break;
+				case 5: PlaySe(2, 0); break;
+			}
 			// WSVehicleLanding: the airships' and the black chocobo's BGM stops; the world's comes back.
 			if (_ride.Type == 1 || _ride.Type == 2 || _ride.Type == 5) StopBgm(15);
 		}
@@ -573,6 +637,14 @@ namespace OpenFF.Client
 			}
 			StepCamera(_frame, 30);
 			if (_frame < 40) return;
+			if (_ride.Type == 3)
+			{
+				// WSVehicleMove's magiship: down ("landing_ms", its place and turn kept), then into it at its door (t21_00 at
+				// 48, 24, -122).
+				Ff4Vehicles.SetPlace(3, _ride.X, _ride.Y, _ride.Z, _ride.RotY);
+				JumpTo("t21_00", 0x30000, 0x18000, -0x7a000);
+				return;
+			}
 			if (_ride.Type == 1 || _ride.Type == 2 || _ride.Type == 5) PlayBgm(_world == 1 ? UnderworldBgm : EarthBgm);
 			StartGetOff();
 		}
@@ -667,12 +739,42 @@ namespace OpenFF.Client
 		/// <summary>Back to the camera the lead had before boarding.</summary>
 		private static void CameraBack()
 		{
+			// WSVehicleLanding::wsProcessInit: to the walking camera (0x2bc9dc 0, 100, 110 looking 0, -70, -80 on from it).
 			GlobalScope.cmr.CWorldCamera camera = GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera();
-			if (camera == null || _camPos == null) return;
+			if (camera == null) return;
 			_camPosFrom = new GlobalScope.VecFx32(camera.PosOffset());
 			_camTrgFrom = new GlobalScope.VecFx32(camera.TrgOffset());
-			_camPosTo = new GlobalScope.VecFx32(_camPos);
-			_camTrgTo = new GlobalScope.VecFx32(_camTrg);
+			int side = _camPosFrom.z < 0 ? -1 : 1;
+			_camPosTo = new GlobalScope.VecFx32(0, 0x64000, side * 0x6e000);
+			_camTrgTo = new GlobalScope.VecFx32(0, 0x64000 - 0x46000, side * (0x6e000 - 0x50000));
+		}
+
+		/// <summary>The trip's arrival: down 2 a frame (OSLinearMoveFixedAndRelative's 0x2000) to the flying height.</summary>
+		private static void Descending()
+		{
+			_frame++;
+			_ride.Y = Math.Max(_toY, _fromY - _frame * 0x2000);
+			Place(_ride);
+			FollowHero();
+			if (_ride.Y > _toY) return;
+			_state = State.Riding;
+			_turnStep = 0x800;
+		}
+
+		/// <summary>A map jump of the ride's own (the magiship's inside): the keys and the state wait for the map to change.</summary>
+		private static void JumpTo(string map, int x, int y, int z)
+		{
+			_state = State.Leaving;
+			GlobalScope.CCastCommandTransit transit = GlobalScope.CCastCommandTransit.getInstance();
+			transit.castParam_MapJump().initialize();
+			transit.castParam_MapJump().setUp(map, 0, new GlobalScope.VecFx32(x, y, z), new GlobalScope.VecFx32(0, 0, 0), _Flag: true);
+			transit.cast_BaseSystem().setMapJump(b: true);
+			Log.Write(LogChannel.General, "ride: into " + map + " at " + x / 4096 + "," + y / 4096 + "," + z / 4096);
+		}
+
+		private static void PlaySe(int archive, int number)
+		{
+			try { OpenFF.Game.Audio.PlaySe(archive, number); } catch (Exception) { }
 		}
 
 		private static void StepCamera(int frame, int frames)
@@ -704,8 +806,13 @@ namespace OpenFF.Client
 			try { GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(fade, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0); } catch (Exception) { }
 		}
 
+		/// <summary>The presses since the last step: the pad's edges are the frame's, the ride's steps the game's (fewer).</summary>
+		private static bool _latchA, _latchB, _pressA, _pressB;
+
 		public override void OnUpdate()
 		{
+			if (OpenFF.Game.Input.Pressed(Pad.A)) _latchA = true;
+			if (OpenFF.Game.Input.Pressed(Pad.B)) _latchB = true;
 			if (_waitFrames > 0) _waitFrames--;
 			if (_state == State.Foot && (_inReach != null || CanAct()) && FreeOnFoot()) DrawBalloon();
 		}
