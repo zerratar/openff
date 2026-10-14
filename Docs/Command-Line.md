@@ -40,7 +40,7 @@ Every run writes `logs/ff3.log` beside the executable (the previous run is kept 
 | `--log-stalls` | Log every frame that took over 50 ms, to find where a hitch comes from |
 | `--probe` | A per-frame heartbeat in the log (vertices, bounds, camera, world state) |
 | `--ff4table` | List every FF4 script command that is only skipped |
-| `--ff4usage=1`, `--ff4ops=<command>,...` or `--ff4ops=@<map>` | Every script command FF4's scripts use (`logs/ff4-commands.txt`), or each use of some commands, or a map's whole script, with operands (`logs/ff4-ops.txt`) |
+| `--ff4usage=1`, `--ff4ops=<command>,...` , `--ff4ops=@<map>` or `--ff4ops=@*` | Every script command FF4's scripts use (`logs/ff4-commands.txt`), or each use of some commands, or a map's (or every) whole script, with operands (`logs/ff4-ops.txt`) |
 | `FF3_DUMP=<dir>`, `FF3_DUMP_FONTS=<dir>` | Dump decoded data and font atlases as they load |
 | `FF3_SPEED=<n>` | While fast-forwarding, each game step runs n times |
 
