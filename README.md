@@ -118,7 +118,7 @@ executable) and checked frame by frame against the Steam game.
 | Cutscenes | 80% | Sky and shadow details |
 | Menus | 80% | Some screens |
 | Party data: growth, magic, equipment, items | 60% | |
-| Shops, inns, saves, encounters | 60% | Shop and inn screens |
+| Shops, inns, saves, encounters | 75% | Encounter details |
 | Steam extras (achievements) | 0% | |
 
 Details for every part: [FF4 status](Docs/FF4-Status.md). What has been read out of FF4's

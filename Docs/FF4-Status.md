@@ -30,7 +30,7 @@ behaviour or to a stand-in. That is why "renders" comes first and "behaves" late
 | --- | --- |
 | Walking, collision, the camera | The engine's own, with FF4's camera offsets per map kind (field, dungeon, town) read from the binary. Movement tuning tables FF4 compiled in are synthesised. |
 | Exits | `setInsideMapJump` / `setOutsideMapJump` are real commands: an exit exists from the moment its script declares it, and walking into its box makes the jump. |
-| Talking | The game's talk on contact; the speaker's name window (`openCharacterNameWindow`) is implemented. |
+| Talking | The game's talk on contact; the speaker's name window (`openCharacterNameWindow`); Steam's "!" over the lead and Enter with the balloon on the key bar when someone or something is in reach; recoloured characters (changeColorCharacter) wear their own texture set. |
 | Script commands | All 369 commands FF4's scripts use are in: 347 run and 22 skip on purpose (cosmetic: door swings, footstep dust, BGM bookkeeping). Among the last ones: the Fat Chocobo's extras through shiftState (Bestiary, Event Theatre, Music Box), the name entry (Whyt, a member, an ability), the staff roll (callEndRoll), the ending's last scene and The End (bootProgram), the cleared game's save and New Game+ (ending_after), the scenes' 2D programs (ce_CallProgram: e03's drawn sequence, e19's picture, e26's rising lines, the original staff, the messages) and the vehicles' state (positions, the Lunar Whale's Earth and Moon spots, the black chocobo's home). ce_setTelopMassage reads its operands only, as Steam's own handler does. `--ff4usage=1` writes the list to logs/ff4-commands.txt (`--ff4ops=<command>,...` or `@<map>` each use with its operands). |
 | Map parameters | Encounter tables and landforms read from the binary; camera chains as above. |
 | Vehicles | All ridden as Steam's: Enter boards one in reach (the "!" over the lead), Backspace comes down where its ground allows, the key bar showing only what can be done. The chocobo runs off; the black chocobo flies home when boarded again and leaves the party in its forest. The Enterprise's hook raises and lowers the Hovercraft. The Enterprise and the Falcon go through the hole between the worlds. The Lunar Whale is boarded into its inside (t21_00): its doors lead out by it, its crystal flies it, and the Moon trips come down from above. Take-off, landing, hook and engine sounds as libff4's. Their state (places, the Whale's Earth and Moon spots, the black chocobo's home, the Hovercraft on the hook) is saved with the game. |
@@ -62,11 +62,15 @@ scene engine, which is ours from the binary's disassembly.
 | Saves | On the unified layer: three slots, written from the menu's Save screen (Steam's) with the place and the play time; a slot loads into the field from the title's Load Game or `--load`. The ending's save is the cleared game's: the party made a new game's keeping the bag (initForNewgame(true)), and loaded it starts New Game+ with the extras' and the records' flags (NewGameInitPart). FF4's own save format is not written. |
 | Open | Growth curves and monster records in part; the details of each are in FF4-Internals. |
 
-## Encounters, shops, inns - 40%
+## Encounters, shops, inns - 75%
 
-Encounters start from the map's tables and the field's step counter; shops and inns run as
-the scripts call them, with FF4's prices and stock. The windows they show are FF3's dressed
-with FF4's art, not FF4's own screens.
+Encounters start from the map's tables and the field's step counter.
+
+| | State |
+| --- | --- |
+| Shops | Steam's screen (bootShop), measured off its draws, a layout of the menu's: Buy first, C for Sell; the lit item's line, the gil, how many the bag holds and the party wears, the party's faces by place, the wares and their prices; Enter asks how many ("x n" between the arrows, the other prices hidden), Enter again buys or sells, the buzzer for what cannot be paid for or held. |
+| Inns | Steam's: the price in the message window, the Yes / No over it and the gil window; Yes with the gil plays the night, Yes without it is turned away, No declines (selectEndWait as libff4's). The field's other Yes / No questions use the same window. |
+| Open | The shopkeeper's lines Steam's PC screen may show; the encounter details listed in FF4-Internals. |
 
 ## Battle - 100%
 
