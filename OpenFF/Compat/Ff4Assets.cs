@@ -21,9 +21,12 @@ namespace OpenFF.Client
 			{ "m000_window.NCER", "window_frame_00.NCER" },
 			{ "m000_window.NCBR", "window_frame_00.NCGR" },
 			{ "m000_window.NCGR", "window_frame_00.NCGR" },
-			// The overworld's chip texture sheet: FF3 asks f00.ntxp, FF4 keeps it as f00_.ntxp
-			// (compressed; the chain adds the .lz). f01 and f02 ship both names.
+			// The worlds' chip texture sheets: FF3 asks f00.ntxp, FF4 keeps them as f%02d_.ntxp (the stage's
+			// "/MAP/TEXTURE/f%02d_.ntxp.lz"; the chain adds the .lz). The Underworld's and the Moon's f01.ntxp and
+			// f02.ntxp are other, small packs - asked for by the chips, they left both worlds untextured.
 			{ "f00.ntxp", "f00_.ntxp" },
+			{ "f01.ntxp", "f01_.ntxp" },
+			{ "f02.ntxp", "f02_.ntxp" },
 		};
 
 		private static readonly HashSet<string> _reported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

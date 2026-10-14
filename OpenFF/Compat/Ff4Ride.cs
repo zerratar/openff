@@ -110,6 +110,7 @@ namespace OpenFF.Client
 		{
 			// The field's own setup sweeps the characters away with the map.
 			for (int i = 0; i < 6; i++) _vehicles[i] = null;
+			_tweens.Clear();
 			_world = -1;
 			if (_state != State.Foot)
 			{
@@ -222,6 +223,7 @@ namespace OpenFF.Client
 			if (Ff4Vehicles.ArriveOn >= 0 && _world < 0 && WorldOf(GlobalScope.stg.CStageMng.CurrentName) >= 0) Hero.setMCLCol(false);
 			if (_world < 0) return;
 			_pressA = a; _pressB = b;
+			if (_tweens.Count > 0) StepCastTweens();
 			try
 			{
 				switch (_state)
@@ -718,6 +720,158 @@ namespace OpenFF.Client
 			_ride.Shown = false;
 			if (Flag(911)) JumpTo("t17_00", 0, 0, 0x96000);
 			else JumpTo("t22_00", -0x74000, 0, 0xc3000);
+		}
+
+		// ---- the vehicles as casts (changeHichNumber's 0x4005-0x400a: libff4's slots 200-205, a type each) ----
+
+		/// <summary>The commands the world maps' events give the vehicles.</summary>
+		public static readonly HashSet<string> CastCommands = new HashSet<string>(StringComparer.Ordinal)
+		{
+			"displayCharacter", "moveCharacter_AbsoluteCoordination2", "moveCharacter_RelativeCoordination",
+			"setCharacter_ShadowAlpha", "turnCharacter_AbsoluteAngle2",
+		};
+
+		public static bool IsVehicleCast(uint cast) => GameProfile.IsFf4 && cast >= 0x4005 && cast <= 0x400a;
+
+		private sealed class CastTween
+		{
+			public Vehicle V;
+			public int Frame, Frames;
+			public int FromX, FromY, FromZ, ToX, ToY, ToZ;
+			public bool Move;
+			public int FromRot, ToRot;
+			public bool Turn;
+			public int FromShadow, ToShadow;
+			public bool Shadow;
+		}
+
+		private static readonly List<CastTween> _tweens = new List<CastTween>();
+
+		private static Vehicle CastVehicle(uint cast)
+		{
+			int type = (int)cast - 0x4005;
+			return type >= 0 && type < 6 ? _vehicles[type] : null;
+		}
+
+		/// <summary>One of <see cref="CastCommands"/> for a vehicle: its operands read as the stock handler reads them, the
+		/// vehicle shown or hidden, moved, turned or its shadow faded - over the frames given, as the field's characters.</summary>
+		public static void CastCommand(string name, GlobalScope.ScriptEngine engine)
+		{
+			uint cast = engine.getWord();
+			Vehicle v = CastVehicle(cast);
+			switch (name)
+			{
+				case "displayCharacter":
+				{
+					bool shown = engine.getDword() != 0;
+					engine.getWord();
+					if (v == null) return;
+					v.Shown = shown;
+					Characters.setHidden(v.Ctrl, !shown);
+					return;
+				}
+				case "moveCharacter_AbsoluteCoordination2":
+				{
+					int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+					int frames = engine.getWord();
+					if (v != null) CastMoveTo(v, x, y, z, frames);
+					return;
+				}
+				case "moveCharacter_RelativeCoordination":
+				{
+					uint of = engine.getWord();
+					int dx = (int)engine.getDword(), dy = (int)engine.getDword(), dz = (int)engine.getDword();
+					int frames = engine.getWord();
+					if (v == null) return;
+					GlobalScope.VecFx32 at = CastPosition(of);
+					if (at != null) CastMoveTo(v, at.x + dx, at.y + dy, at.z + dz, frames);
+					return;
+				}
+				case "setCharacter_ShadowAlpha":
+				{
+					int alpha = engine.getWord(), frames = engine.getWord();
+					if (v == null) return;
+					CastTween t = Tween(v);
+					t.Shadow = true;
+					t.FromShadow = Characters.getShadowAlpha(v.Ctrl);
+					t.ToShadow = alpha;
+					t.Frames = Math.Max(t.Frames, frames);
+					if (frames == 0) { Characters.setShadowAlpha(v.Ctrl, (short)alpha); t.Shadow = false; }
+					return;
+				}
+				case "turnCharacter_AbsoluteAngle2":
+				{
+					int degrees = (int)(engine.getDword() / 4096);
+					int frames = engine.getWord();
+					engine.getDword();
+					engine.getByte();
+					if (v == null) return;
+					int to = (int)((long)(360 - degrees) * 65536 / 360) & 0xFFFF;
+					if (frames == 0) { v.RotY = to; Place(v); return; }
+					CastTween t = Tween(v);
+					t.Turn = true;
+					t.FromRot = v.RotY;
+					t.ToRot = to;
+					t.Frames = Math.Max(t.Frames, frames);
+					return;
+				}
+			}
+		}
+
+		private static GlobalScope.VecFx32 CastPosition(uint cast)
+		{
+			Vehicle v = CastVehicle(cast);
+			if (IsVehicleCast(cast)) return v == null ? null : new GlobalScope.VecFx32(v.X, v.Y, v.Z);
+			int num = GlobalScope.CCastCommandTransit.getInstance().changeHichNumber(cast);
+			if (num < 0) return null;
+			GlobalScope.VecFx32 at = GlobalScope.CCastCommandTransit.getInstance().cast_PlayerMng().Player(num)?.getPosition();
+			return at == null ? null : new GlobalScope.VecFx32(at);
+		}
+
+		private static void CastMoveTo(Vehicle v, int x, int y, int z, int frames)
+		{
+			if (frames == 0)
+			{
+				v.X = x; v.Y = y; v.Z = z;
+				v.GroundY = y;
+				Place(v);
+				return;
+			}
+			CastTween t = Tween(v);
+			t.Move = true;
+			t.FromX = v.X; t.FromY = v.Y; t.FromZ = v.Z;
+			t.ToX = x; t.ToY = y; t.ToZ = z;
+			t.Frame = 0;
+			t.Frames = frames;
+		}
+
+		private static CastTween Tween(Vehicle v)
+		{
+			CastTween t = _tweens.Find(w => w.V == v);
+			if (t == null) { t = new CastTween { V = v }; _tweens.Add(t); }
+			return t;
+		}
+
+		/// <summary>A game step of the vehicles' scripted moves, turns and shadow fades.</summary>
+		private static void StepCastTweens()
+		{
+			for (int i = _tweens.Count - 1; i >= 0; i--)
+			{
+				CastTween t = _tweens[i];
+				t.Frame++;
+				float k = t.Frames <= 0 ? 1f : Math.Min(1f, t.Frame / (float)t.Frames);
+				Vehicle v = t.V;
+				if (t.Move)
+				{
+					v.X = t.FromX + (int)((t.ToX - t.FromX) * k);
+					v.Y = t.FromY + (int)((t.ToY - t.FromY) * k);
+					v.Z = t.FromZ + (int)((t.ToZ - t.FromZ) * k);
+				}
+				if (t.Turn) v.RotY = (t.FromRot + (int)((short)(t.ToRot - t.FromRot) * k)) & 0xFFFF;
+				Place(v);
+				if (t.Shadow) Characters.setShadowAlpha(v.Ctrl, (short)(t.FromShadow + (int)((t.ToShadow - t.FromShadow) * k)));
+				if (k >= 1f) _tweens.RemoveAt(i);
+			}
 		}
 
 		// ---- the engine's sound (WSVehicleMove::wsInitialize: archive 0, 21 the hovercraft, 22 the airships, 23 the magiship) ----

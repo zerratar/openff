@@ -78,6 +78,13 @@ internal static partial class GlobalScope
 			{
 				return wld.CWorldOutSideData.getInstance().PlayerData().getPlayCharacterIndex();
 			}
+			// PORT: FF4's casts 0x4000-0x4010 (CCastCommandTransit::changeHichNumber): the vehicles (0x4005-0x400a,
+			// libff4's slots 200-205) and other specials. None is one of the field's players here - the vehicles are
+			// Ff4Ride's and their commands go there (ScriptCommands' wrappers) - so the stock handlers skip them.
+			if (OpenFF.Client.GameProfile.IsFf4 && _HichIndex >= 0x4000 && _HichIndex <= 0x4010)
+			{
+				return -1;
+			}
 			num = evt.CHichParameterManager.getInstance().getManCastIndex(_HichIndex);
 			_ = 0;
 			return evt.CHichParameterManager.getInstance().CharaIndex(num);

@@ -144,6 +144,13 @@ internal static partial class GlobalScope
 			return result;
 		}
 
+		/// <summary>PORT: the next word without reading past it (a wrapper choosing a handler by its cast).</summary>
+		public ushort peekWord()
+		{
+			uint pc = pc_;
+			return getFromByteDatas_ushort(reinterpret_cast<byte[]>(scriptData_.m_abyData), ref pc);
+		}
+
 		public ushort getWord()
 		{
 			return getFromByteDatas_ushort(reinterpret_cast<byte[]>(scriptData_.m_abyData), ref pc_);

@@ -260,6 +260,19 @@ namespace OpenFF.Client
 				}
 				Log.Write(LogChannel.General, "script: FF4 skipped: " + string.Join(", ", skipped));
 			}
+			// The world maps' events move the airships as casts 0x4005-0x400a (the vehicles): those commands go to Ff4Ride.
+			for (int i = 0; i < table.Length; i++)
+			{
+				ScriptOp op = ff4.Get(i);
+				if (op == null || table[i] == null || !Ff4Ride.CastCommands.Contains(ScriptOpTable.Simplify(op.Name))) continue;
+				GlobalScope.SCRIPT_COMMAND stock = table[i];
+				string name = ScriptOpTable.Simplify(op.Name);
+				table[i] = engine =>
+				{
+					if (Ff4Ride.IsVehicleCast(engine.peekWord())) Ff4Ride.CastCommand(name, engine);
+					else stock(engine);
+				};
+			}
 			if (Options.Get("ff4usage") != null) ReportUsage(ff4, skippedAt);
 			_ff4 = table;
 			return table;
@@ -276,7 +289,7 @@ namespace OpenFF.Client
 			Dictionary<int, int> uses = new Dictionary<int, int>();
 			Dictionary<int, HashSet<string>> where = new Dictionary<int, HashSet<string>>();
 			int scripts = 0, broken = 0;
-			string opsOf = Options.Get("ff4ops");   // --ff4ops=<command>[,<command>...|@<map>]: each use (or every command of a map's script) with its operands, to logs/ff4-ops.txt
+			string opsOf = Options.Get("ff4ops");   // --ff4ops=<command>[,<command>...|@<map>|@*]: each use (or every command of a map's script) with its operands, to logs/ff4-ops.txt
 			List<string> opLines = new List<string>();
 			foreach (string name in GameArchive.Chain.Names)
 			{
@@ -302,7 +315,7 @@ namespace OpenFF.Client
 						else { int zero = at < end ? Array.IndexOf(data, (byte)0, at, end - at) : -1; at = zero < 0 ? end + 1 : zero + 1; }
 					}
 					if (at > end) break;
-					if (opsOf != null && Array.Exists(opsOf.Split(','), c => string.Equals(ScriptOpTable.Simplify(op.Name), c, StringComparison.OrdinalIgnoreCase) || (c.StartsWith("@") && string.Equals(c.Substring(1), map, StringComparison.OrdinalIgnoreCase)))) opLines.Add(ScriptOpTable.Simplify(op.Name) + " " + map + " @" + (opStart - 2) + ": " + Operands(data, opStart, op));
+					if (opsOf != null && Array.Exists(opsOf.Split(','), c => string.Equals(ScriptOpTable.Simplify(op.Name), c, StringComparison.OrdinalIgnoreCase) || (c.StartsWith("@") && (c == "@*" || string.Equals(c.Substring(1), map, StringComparison.OrdinalIgnoreCase))))) opLines.Add(ScriptOpTable.Simplify(op.Name) + " " + map + " @" + (opStart - 2) + ": " + Operands(data, opStart, op));
 					uses.TryGetValue(opcode, out int n);
 					uses[opcode] = n + 1;
 					if (!where.TryGetValue(opcode, out HashSet<string> maps)) where[opcode] = maps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
