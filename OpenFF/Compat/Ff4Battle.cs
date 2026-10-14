@@ -2284,6 +2284,8 @@ namespace OpenFF.Client
 		private void Encounters()
 		{
 			if (EncounterZoom.Playing || BlurRotate.Playing) return;
+			// Aboard a vehicle there are no encounters (WSVehicleMove rolls none); the ride's distance is not walked.
+			if (Ff4Ride.Riding) { if (Game.Hero.Present) _lastStep = Game.Hero.Position; return; }
 			_sinceBattle++;
 			if (_sinceBattle < 90 || !Game.Hero.Present) return;
 			Vector3 at = Game.Hero.Position;

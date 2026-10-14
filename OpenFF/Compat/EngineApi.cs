@@ -62,6 +62,7 @@ namespace OpenFF.Client
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Chests());
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Extras());
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Menu());
+			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Ride());
 			// FF4's logos and title are parts of the game's loop; what they show is drawn here (Ff4Title).
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Title.Screen());
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Dialogue());   // before the skip question, which draws over it

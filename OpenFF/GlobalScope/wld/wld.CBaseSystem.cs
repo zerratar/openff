@@ -535,6 +535,8 @@ internal static partial class GlobalScope
 
 			public void setupVehicle()
 			{
+				// PORT: FF3's vehicles; FF4's are Ff4Ride's (its flags mean other things to FF3's table).
+				if (OpenFF.Client.GameProfile.IsFf4) return;
 				int fieldNo = sceneMng.getFieldNo();
 				if (-1 == fieldNo)
 				{

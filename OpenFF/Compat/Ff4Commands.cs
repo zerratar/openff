@@ -57,7 +57,8 @@ namespace OpenFF.Client
 			{ "setVehicleRot", Ff4Vehicles.SetVehicleRot },                  // (n, rx, ry, rz)
 			{ "storeMagishipPos", Ff4Vehicles.StoreMagishipPos },            // (0 Earth / 1 Moon, ?, ?)
 			{ "loadMagishipPos", Ff4Vehicles.LoadMagishipPos },              // (0 Earth / 1 Moon, ?, ?)
-			{ "setBackChocoboBackPoint", Ff4Vehicles.SetBackChocoboBackPoint }, // (x, y, z, ?, ?)                       // (kind, event, part, ...): the ending's scene, or a scene after the next event battle
+			{ "setBackChocoboBackPoint", Ff4Vehicles.SetBackChocoboBackPoint }, // (x, y, z, ?, ?)
+			{ "worldMapWarp", WorldMapWarp },                                // (map, x, y, z, dir, vehicle, ?): the world, perhaps aboard                       // (kind, event, part, ...): the ending's scene, or a scene after the next event battle
 			{ "saveCameraPosAndTarget", Ff4Extras.SaveCamera },               // (?, ?): the camera kept for the Fat Chocobo's window to go back to
 			{ "shiftState", Ff4ShiftState.ShiftState },                       // (state, ...): another world state once the event lets go
 			{ "setMapJumpObject", SetMapJumpObject },                         // (name, map, x, y, z, ?, ?, ?, at x, y, z): an exit box
@@ -372,6 +373,27 @@ namespace OpenFF.Client
 			engine.getDword();
 			engine.getDword();
 			Ff4EventCamera.Follow(pos, trg, frames);
+		}
+
+		/// <summary>babilCommand_WorldMapWarp: FF3's jump to the map, the vehicle (2..9: the table at 0x2ba424 - 1 1 1 2 2 3 4 5)
+		/// kept for the world it lands on (wscSetVehicleMapjump: the party arrives aboard it, Ff4Ride) rather than handed to
+		/// FF3's own vehicles.</summary>
+		private static void WorldMapWarp(GlobalScope.ScriptEngine engine)
+		{
+			string map = engine.getString();
+			GlobalScope.VecFx32 pos = new GlobalScope.VecFx32((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
+			uint dir = engine.getDword();
+			uint vehicle = engine.getDword();
+			engine.getWord();
+			Ff4Vehicles.ArriveOn = vehicle >= 2 && vehicle <= 9 ? Ff4Vehicles.TypeOf(vehicle) : -1;
+			GlobalScope.VecFx32 rot = new GlobalScope.VecFx32(0, dir <= 7 ? (int)dir * 0x2000 : 0, 0);
+			GlobalScope.CCastCommandTransit transit = GlobalScope.CCastCommandTransit.getInstance();
+			transit.castParam_MapJump().initialize();
+			// A world map is entered by its chip (f00 -> f00_XY under the place), as the other jumps to it are.
+			if (map != null && map.Length == 3 && (map[0] == 'f' || map[0] == 'F')) map = JumpPart.WithChip(map, pos);
+			transit.castParam_MapJump().setUp(map, 0, pos, rot, _Flag: true);
+			transit.cast_BaseSystem().setMapJump(b: true);
+			if (Ff4Vehicles.ArriveOn >= 0) Log.Write(LogChannel.General, "script: FF4 worldMapWarp " + map + " aboard vehicle type " + Ff4Vehicles.ArriveOn);
 		}
 
 		/// <summary>WorldCamera::setOffset / setTrgFromOffset: the camera at leader + offset, looking at that point + target offset.</summary>

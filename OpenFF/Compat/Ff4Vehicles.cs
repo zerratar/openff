@@ -1,8 +1,10 @@
 // FF4's vehicles' state (world::WSCVehicle): where each one stands and how it is turned, the Lunar Whale's spot on the
 // Earth and on the Moon, and where the black chocobo flies back to - what the scripts set (setVehiclePosition,
 // setVehicleRot, storeMagishipPos, loadMagishipPos, setBackChocoboBackPoint) and the save keeps. A script's vehicle n
-// (1..9) is WSCVehicle's slot {0, 1, 1, 1, 2, 2, 3, 4, 5}[n - 1] (the table at 0x2bbf68); slot 3 is the magiship. FF4's
-// riding is not in yet: this is the state it will read.
+// (1..9) is WSCVehicle's slot {0, 1, 1, 1, 2, 2, 3, 4, 5}[n - 1] (the table at 0x2bbf68): the vehicle types 0 the
+// hovercraft, 1 the Enterprise, 2 the Falcon, 3 the Lunar Whale (the magiship), 4 the chocobo, 5 the black chocobo. Each
+// stays on one world (wscVehicleStayingMap: 0 the Earth, 1 the Underground, 2 the Moon - the Falcon starts below). Riding
+// them is Ff4Ride's.
 
 using System;
 using System.Collections.Generic;
@@ -19,10 +21,60 @@ namespace OpenFF.Client
 			/// <summary>Per slot: x, y, z (fx32) and the turn about x, y, z (16-bit angles).</summary>
 			public int[][] Places;
 			public int[] MagishipEarth, MagishipMoon, BlackChocoboBack;
+			/// <summary>The world each vehicle type stays on (0 Earth, 1 Underground, 2 Moon).</summary>
+			public int[] Stay;
+			/// <summary>The Enterprise has the hovercraft on its hook (wscGetLiftHoverFlag).</summary>
+			public bool LiftHover;
 		}
 
 		private static int[][] _places = NewPlaces();
 		private static int[] _earth = new int[3], _moon = new int[3], _chocoboBack = new int[3];
+		private static readonly int[] DefaultStay = { 0, 0, 1, 0, 0, 0 };
+		private static int[] _stay = (int[])DefaultStay.Clone();
+
+		/// <summary>The vehicle type the next world map is arrived at riding (wscGetVehicleMapjump: a worldMapWarp's vehicle),
+		/// -1 for none.</summary>
+		public static int ArriveOn = -1;
+
+		/// <summary>The Enterprise carries the hovercraft (wscGetLiftHoverFlag).</summary>
+		public static bool LiftHover;
+
+		/// <summary>A type's place: x, y, z (fx32) and the turn about x, y, z (16-bit angles).</summary>
+		public static int[] Place(int type) => type >= 0 && type < Slots ? _places[type] : null;
+
+		public static void SetPlace(int type, int x, int y, int z, int rotY)
+		{
+			if (type < 0 || type >= Slots) return;
+			_places[type][0] = x; _places[type][1] = y; _places[type][2] = z;
+			_places[type][4] = rotY & 0xFFFF;
+		}
+
+		/// <summary>The world a type stays on (wscVehicleStayingMap).</summary>
+		public static int Stay(int type) => type >= 0 && type < 6 ? _stay[type] : -1;
+
+		public static void SetStay(int type, int world)
+		{
+			if (type >= 0 && type < 6 && world >= 0 && world <= 2) _stay[type] = world;
+		}
+
+		/// <summary>A script's vehicle number (1..9) as a type, -1 for none.</summary>
+		public static int TypeOf(uint n) => Slot(n);
+
+		/// <summary>object::checkAcquiredVehicle: the flag (or flags) that say the party has the vehicle.</summary>
+		public static bool Acquired(int type)
+		{
+			bool F(int i) => GlobalScope.FlagManager.singleton().get(0, (uint)i) != 0;
+			switch (type)
+			{
+				case 0: return F(900);
+				case 1: return F(901) || F(902) || F(903);
+				case 2: return F(904) || F(905);
+				case 3: return F(906);
+				case 4: return F(907);
+				case 5: return F(908);
+				default: return false;
+			}
+		}
 
 		private static int[][] NewPlaces()
 		{
@@ -37,6 +89,9 @@ namespace OpenFF.Client
 			_earth = new int[3];
 			_moon = new int[3];
 			_chocoboBack = new int[3];
+			_stay = (int[])DefaultStay.Clone();
+			ArriveOn = -1;
+			LiftHover = false;
 		}
 
 		private static int Slot(uint n) => n >= 1 && n <= SlotOf.Length ? SlotOf[n - 1] : -1;
@@ -102,7 +157,7 @@ namespace OpenFF.Client
 			engine.getDword(); engine.getDword();
 		}
 
-		public static Saved ForSave() => new Saved { Places = _places, MagishipEarth = _earth, MagishipMoon = _moon, BlackChocoboBack = _chocoboBack };
+		public static Saved ForSave() => new Saved { Places = _places, MagishipEarth = _earth, MagishipMoon = _moon, BlackChocoboBack = _chocoboBack, Stay = _stay, LiftHover = LiftHover };
 
 		public static void Restore(Saved s)
 		{
@@ -118,6 +173,8 @@ namespace OpenFF.Client
 			if (s.MagishipEarth?.Length == 3) _earth = (int[])s.MagishipEarth.Clone();
 			if (s.MagishipMoon?.Length == 3) _moon = (int[])s.MagishipMoon.Clone();
 			if (s.BlackChocoboBack?.Length == 3) _chocoboBack = (int[])s.BlackChocoboBack.Clone();
+			if (s.Stay?.Length == 6) _stay = (int[])s.Stay.Clone();
+			LiftHover = s.LiftHover;
 		}
 	}
 }

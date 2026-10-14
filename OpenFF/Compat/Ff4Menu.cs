@@ -153,6 +153,7 @@ namespace OpenFF.Client
 			get
 			{
 				string map = Game.Field.Map ?? "";
+				if (Ff4Ride.Riding) return false;   // WSVehicleMove: aboard, the menu does not save
 				if (map.StartsWith("f", StringComparison.OrdinalIgnoreCase)) return true;
 				try { return Ff4Encounters.For(map)?.SavePointOn(Ff4Encounters.LandUnderHero()) ?? false; } catch (Exception) { return false; }
 			}
@@ -167,7 +168,7 @@ namespace OpenFF.Client
 			if (!_open)
 			{
 				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !EventBusy() && !Game.Battle.InBattle && !Ff4Battle.Active
-					&& !(Ff4Shop.Instance?.IsOpen ?? false) && !(Ff4NaviMap.Instance?.IsOpen ?? false) && !Ff4Chests.Busy && !Ff4Extras.Busy && !EncounterZoom.Playing && !BlurRotate.Playing
+					&& !(Ff4Shop.Instance?.IsOpen ?? false) && !(Ff4NaviMap.Instance?.IsOpen ?? false) && !Ff4Chests.Busy && !Ff4Extras.Busy && !Ff4Ride.Busy && !EncounterZoom.Playing && !BlurRotate.Playing
 					&& (input.KeyPressed("Tab") || input.Pressed(Pad.X)))
 				{
 					Open();
