@@ -24,7 +24,7 @@ behaviour or to a stand-in. That is why "renders" comes first and "behaves" late
 | Lighting and materials | Scene lights and toon shading not applied; a few scene shots show sky geometry wrongly (the Red Wings' flight). |
 | Shadows | The field's; scene casts' own shadow discs follow their hips but are not yet visible. |
 
-## The field - 55%
+## The field - 80%
 
 | | State |
 | --- | --- |
@@ -33,8 +33,9 @@ behaviour or to a stand-in. That is why "renders" comes first and "behaves" late
 | Talking | The game's talk on contact; the speaker's name window (`openCharacterNameWindow`) is implemented. |
 | Script commands | All 369 commands FF4's scripts use are in: 347 run and 22 skip on purpose (cosmetic: door swings, footstep dust, BGM bookkeeping). Among the last ones: the Fat Chocobo's extras through shiftState (Bestiary, Event Theatre, Music Box), the name entry (Whyt, a member, an ability), the staff roll (callEndRoll), the ending's last scene and The End (bootProgram), the cleared game's save and New Game+ (ending_after), the scenes' 2D programs (ce_CallProgram: e03's drawn sequence, e19's picture, e26's rising lines, the original staff, the messages) and the vehicles' state (positions, the Lunar Whale's Earth and Moon spots, the black chocobo's home - riding them is not in yet). ce_setTelopMassage reads its operands only, as Steam's own handler does. `--ff4usage=1` writes the list to logs/ff4-commands.txt (`--ff4ops=<command>,...` or `@<map>` each use with its operands). |
 | Map parameters | Encounter tables and landforms read from the binary; camera chains as above. |
+| Vehicles | Their state is kept as WSCVehicle's (where each stands and is turned, the Lunar Whale's Earth and Moon spots, the black chocobo's home), saved with the game; riding them - the Chocobos, the Hovercraft, the airships, the Lunar Whale - is not in yet. |
 
-## Cutscenes (the `ce_*` scene engine) - 70%
+## Cutscenes (the `ce_*` scene engine) - 80%
 
 The opening on the Red Wings, the flashbacks, and every scripted scene run on FF4's own
 scene engine, which is ours from the binary's disassembly.
@@ -48,7 +49,9 @@ scene engine, which is ours from the binary's disassembly.
 | Faces and props | Expressions through face textures; bind objects (a spear in a hand) posed from the host's joint. |
 | Text | The message bar; the name window; the field's message window opening from its middle over five frames and its caption bar, as Steam's, drawn from a layout (`ff4_field_hud`). |
 | Field events | Scripted walks and turns (MoveCharacter_*Coordination2, Turn*2) and the event camera following the cast (CUFollowCamera: moveCamera_LookPlayer2, setCameraOffset easing in over its frames) as libff4's; a map's first script steps survive the host noticing the map change. |
-| Open | Lights and toon shading; the flight's sky geometry and per-shot visibility; the casts' shadow discs. |
+| 2D programs | ce_CallProgram as Steam's FF4.exe runs it: e03's drawn sequence (Baron over its panning sky, the moons, the birds, the six lines of narration), e19's picture, e26's rising lines, the original development staff (FF4.exe's own list), the scene messages. Placed from Steam's code; not yet set beside Steam's frames (ff4hook cannot start a scene in Steam). |
+| Lights, fog, grey | The toon tables (from FF4.exe), lights per cast, the scenes' fog, the grey-scale shots (glayScale*), bind objects and their joints, auto rotation. |
+| Open | The flight's sky geometry and per-shot visibility; the casts' shadow discs. |
 
 ## Party data - 60%
 
@@ -56,7 +59,7 @@ scene engine, which is ours from the binary's disassembly.
 | --- | --- |
 | Characters, growth, magic, equipment, items | FF4's tables read from the binary and its files onto the unified data layer (`Shared/Data`), the same layer FF3's jobs and spells sit on. |
 | Logos and title | Steam's, read from FF4.exe (Ff4Title): the Square Enix and Matrix logos, then the title - background, logo, CONTINUE / NEW GAME / LOAD GAME / QUIT GAME by the same rules and in the same places, the glove, the Prelude. New Game fades to white and starts in t00_00, whose event calls the opening scene with no fade, so the scene fades in from white as on Steam; maps are left and entered with FF4's 15-frame fades, not FF3's shutter (Ff4MapChange). New Game asks the difficulty first as Steam's DifficultyPart (Normal / Hard over black; Normal's damage x1.2 onto monsters and x0.7 onto the party, Hard neither - kept in ff4-settings.json). Load Game opens Steam's load screen - the menu's Save screen over the title, the hand on the slot written last, "Load data from Slot N?", Back or Title Menu back to the commands. CONTINUE shows when there is a quicksave and resumes it at once, as Steam's (the quicksave is kept, as libff4 keeps its suspend data). The opening movie (opening.mkv) is not played; the title's mouse widgets are not there. |
-| Saves | On the unified layer: three slots, written from the menu's Save screen (Steam's) with the place and the play time; a slot loads into the field from the title's Load Game or `--load`. FF4's own save format is not written. |
+| Saves | On the unified layer: three slots, written from the menu's Save screen (Steam's) with the place and the play time; a slot loads into the field from the title's Load Game or `--load`. The ending's save is the cleared game's: the party made a new game's keeping the bag (initForNewgame(true)), and loaded it starts New Game+ with the extras' and the records' flags (NewGameInitPart). FF4's own save format is not written. |
 | Open | Growth curves and monster records in part; the details of each are in FF4-Internals. |
 
 ## Encounters, shops, inns - 40%
@@ -149,6 +152,14 @@ game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rule
 | Save | Steam's: offered on the world map and at save points (land forms whose encounter rate is 0xFF, read under the hero as checkLandForm does). Slot 1..3 and Title Menu down the right; the lit slot's party by places, the place, the play time and the gil on the left, or "No save data found."; "Save data to Slot N?" / "Return to the title menu?". The first save point ever explains itself (WS1stSPDirection: babil_common.msd 1000130, flag 0:3). |
 | Field map | Steam's (M): the parchment frame over the field, the floor's picture where the party has been and the blank sheet elsewhere, the pin, chests, the save point, exits, shops, world places; what has been seen kept per map in the save, a floor all seen setting its flag; Steam's hint bar over the field (M Map / Tab Menu, M Quit Map). A dungeon's explored percentage (d_map_obj's glyphs, Steam's "6 %" place), shown or hidden by the stage's script (navimapSetDisclosureRateVisibility); navimapFullDisclosure shows a floor whole. Sight (Magic, 5 MP) as Steam's: the dungeon's visited floors down the right (SIGHTRO.dat, babil_sightoro.msd), each shown whole with its chests, exits and save ring, the party's pin on its floor and its row; in a town or on the world the world's map and its places found. Open: vehicles on the world map (FF4's vehicles are not in yet). |
 
+## The extras and the ending - 85%
+
+| | State |
+| --- | --- |
+| The Fat Chocobo's extras | Steam's launcher (shiftState chokobo_menu) and its three screens, measured off Steam's draws: the Bestiary (monster_refer.bbd's book, met / NEW / kill counts fed by the battles and saved, the completion rate, a monster's page on its battle stage with its camera, BGM and motions), the Event Theatre (theater_data.bbd's seen scenes played and back), the Music Box (music_player.bbd's heard songs, loop and play all). |
+| Name entry | Namingway's rename of the leader, Whyt's name and the ability's (five characters, the keyboard as Steam's), kept in the save; the message codes that show them. |
+| The ending | The staff roll (ending_page_file.epf's 70 pages over the ending's scenes), the last scene under it and The End held for a button (bootProgram), Namingway's last words, the cleared game's save and the title (ending_after). Checked in OpenFF only - no Steam save near the end to set it beside. |
+
 ## The Steam shell - 0%
 
 FF4's Windows shell (`FF4.exe`: the launcher's screens, achievements, its own settings)
@@ -157,7 +168,6 @@ started here.
 
 ## In one line
 
-FF4 in OpenFF is a world you can walk, with its scenes playing and its battles fought by FF4's own
-rules, its field menu rebuilt as Steam's, and nearly all of its field commands FF4's own.
-The battle is FF4's throughout; the vehicles, the Fat Chocobo and the extras' screens, the scenes' 2D
-art and the ending are the work ahead.
+FF4 in OpenFF is a world you can walk from the opening to the ending, with its scenes playing and
+its battles fought by FF4's own rules, its field menu and extras rebuilt as Steam's, and every
+command its scripts use in. Riding the vehicles is the work ahead.

@@ -242,28 +242,27 @@ same game, crisper. The parts still in progress are the ones the original never 
 | Game pad | 80% | Plays everything; the touch-only corners are being given pad paths as they are found (the name entry and Config were two) |
 | The client's own UI: the menu, settings, on-screen keys | 60% | New, not the game's; taking shape - its screens are layouts and stylesheets a mod can restyle |
 
-**Final Fantasy IV (3D Remake) - in progress, about 50%.** The world renders - Baron, the
-overworld, the dungeons, the opening's scenes - and Cecil walks it. The opening and its first
-battle are measured against the Steam game frame by frame (Tools/ff4hook) and written from its
-own code (the Android build's libff4, the Steam FF4.exe decompiled): the title, the scenes'
-cameras and effects, the message window, the encounter whirl, and the battle's turns, gauges,
-blows, numbers, deaths, the monsters' AI and counters, the battle events and the win with its
-result pages. The field menu is being rebuilt screen by screen on Steam's measurements - the root,
-Inventory, Magic, Equipment, Abilities, Status, Party, Settings and Quicksave are done, with OpenFF's
-Gambits in the same style; Steam's Save screen and the save points are next. Half the field commands are
-still unread, and statuses and most monster abilities are still to come. `Docs/FF4-Status.md` has each subsystem in
-detail; `Docs/FF4-Internals.md` what has been read out of the binary.
+**Final Fantasy IV (3D Remake) - in progress, about 75%.** The world renders - Baron, the
+overworld, the dungeons, the scenes - and the game plays from the title to the ending. It is
+measured against the Steam game frame by frame (Tools/ff4hook) and written from its own code (the
+Android build's libff4, the Steam FF4.exe decompiled): the title, the scenes' cameras, effects and 2D
+programs, the message window, the encounter whirl, the battle whole (every command, status, summon
+and boss), the field menu with Save and the field map, the Fat Chocobo's Bestiary, Event Theatre and
+Music Box, the name entry, the staff roll, the cleared game's save and New Game+. Every command FF4's
+scripts use is in; riding the vehicles is next. `Docs/FF4-Status.md` has each subsystem in detail;
+`Docs/FF4-Internals.md` what has been read out of the binary.
 
 | Piece | Done | Note |
 | --- | --- | --- |
 | Maps, models, textures, the world map | 85% | Render as the game's from its files; some scene lighting and materials missing |
-| Field: walking, exits, talking, the script commands | 55% | 247 of 500 commands run; the FF4-only ones are being written from the binary as they turn up; scripted walks, turns and the event camera follow as libff4's; the message window and its caption bar as Steam's |
-| Cutscenes (the opening, the flashbacks) | 70% | Casts, motions, camera motions on Steam's frames, expressions, bind objects, effects, the message bar, the call into battle; lights, sky and shadow details open |
+| Field: walking, exits, talking, the script commands | 80% | All 369 commands the scripts use are in (347 run, 22 cosmetic ones skipped); scripted walks, turns and the event camera as libff4's; the message window and its caption bar as Steam's; the vehicles' state kept, riding them not yet |
+| Cutscenes (the opening, the flashbacks, the ending) | 80% | Casts, motions, camera motions on Steam's frames, expressions, bind objects, effects, lights, fog, the message bar, the call into battle, the scenes' 2D programs, the staff roll; sky and shadow details open |
 | Title, logos, map changes | 85% | Steam's logos and title, New Game's white fade, FF4's map fades, CONTINUE resuming a quicksave, Steam's load screen and difficulty question; the opening movie not yet |
 | Party data: characters, growth, magic, equipment, items | 60% | Read from the binary and the files onto the unified data layer; HP grown level by level as FF4 rolls it |
-| Encounters, shops, inns, saves | 40% | Work as calls; the presentation is not FF4's |
+| Encounters, shops, inns, saves | 60% | Saves as Steam's Save screen, at save points and on the world map, with New Game+ from the cleared game's; shops and inns work as calls, their screens not yet FF4's |
+| The Fat Chocobo's extras, the name entry | 85% | Bestiary, Event Theatre and Music Box as Steam's screens; Namingway's renames |
 | Battle | 100% | FF4's own: its stages and placings, active time and the turn queue, attacks, effects, sounds, the damage and hit formulas with elements, races and rows, numbers, deaths, the monster AI (conditions, action sets, target types, counters), the battle events (battle_ai.bbd) with their own models, statuses, magic and summons, the bosses and the story fights' scripted turns, the openings (preemptive strike, back attack, surprised), escape, the win and its result pages; every party command (Jump, Kick, Steal, Twincast, Bardsong...) checked frame by frame against the Steam game; hit reactions (the flinch, the guard, the flash) on the blows libff4 gives them |
-| Menus | 60% | Steam's field menu, measured off its draws, as layouts a mod can restyle: the root with the lead's thought, Inventory, Magic, Equipment, Abilities, Status, Party, Settings (its window designs too), Quicksave, and OpenFF's Gambits in the same style; Steam's Save screen and the save points to come |
+| Menus | 80% | Steam's field menu, measured off its draws, as layouts a mod can restyle: the root with the lead's thought, Inventory, Magic, Equipment, Abilities, Status, Party, Settings (its window designs too), Save, Quicksave, the field map and Sight, and OpenFF's Gambits in the same style |
 | The Steam shell (achievements, launcher screens) | 0% | Not started |
 
 **Crystal and mods** - what the editor and the API can do is in `Docs/Editor.md` and
