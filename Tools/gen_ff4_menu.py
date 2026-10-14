@@ -148,6 +148,15 @@ field_keys = '\n'.join([
         frame('dismountKey', 1302.7, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 15'),
         frame('dismountLabel', 1363.5, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.dismountLabel}"'),
     ]), 1)),
+    # The Enterprise's hook in its place: Enter Raise / Enter Lower (Steam's frames by Baron).
+    frame('raise', 0, 0, 1920, 1080, None, 'bind-display="menu.raise"', indent('\n'.join([
+        frame('raiseKey', 1365.6, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 43'),
+        frame('raiseLabel', 1426.5, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.raiseLabel}"'),
+    ]), 1)),
+    frame('lower', 0, 0, 1920, 1080, None, 'bind-display="menu.lower"', indent('\n'.join([
+        frame('lowerKey', 1358.9, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 43'),
+        frame('lowerLabel', 1419.7, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.lowerLabel}"'),
+    ]), 1)),
     frame('mapClosed', 0, 0, 1920, 1080, None, 'bind-display="menu.mapClosed"', indent('\n'.join([
         frame('mapKey', 1548.2, 995.6, 60.75, 60.75, 'key-cap', '', '', '-ff-cell: key 52'),
         frame('mapLabel', 1609, 995.6, 300, 60.75, 'm-key-label', 'bind-text="{menu.mapLabel}"'),

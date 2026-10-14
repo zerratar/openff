@@ -40,7 +40,7 @@ namespace OpenFF.Client
 
 		public override bool WantsUpdate => true;
 
-		private enum State { Foot, Boarding, TakeOff, Riding, Landing, GettingOff, ChocoboOff, Descending, Leaving }
+		private enum State { Foot, Boarding, TakeOff, Riding, Landing, GettingOff, ChocoboOff, Descending, Leaving, LiftUp, LiftOff }
 
 		private static State _state = State.Foot;
 
@@ -116,6 +116,7 @@ namespace OpenFF.Client
 				Log.Write(LogChannel.General, "ride: the map left aboard " + (_ride?.Type ?? -1));
 				// The keys are the next map's (the magiship's inside, the world arrived aboard takes them again).
 				OpenFF.Game.Input.Capture = false;
+				StopEngine();
 			}
 			_ride = null;
 			_state = State.Foot;
@@ -148,6 +149,15 @@ namespace OpenFF.Client
 				_vehicles[type] = v;
 				v.Shown = type == arrive || (Ff4Vehicles.Acquired(type) && Ff4Vehicles.Stay(type) == _world);
 				Characters.setHidden(v.Ctrl, !v.Shown);
+			}
+			// Carried: the hovercraft is wherever the Enterprise is (WTSynchronizeEpHover), on its world.
+			if (Ff4Vehicles.LiftHover && _vehicles[0] != null && _vehicles[1] != null)
+			{
+				Vehicle h = _vehicles[0], e = _vehicles[1];
+				h.Shown = e.Shown;
+				Characters.setHidden(h.Ctrl, !h.Shown);
+				h.X = e.X; h.Y = Heights[1] - 0x4493; h.Z = e.Z; h.RotY = e.RotY;
+				Place(h);
 			}
 			if (arrive >= 0 && _vehicles[arrive] != null) Arrive(_vehicles[arrive]);
 		}
@@ -224,6 +234,8 @@ namespace OpenFF.Client
 					case State.GettingOff: GettingOff(); break;
 					case State.ChocoboOff: ChocoboOff(); break;
 					case State.Descending: Descending(); break;
+					case State.LiftUp: LiftUp(); break;
+					case State.LiftOff: LiftOff(); break;
 				}
 			}
 			catch (Exception ex)
@@ -342,6 +354,7 @@ namespace OpenFF.Client
 			if (_frame < 60) return;
 			_state = State.Riding;
 			_turnStep = 0x800;
+			StartEngine();
 			Log.Write(LogChannel.General, "ride: aboard type " + _ride.Type);
 		}
 
@@ -394,6 +407,9 @@ namespace OpenFF.Client
 			FollowHero();
 			_state = State.Riding;
 			_turnStep = 0x800;
+			// Carrying the hovercraft: the Enterprise flies with it (1004).
+			if (v.Type == 1 && Ff4Vehicles.LiftHover) { Characters.startMotion(v.Ctrl, Motion(0x3ec), true, 0); CarryHover(); }
+			StartEngine();
 			Log.Write(LogChannel.General, "ride: arrived aboard type " + v.Type);
 		}
 
@@ -409,7 +425,221 @@ namespace OpenFF.Client
 			InputState input = OpenFF.Game.Input;
 			// Steam's key bar aboard: Backspace Dismount (babil_menu 60208, key_assign01); Enter is the Enterprise's hook (60209/10).
 			if (!map && _pressB) { TryGetOff(); return; }
+			// WSVehicleMove::wsProcess: Enter on the Enterprise with its hook (flag 903) raises the hovercraft in reach, or lowers
+			// the one it carries where it may stand.
+			if (!map && _pressA && _ride.Type == 1)
+			{
+				if (CanRaise()) { StartLiftUp(); return; }
+				if (CanLower(out int y)) { StartLiftOff(y); return; }
+			}
 			Steer(input);
+			if (Ff4Vehicles.LiftHover && _ride.Type == 1) CarryHover();
+		}
+
+		// ---- the Enterprise's hook (WSHoverLiftUp / WSHoverLiftOff, WTSynchronizeEpHover) ----
+
+		private static Vehicle Hover => _vehicles[0];
+
+		/// <summary>wsProcessEpHoverLiftup's test: the hook (flag 903), the hovercraft not carried, here and within 10 across.</summary>
+		private static bool CanRaise()
+		{
+			Vehicle h = Hover;
+			if (_ride == null || _ride.Type != 1 || !Flag(903) || Ff4Vehicles.LiftHover || h == null || !h.Shown) return false;
+			long dx = _ride.X - h.X, dz = _ride.Z - h.Z;
+			return dx * dx + dz * dz < (long)0xa000 * 0xa000;
+		}
+
+		/// <summary>wsProcessEpHoverLiftoff's test: carrying it, over ground of the kinds 0, 2 or 7, the magiship and the Falcon
+		/// not within 20 across.</summary>
+		private static bool CanLower(out int groundY)
+		{
+			groundY = 0;
+			if (_ride == null || _ride.Type != 1 || !Ff4Vehicles.LiftHover) return false;
+			foreach (int other in new[] { 3, 2 })
+			{
+				Vehicle o = _vehicles[other];
+				if (o == null || !o.Shown) continue;
+				long dx = _ride.X - o.X, dz = _ride.Z - o.Z;
+				if (dx * dx + dz * dz < (long)0x14000 * 0x14000) return false;
+			}
+			int kind = GroundKind(_ride, out groundY, out _, false);
+			return kind == 0 || kind == 2 || kind == 7;
+		}
+
+		/// <summary>WTSynchronizeEpHover: carried, the hovercraft hangs 4.29 under the Enterprise, turned as it is.</summary>
+		private static void CarryHover()
+		{
+			Vehicle h = Hover;
+			if (h == null || _ride == null) return;
+			h.X = _ride.X; h.Y = _ride.Y - 0x4493; h.Z = _ride.Z; h.RotY = _ride.RotY;
+			h.Shown = true;
+			Characters.setHidden(h.Ctrl, false);
+			Place(h);
+		}
+
+		private static int _liftPhase, _liftY;
+
+		private static void StartLiftUp()
+		{
+			Vehicle h = Hover;
+			_state = State.LiftUp;
+			_liftPhase = 0;
+			_frame = 0;
+			_fromX = _ride.X; _fromY = _ride.Y; _fromZ = _ride.Z;
+			_liftY = h.Y;
+			// WSHoverLiftUp::wsInitialize: carried from now (the flag), flag 200 up.
+			Ff4Vehicles.LiftHover = true;
+			GlobalScope.FlagManager.singleton().set(0, 200);
+			StopEngine();
+			Log.Write(LogChannel.General, "ride: the hook raises the hovercraft");
+		}
+
+		/// <summary>Over it in 15 frames, turned to it; 5 more turning to its heading; the hook down (1002, sound 6/3); then up
+		/// (1003) with it on the hook's locator4; then flying with it (1004) - Steam's: 15 + 5, 60, 82 frames.</summary>
+		private static void LiftUp()
+		{
+			Vehicle h = Hover;
+			_frame++;
+			switch (_liftPhase)
+			{
+				case 0:
+				{
+					float t = Math.Min(1f, _frame / 15f);
+					_ride.X = _fromX + (int)((h.X - _fromX) * t);
+					_ride.Z = _fromZ + (int)((h.Z - _fromZ) * t);
+					_ride.Y = _fromY + (int)((h.Y + 0x19000 - _fromY) * t);
+					if (_fromX != h.X || _fromZ != h.Z) Turn(Yaw(h.X - _fromX, h.Z - _fromZ));
+					Place(_ride);
+					FollowHero();
+					if (_frame >= 15) { _liftPhase = 1; _frame = 0; }
+					break;
+				}
+				case 1:
+					Turn(h.RotY);
+					Place(_ride);
+					FollowHero();
+					if (_frame >= 5)
+					{
+						Characters.startMotion(_ride.Ctrl, Motion(0x3ea), false, 0);
+						PlaySe(6, 3);
+						_liftPhase = 2; _frame = 0;
+					}
+					break;
+				case 2:
+					if (_frame < 2 || !Characters.isEndOfMotion(_ride.Ctrl)) break;
+					Characters.startMotion(_ride.Ctrl, Motion(0x3eb), false, 0);
+					ReserveHook();
+					_liftPhase = 3; _frame = 0;
+					break;
+				case 3:
+					HangOnHook(h, _liftY, _ride.Y - 0x4493, 66);
+					if (_frame < 2 || !Characters.isEndOfMotion(_ride.Ctrl)) break;
+					Characters.startMotion(_ride.Ctrl, Motion(0x3ec), true, 0);
+					CarryHover();
+					_state = State.Riding;
+					_turnStep = 0x800;
+					StartEngine();
+					break;
+			}
+		}
+
+		private static void StartLiftOff(int groundY)
+		{
+			_state = State.LiftOff;
+			_liftPhase = 0;
+			_frame = 0;
+			_liftY = groundY;
+			// WSVehicleMove: the flag down before "liftoff"; WSHoverLiftOff: down on the hook (1005, sound 6/4).
+			Ff4Vehicles.LiftHover = false;
+			StopEngine();
+			Characters.startMotion(_ride.Ctrl, Motion(0x3ed), false, 0);
+			PlaySe(6, 4);
+			ReserveHook();
+			Log.Write(LogChannel.General, "ride: the hook lowers the hovercraft");
+		}
+
+		/// <summary>Down on the hook (1005), set on the ground (its place and heading kept), the hook back up (1006), flying.</summary>
+		private static void LiftOff()
+		{
+			Vehicle h = Hover;
+			_frame++;
+			if (_liftPhase == 0)
+			{
+				HangOnHook(h, _ride.Y - 0x4493, _liftY, 60);
+				if (_frame < 2 || !Characters.isEndOfMotion(_ride.Ctrl)) return;
+				h.Y = _liftY;
+				Place(h);
+				Ff4Vehicles.SetPlace(0, h.X, h.Y, h.Z, h.RotY);
+				Ff4Vehicles.SetStay(0, _world);
+				Characters.startMotion(_ride.Ctrl, Motion(0x3ee), false, 0);
+				_liftPhase = 1;
+				_frame = 0;
+				return;
+			}
+			if (_frame < 2 || !Characters.isEndOfMotion(_ride.Ctrl)) return;
+			if (Characters.isMotion(_ride.Ctrl, Motion(0x3e9))) Characters.startMotion(_ride.Ctrl, Motion(0x3e9), true, 2);
+			_state = State.Riding;
+			_turnStep = 0x800;
+			StartEngine();
+		}
+
+		private static void ReserveHook()
+		{
+			Characters.initJntMtx(_ride.Ctrl);
+			Characters.reserveToGetJntMtx(_ride.Ctrl, "locator4");
+		}
+
+		/// <summary>The hovercraft on the hook's locator4 (its matrix, scaled to the hovercraft's size) while the motion plays; with
+		/// no joint to read, from one height to the other over the motion's frames.</summary>
+		private static void HangOnHook(Vehicle h, int fromY, int toY, int frames)
+		{
+			GlobalScope.MtxFx43 m = new GlobalScope.MtxFx43();
+			GlobalScope.MTX_Identity43(m);
+			if (Characters.getJntMtx(_ride.Ctrl, "locator4", m))
+			{
+				GlobalScope.MTX_ScaleApply43(m, m, Scales[0], Scales[0], Scales[0]);
+				Characters.setPoseMtx(h.Ctrl, m);
+				h.X = m._30; h.Y = m._31; h.Z = m._32;
+				ReserveHook();
+				return;
+			}
+			float t = Math.Min(1f, _frame / (float)frames);
+			h.X = _ride.X; h.Z = _ride.Z; h.RotY = _ride.RotY;
+			h.Y = fromY + (int)((toY - fromY) * t);
+			Place(h);
+		}
+
+		// ---- the engine's sound (WSVehicleMove::wsInitialize: archive 0, 21 the hovercraft, 22 the airships, 23 the magiship) ----
+
+		private static GlobalScope.MatrixSound.MtxSEHandle _engine;
+
+		private static void StartEngine()
+		{
+			if (_ride == null || _ride.Type > 3 || _engine != null) return;
+			int[] numbers = { 21, 22, 22, 23 };
+			try { _engine = GlobalScope.MatrixSound.MtxSENDS_Play(0, numbers[_ride.Type], 127, 128); } catch (Exception) { }
+		}
+
+		private static void StopEngine()
+		{
+			if (_engine == null) return;
+			try { GlobalScope.MatrixSound.MtxSENDS_Stop(_engine, 0); } catch (Exception) { }
+			_engine = null;
+		}
+
+		/// <summary>The key bar aboard (FF4.exe's 0x56f330): with the hook, Enter Raise / Lower when it can; else Backspace
+		/// Dismount where the vehicle may come down (never carrying the hovercraft).</summary>
+		public static void KeyHints(out bool dismount, out bool raise, out bool lower)
+		{
+			dismount = raise = lower = false;
+			if (_state != State.Riding || _ride == null) return;
+			if (_ride.Type == 1 && Flag(903))
+			{
+				raise = CanRaise();
+				lower = !raise && CanLower(out _);
+				if (raise || lower) return;
+			}
+			dismount = !(_ride.Type == 1 && Ff4Vehicles.LiftHover) && GroundAllows(_ride);
 		}
 
 		private static void Steer(InputState input)
@@ -567,7 +797,9 @@ namespace OpenFF.Client
 		// ---- getting off ----
 
 		/// <summary>checkGetOffEx / checkGetOff: the land form under it allows the type, the ground's flag 20 is down.</summary>
-		private static bool CanGetOff(Vehicle v, out int groundY)
+		/// <summary>The kind of ground under the vehicle (landFormParameter(0) of its land form), -1 for none or the ground's
+		/// flag 20.</summary>
+		private static int GroundKind(Vehicle v, out int groundY, out uint flags, bool log)
 		{
 			GlobalScope.stg.CStageMng stage = GlobalScope.stageMng;
 			GlobalScope.MtxFx43 inv = new GlobalScope.MtxFx43();
@@ -576,13 +808,29 @@ namespace OpenFF.Client
 			GlobalScope.MTX_MultVec43(local, inv, local);
 			int above = v.Type == 5 ? -0x7000 : v.Type == 4 ? 0x9000 : 0x7000;
 			groundY = v.Y;
-			if (!Ground(local, above, 0x40000, out int y, out int land, out uint flags)) return false;
+			flags = 0;
+			if (!Ground(local, above, 0x40000, out int y, out int land, out flags)) return -1;
 			groundY = y;
-			if ((flags & (1u << 20)) != 0) return false;
+			if ((flags & (1u << 20)) != 0) return -1;
 			Ff4Encounters.Table table = Ff4Encounters.For(GlobalScope.stg.CStageMng.CurrentName);
 			int kind = land >= 0 && land < 12 && table != null ? table.RawRates[land] : -1;
-			Log.Write(LogChannel.File, "ride: get off at " + v.X + "," + v.Z + "? land form " + land + ", kind " + kind + ", ground flags 0x" + flags.ToString("x"));
-			switch (v.Type)
+			if (log) Log.Write(LogChannel.File, "ride: ground at " + v.X + "," + v.Z + ": land form " + land + ", kind " + kind + ", flags 0x" + flags.ToString("x"));
+			return kind;
+		}
+
+		private static bool CanGetOff(Vehicle v, out int groundY)
+		{
+			if (v.Type == 1 && Ff4Vehicles.LiftHover) { groundY = v.Y; return false; }
+			int kind = GroundKind(v, out groundY, out _, true);
+			return KindAllows(v.Type, kind);
+		}
+
+		private static bool GroundAllows(Vehicle v) => KindAllows(v.Type, GroundKind(v, out _, out _, false));
+
+		private static bool KindAllows(int type, int kind)
+		{
+			if (kind < 0) return false;
+			switch (type)
 			{
 				case 0: return kind == 0 || kind == 2;
 				case 3: return kind == 0 || kind == 8;
@@ -606,6 +854,7 @@ namespace OpenFF.Client
 				_waitFrames = 30;
 				return;
 			}
+			StopEngine();
 			if (_ride.Type == 4) { StartChocoboOff(); return; }
 			_state = State.Landing;
 			_frame = 0;
@@ -759,6 +1008,7 @@ namespace OpenFF.Client
 			if (_ride.Y > _toY) return;
 			_state = State.Riding;
 			_turnStep = 0x800;
+			StartEngine();
 		}
 
 		/// <summary>A map jump of the ride's own (the magiship's inside): the keys and the state wait for the map to change.</summary>

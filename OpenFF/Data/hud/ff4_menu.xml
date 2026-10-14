@@ -217,6 +217,16 @@
         <frame class="key-cap" style="-ff-cell: key 15"><id>dismountKey</id><x>1302.7</x><y>995.6</y><width>60.75</width><height>60.75</height></frame>
         <frame class="m-key-label" bind-text="{menu.dismountLabel}"><id>dismountLabel</id><x>1363.5</x><y>995.6</y><width>300</width><height>60.75</height></frame>
       </frame>
+      <frame bind-display="menu.raise">
+      <id>raise</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+        <frame class="key-cap" style="-ff-cell: key 43"><id>raiseKey</id><x>1365.6</x><y>995.6</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.raiseLabel}"><id>raiseLabel</id><x>1426.5</x><y>995.6</y><width>300</width><height>60.75</height></frame>
+      </frame>
+      <frame bind-display="menu.lower">
+      <id>lower</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+        <frame class="key-cap" style="-ff-cell: key 43"><id>lowerKey</id><x>1358.9</x><y>995.6</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.lowerLabel}"><id>lowerLabel</id><x>1419.7</x><y>995.6</y><width>300</width><height>60.75</height></frame>
+      </frame>
       <frame bind-display="menu.mapClosed">
       <id>mapClosed</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
         <frame class="key-cap" style="-ff-cell: key 52"><id>mapKey</id><x>1548.2</x><y>995.6</y><width>60.75</width><height>60.75</height></frame>

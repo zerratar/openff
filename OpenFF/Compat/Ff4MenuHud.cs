@@ -135,6 +135,9 @@ namespace OpenFF.Client
 			/// <summary>Aboard a vehicle: Backspace Dismount on the field's key bar.</summary>
 			public bool Riding;
 			public string DismountLabel = "Dismount";
+			/// <summary>The Enterprise's hook on the key bar: Enter Raise / Enter Lower (babil_menu 60209 / 60210).</summary>
+			public bool Raise, Lower;
+			public string RaiseLabel = "Raise", LowerLabel = "Lower";
 			public float FieldKeysDrop;   // how far the field's key bar has slid down (0 up, 108 out of sight)
 			// Sight (MSSSightro): the floors or the world's places down the right, seven in view; the map is Ff4NaviMap's.
 			public bool Sight;

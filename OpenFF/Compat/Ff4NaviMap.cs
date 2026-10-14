@@ -488,8 +488,13 @@ namespace OpenFF.Client
 			// Steam's own hint lines (babil_menu.msd 60204 "%key_assign09%Map", 60213 "... Quit Map", 60205 "%key_assign11%Menu").
 			h.MapLabel = _open ? Ff4Menu.KeyText(60213, "Quit Map") : Ff4Menu.KeyText(60204, "Map");
 			h.MenuLabel = Ff4Menu.KeyText(60205, "Menu");
-			h.Riding = Ff4Ride.Riding && !Ff4Ride.Busy && !_open;
+			Ff4Ride.KeyHints(out bool dismount, out bool raise, out bool lower);
+			h.Riding = dismount && !_open;
+			h.Raise = raise && !_open;
+			h.Lower = lower && !_open;
 			h.DismountLabel = Ff4Menu.KeyText(60208, "Dismount");
+			h.RaiseLabel = Ff4Menu.KeyText(60209, "Raise");
+			h.LowerLabel = Ff4Menu.KeyText(60210, "Lower");
 			Ff4MenuHud.Draw(h);
 		}
 	}
