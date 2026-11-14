@@ -88,7 +88,9 @@ internal static partial class GlobalScope
 								// the cast's feet: the lower foot joint, within a fifth of a unit of the ground on the field
 								// (Cecil's L_asi / R_asi 0.1 and 0.2 over it); the cast's own position is no floor here, a scene's
 								// motion root leaving it at 0 under a deck it lifts the model onto.
-								pos.y = feet;
+								// Feet within a step of the cast's own position stand on it (the soldiers: ankles 0.94 over a deck at
+								// 0 - the disc at the ankles stood a unit off the deck, further back and wider than Steam's).
+								pos.y = feet - _pRenderObject.m_Position.y < 2 * 4096 ? _pRenderObject.m_Position.y : feet;
 							}
 							if (!_jointSeen)
 							{

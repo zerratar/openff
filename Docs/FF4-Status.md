@@ -22,7 +22,7 @@ behaviour or to a stand-in. That is why "renders" comes first and "behaves" late
 | The overworld | FF4's chip layout (mirrored in z relative to FF3's - measured against 33 scripted arrivals), the chips streaming in, the tilted mountain and forest quads seen from FF4's camera side. |
 | Characters and objects | Cecil and the party's field models, NPC bodies, objects; the field motion sets renumbered so idle, walk and run play as such. |
 | Lighting and materials | Scene lights and toon shading not applied; a few scene shots show sky geometry wrongly (the Red Wings' flight). |
-| Shadows | The field's; scene casts' own (ce_ShadowSetting) as libff4's: the disc follows the hips' x and z at the scale the script gives (4096 the model's own size, not the character's default times it), dropped onto the ground - the collision, or where none is (the Red Wings' deck) the floor under the cast's feet, as FF4 drops it onto the stage model (setShadowStage). Set beside Steam's opening frame for frame: the same faint discs under the soldiers. |
+| Shadows | The field's; scene casts' own (ce_ShadowSetting) as libff4's: the disc follows the hips' x and z at the scale the script gives (4096 the model's own size, not the character's default times it), flat, dropped onto the ground - the collision, or where none is (the Red Wings' deck) the floor at the cast's own height (its feet when they stand well over it), as FF4 drops it onto the stage model (setShadowStage) - and lifted half a unit over it (FF4's 0x40 relies on the DS's polygon ids; here the deck would win the depth test). Set beside Steam's opening and "Must we now be thieves" frames: the same faint discs, the same size, under the soldiers' feet. |
 
 ## The field - 80%
 
