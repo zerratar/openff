@@ -7,6 +7,22 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## 0.3.8 - Steam achievements (2026-11-14)
+
+OpenFF now earns your Steam achievements in both games, by each game's own rules, when you play from your Steam copy with Steam running, and Steam shows you in the game with the playtime counting. Mods don't turn them off; `"achievements": false` in settings.json does. FF4's Equipment screen also compares a piece before you put it on, as Steam's does.
+
+**Added**
+- Steam achievements. FF4's 58 follow FF4.exe's own rules from `achievement_param.bbd` (story moments, bosses, items, augments, summons, levels, gil, the Bestiary, places), checked at the same moments the game checks them. FF3's 18 are earned where FF3's own code awards them, and any OpenFF earned for you before now are sent on. OpenFF talks to the Steam client already on your machine and ships nothing of Valve's. It only connects when the game files are a Steam install (not GOG) and Steam is running.
+- Settings: `"achievements": true | false` in settings.json, `--no-achievements` for one run, and `--achievements-dry` to see what would be earned without sending anything. Test drives (`--drive`) never send any.
+- FF4 Equipment: lighting a piece in the bag shows each figure it would change, `old → new`, green up and red down, as on Steam. An empty hand reads "Empty" with the fist.
+- FF4 keeps the game's clear count in the save (the ending's save counts it, and New Game+ carries it), so scenes that ask how many times you've cleared the game get the right answer.
+
+**Fixes**
+- FF4: an empty-handed character's Attack and Accuracy read 0 and 100, as Steam shows them.
+- Crystal: a model's parts show as a small cube in the hierarchy, not a triangle that looked like a warning sign.
+
+Earning achievements from a client other than the game's own is between you and Steam: Valve and Square Enix haven't approved OpenFF. Turn them off with `"achievements": false` if you'd rather not.
+
 ## 0.3.7 - FF4 to the end; your own characters' faces (2026-11-14)
 
 Final Fantasy IV now runs every script command its story uses. That covers the vehicles (the hovercraft, the Enterprise and its hook, the Falcon, the Lunar Whale and the chocobos), the trip between the worlds, the Underworld and the Moon, Steam's shops, inns, field map, Sight, save points, Bestiary, Event Theatre and Music Box, and the ending with New Game+. For modders, a character you replace with a glTF model of your own now looks as it does in Blender: crisp pixel art, the game's brightness, and its pictures and facial expressions editable in Crystal.
