@@ -1077,7 +1077,14 @@ second, so you can paint with the game running.
 `j101_001` loads the game's `j101_001.face`), then flip its eye and mouth through the pack's
 numbered pictures (`ChangeFaceEye 3`, `ChangeFaceMouth 7`) for blinks, surprise and smiles.
 j101 has eight packs. In each, every number holds an eye or a mouth picture; j101_001 has
-eyes at 0-5 and mouths at 6-8. A stand-in follows along through its materials named after
+eyes at 0-5 and mouths at 6-8.
+
+The packs share their pictures. j101_001 holds all nine of j101's faces, and the other seven
+are smaller picks of the same pictures, in their own order, for particular scenes (j101_002's
+0, 1, 2, 3 are j101_001's 0, 6, 3, 7). A picture you replace is used wherever the game shows
+that same picture, in every pack, so redrawing j101_001's nine covers them all. Crystal also
+writes the twins into the definition when you replace one, marks them *shared with*, and
+giving one back to the game gives back all of them. A stand-in follows along through its materials named after
 the parts (`eye`, `Eyes`, `eye.001`), or the ones `faceParts` names. For each number it
 shows your picture if `faces` has one. For a number you have no picture for, it depends on
 whether the stand-in's face looks like the game's:
@@ -1111,7 +1118,8 @@ gives you the game's picture to paint over.
 
 To work on many pictures at once, use **Export to project** (shift-click exports every
 pack). It writes each picture to `assets/faces/<pack>/` as `eye-0.png`, `mouth-6.png` and so
-on, and has the stand-in use them. Edit them in any image editor: Crystal takes them again
+on, and has the stand-in use them. Exporting every pack writes each picture once, in the
+first pack that has it, and leaves untouched copies from an older export to that one. Edit them in any image editor: Crystal takes them again
 when you switch back to it, and a running game within a second. **Download .zip** gives the
 same files to edit elsewhere. To bring pictures back, drop PNGs on the card; each goes to
 the number its name says (`eye-3.png`, or `j101_001-mouth-7.png` for another pack). A PNG

@@ -92,6 +92,67 @@ namespace OpenFF.Graphics
 			return best;
 		}
 
+		private readonly Dictionary<string, string> _signatures = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>What a number's picture of a part is (its size and pixels, hashed), to know it again in another pack; null
+		/// when the set has none. A model's packs share pictures: j101_002's four are j101_001's 0, 6, 3 and 7.</summary>
+		public string Signature(int number, string part)
+		{
+			string key = number + "/" + part;
+			if (_signatures.TryGetValue(key, out string known)) return known;
+			string signature = null;
+			if (Picture(number, part) is (int w, int h, byte[] rgba))
+			{
+				using (System.Security.Cryptography.SHA1 sha = System.Security.Cryptography.SHA1.Create())
+					signature = w + "x" + h + ":" + Convert.ToHexString(sha.ComputeHash(rgba));
+			}
+			_signatures[key] = signature;
+			return signature;
+		}
+
+		/// <summary>
+		/// The mod's picture for a pack's part and number: the definition's own for it, else the one it gives the same game
+		/// picture in another of the model's packs (a face replaced once is replaced wherever the game shows it) - the
+		/// definition's earliest such pack, j101_001 before j101_002. <paramref name="from"/> names that one ("j101_001 eye 3"),
+		/// null when the picture is the pack's own; null when the mod has none.
+		/// </summary>
+		public static string LinkedPath(OpenFF.Data.ModModel definition, string pack, string part, int number, Func<string, FacePack> packOf, out string from)
+		{
+			from = null;
+			if (definition == null || pack == null || part == null) return null;
+			string own = definition.FacePath(pack, part, number);
+			if (own != null || definition.Faces.Count == 0) return own;
+			string signature = packOf(pack)?.Signature(number, part);
+			if (signature == null) return null;
+			HashSet<string> siblings = new HashSet<string>(SiblingNames(pack), StringComparer.OrdinalIgnoreCase);
+			List<string> keys = new List<string>(definition.Faces.Keys);
+			keys.Sort(StringComparer.OrdinalIgnoreCase);
+			foreach (string key in keys)
+			{
+				string[] bits = key.Split('/');
+				if (bits.Length != 3 || !string.Equals(bits[1], part, StringComparison.OrdinalIgnoreCase) || !siblings.Contains(bits[0]) || !int.TryParse(bits[2], out int n)) continue;
+				if (string.Equals(bits[0], pack, StringComparison.OrdinalIgnoreCase)) continue;
+				if (packOf(bits[0])?.Signature(n, part) != signature) continue;
+				from = bits[0] + " " + part + " " + n;
+				return definition.FacePath(bits[0], part, n);
+			}
+			return null;
+		}
+
+		/// <summary>The other places of the model's packs holding the same picture as a pack's part and number.</summary>
+		public static List<(string Pack, int Number)> Twins(IEnumerable<(string Name, FacePack Faces)> packs, string pack, string part, int number)
+		{
+			List<(string, int)> twins = new List<(string, int)>();
+			string signature = null;
+			List<(string Name, FacePack Faces)> all = new List<(string, FacePack)>(packs);
+			foreach ((string name, FacePack faces) in all) if (string.Equals(name, pack, StringComparison.OrdinalIgnoreCase)) signature = faces.Signature(number, part);
+			if (signature == null) return twins;
+			foreach ((string name, FacePack faces) in all)
+				for (int n = 0; n < faces.Sets.Count; n++)
+					if (!(string.Equals(name, pack, StringComparison.OrdinalIgnoreCase) && n == number) && faces.Signature(n, part) == signature) twins.Add((name, n));
+			return twins;
+		}
+
 		/// <summary>The names the packs of a pack's model can have (j101_001 -> j101, j101_001 ... j101_020).</summary>
 		public static IEnumerable<string> SiblingNames(string pack)
 		{

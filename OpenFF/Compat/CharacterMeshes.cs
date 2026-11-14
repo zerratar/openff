@@ -349,7 +349,8 @@ namespace OpenFF.Client
 			if (part == null) return null;
 			int number = GlobalScope.characterMng.getFaceShown(ctrl, part);
 			if (number < 0) return null;
-			string path = definition.FacePath(pack, part, number);
+			// The mod's picture for it, or the one it gives the same picture in another of the model's packs (FacePack.LinkedPath).
+			string path = FacePack.LinkedPath(definition, pack, part, number, FacePackOf, out _);
 			if (path != null && ModFace(path, device) is Texture2D mine)
 			{
 				Log.First(LogChannel.General, "models-face-" + look.Model + "-" + pack + "-" + part + "-" + number, 1, () => "models: " + look.Model + "'s " + material.Name + " shows " + pack + " " + part + " " + number + " - " + Path.GetFileName(path));

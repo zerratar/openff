@@ -302,7 +302,7 @@ glTF itself is not changed: the swaps go to `defs/models/<name>.json`. Under
 packs, the eye and mouth pictures FF3's scenes flip through. Click a picture to wear it,
 press **Play** to run a sequence (`0 1 2 1 0`) at a speed you pick, and use **Replace…** to
 give a number a PNG of yours (`assets/faces/<pack>/<part>-<number>.png`), or drop one on
-it. **Export to project** writes every picture as a file to edit in an image editor. Crystal
+it. The packs share pictures, so a replacement fills every pack showing the same one (*shared with* on the others). **Export to project** writes every picture as a file to edit in an image editor, each shared picture once. Crystal
 takes the changes when you come back to it, and **Download .zip** gives the same files to
 edit elsewhere. Drop the edited files back on the card and each goes in by its name. A
 stand-in whose eye or mouth looks like the game's gets the game's expressions

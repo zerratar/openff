@@ -36,6 +36,13 @@ namespace Crystal.Editor
 			return (stem, definition);
 		}
 
+		/// <summary>The packs read during one request (a pack's pictures are compared across its siblings').</summary>
+		private static Func<string, FacePack> Reader(Workspace workspace)
+		{
+			Dictionary<string, FacePack> read = new Dictionary<string, FacePack>(StringComparer.OrdinalIgnoreCase);
+			return pack => read.TryGetValue(pack, out FacePack known) ? known : read[pack] = Read(workspace, pack);
+		}
+
 		private static FacePack Read(Workspace workspace, string pack)
 		{
 			// Loose installs list it under files/, archives by its bare name.
@@ -53,12 +60,13 @@ namespace Crystal.Editor
 			List<object> packs = new List<object>();
 			List<FacePack> read = new List<FacePack>();
 			HashSet<string> parts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-			foreach (WorkspaceEntry entry in workspace.List(".face"))
+			Func<string, FacePack> packOf = Reader(workspace);
+			foreach (WorkspaceEntry entry in workspace.List(".face").OrderBy(e => Path.GetFileName(e.Name), StringComparer.OrdinalIgnoreCase))
 			{
 				string file = Path.GetFileName(entry.Name);
 				if (!mine.IsMatch(file)) continue;
 				string pack = Path.GetFileNameWithoutExtension(file);
-				FacePack faces = Read(workspace, pack);
+				FacePack faces = packOf(pack);
 				if (faces == null) continue;
 				read.Add(faces);
 				foreach (string part in faces.Parts) parts.Add(part);
@@ -69,11 +77,19 @@ namespace Crystal.Editor
 					parts = faces.Parts.Select(part => new
 					{
 						name = part,
-						numbers = Enumerable.Range(0, faces.Sets.Count).Select(n => new
+						numbers = Enumerable.Range(0, faces.Sets.Count).Select(n =>
 						{
-							n,
-							game = faces.Picture(n, part) is (int w, int h, byte[] _) ? new { width = w, height = h } : null,
-							replaced = definition != null && definition.Faces.TryGetValue(ModModel.FaceKey(pack, part, n), out string path) ? path : null
+							// The mod's picture for it - its own, or the one given the same picture in another pack (linkedFrom).
+							string path = null, from = null;
+							if (definition != null && !definition.Faces.TryGetValue(ModModel.FaceKey(pack, part, n), out path))
+								path = FacePack.LinkedPath(definition, pack, part, n, packOf, out from) != null ? LinkedRelative(definition, from) : null;
+							return new
+							{
+								n,
+								game = faces.Picture(n, part) is (int w, int h, byte[] _) ? new { width = w, height = h } : null,
+								replaced = path,
+								linkedFrom = from
+							};
 						}).ToList()
 					}).ToList()
 				});
@@ -120,14 +136,14 @@ namespace Crystal.Editor
 		public static byte[] Picture(Workspace workspace, Project project, string name, string pack, string part, int number, bool game)
 		{
 			(string _, ModModel definition) = ModelOf(project, name);
-			if (!game && definition?.FacePath(pack, part, number) is string own && File.Exists(own)) return File.ReadAllBytes(own);
+			if (!game && FacePack.LinkedPath(definition, pack, part, number, Reader(workspace), out _) is string own && File.Exists(own)) return File.ReadAllBytes(own);
 			FacePack faces = Read(workspace, pack) ?? throw new FileNotFoundException("no face pack " + pack);
 			if (faces.Picture(number, part) is (int w, int h, byte[] rgba)) return Png.Encode(w, h, rgba);
 			throw new FileNotFoundException(pack + " has no " + part + " picture " + number);
 		}
 
 		/// <summary>A picture of the mod's own for a pack's part and number (bytes: a PNG), or the game's back (bytes null).</summary>
-		public static object Replace(Project project, string name, string pack, string part, int number, byte[] bytes)
+		public static object Replace(Workspace workspace, Project project, string name, string pack, string part, int number, byte[] bytes)
 		{
 			(string model, ModModel definition) = ModelOf(project, name);
 			if (definition == null)
@@ -137,7 +153,20 @@ namespace Crystal.Editor
 				throw new ArgumentException("which picture?");
 			string key = ModModel.FaceKey(pack, part, number);
 			string written = null;
-			if (bytes == null) definition.Faces.Remove(key);
+			// The same picture in the model's other packs (j101_002's 2 is j101_001's 3) goes with it: replaced once, replaced
+			// wherever the game shows it; given back, given back there too.
+			List<(string Pack, int Number)> twins = FacePack.Twins(PacksOf(workspace, model, null), pack, part, number);
+			if (bytes == null)
+			{
+				string was = definition.Faces.TryGetValue(key, out string path) ? path
+					: FacePack.LinkedPath(definition, pack, part, number, Reader(workspace), out string from) != null ? LinkedRelative(definition, from) : null;
+				definition.Faces.Remove(key);
+				foreach ((string twinPack, int twin) in twins)
+				{
+					string twinKey = ModModel.FaceKey(twinPack, part, twin);
+					if (was != null && definition.Faces.TryGetValue(twinKey, out string theirs) && string.Equals(theirs, was, StringComparison.OrdinalIgnoreCase)) definition.Faces.Remove(twinKey);
+				}
+			}
 			else
 			{
 				(int w, int _) = GltfBundle.PngSize(bytes);
@@ -147,9 +176,17 @@ namespace Crystal.Editor
 				Directory.CreateDirectory(Path.GetDirectoryName(full));
 				File.WriteAllBytes(full, bytes);
 				definition.Faces[key] = written = relative;
+				foreach ((string twinPack, int twin) in twins) definition.Faces[ModModel.FaceKey(twinPack, part, twin)] = relative;
 			}
 			File.WriteAllText(definition.Source, definition.ToJson());
-			return new { ok = true, pack, part, n = number, picture = written, definition = "defs/models/" + Path.GetFileName(definition.Source) };
+			return new { ok = true, pack, part, n = number, picture = written, shared = twins.Select(t => t.Pack + " " + part + " " + t.Number).ToList(), definition = "defs/models/" + Path.GetFileName(definition.Source) };
+		}
+
+		/// <summary>The definition's entry (as written in it) for "pack part n".</summary>
+		private static string LinkedRelative(ModModel definition, string from)
+		{
+			string[] bits = (from ?? "").Split(' ');
+			return bits.Length == 3 && int.TryParse(bits[2], out int n) && definition.Faces.TryGetValue(ModModel.FaceKey(bits[0], bits[1], n), out string path) ? path : null;
 		}
 
 		private static string Relative(string pack, string part, int number) =>
@@ -165,7 +202,7 @@ namespace Crystal.Editor
 				yield break;
 			}
 			Regex mine = new Regex("^" + Regex.Escape(model) + @"(_\d+)?\.face$", RegexOptions.IgnoreCase);
-			foreach (WorkspaceEntry entry in workspace.List(".face"))
+			foreach (WorkspaceEntry entry in workspace.List(".face").OrderBy(e => Path.GetFileName(e.Name), StringComparer.OrdinalIgnoreCase))
 			{
 				string file = Path.GetFileName(entry.Name);
 				if (!mine.IsMatch(file)) continue;
@@ -183,7 +220,9 @@ namespace Crystal.Editor
 		{
 			(string model, ModModel definition) = ModelOf(project, name);
 			if (string.IsNullOrEmpty(model)) throw new ArgumentException("no model");
-			int written = 0, kept = 0, linked = 0;
+			int written = 0, kept = 0, linked = 0, shared = 0;
+			bool all = string.IsNullOrEmpty(pack) || pack == "*";
+			Dictionary<string, string> first = new Dictionary<string, string>(StringComparer.Ordinal);   // a picture's signature -> its first key
 			foreach ((string packName, FacePack faces) in PacksOf(workspace, model, pack))
 			{
 				foreach (string part in faces.Parts)
@@ -191,6 +230,21 @@ namespace Crystal.Editor
 					for (int n = 0; n < faces.Sets.Count; n++)
 					{
 						string key = ModModel.FaceKey(packName, part, n);
+						// Every pack at once: a picture an earlier pack already gave is one file, not one per pack - the client
+						// and Crystal take that file wherever the picture is (FacePack.LinkedPath). A copy an earlier export
+						// wrote and nobody touched is let go for it.
+						string signature = all ? faces.Signature(n, part) : null;
+						if (signature != null && first.ContainsKey(signature))
+						{
+							if (definition != null && definition.Faces.TryGetValue(key, out string had) && string.Equals(had, Relative(packName, part, n), StringComparison.OrdinalIgnoreCase) && Untouched(project, had, faces, n, part))
+							{
+								definition.Faces.Remove(key);
+								linked++;
+							}
+							shared++;
+							continue;
+						}
+						if (signature != null) first[signature] = key;
 						if (definition != null && definition.Faces.ContainsKey(key)) { kept++; continue; }
 						if (faces.Picture(n, part) is not (int w, int h, byte[] rgba)) continue;
 						string relative = Relative(packName, part, n);
@@ -209,7 +263,20 @@ namespace Crystal.Editor
 			if (definition != null && linked > 0) File.WriteAllText(definition.Source, definition.ToJson());
 			string folder = Path.Combine(project.Directory, GltfBundle.Folder, "faces");
 			if (!string.IsNullOrEmpty(pack) && pack != "*") folder = Path.Combine(folder, pack.ToLowerInvariant());
-			return new { ok = true, written, kept, linked, folder, standsIn = definition != null };
+			return new { ok = true, written, kept, linked, shared, folder, standsIn = definition != null };
+		}
+
+		/// <summary>Whether the project's file still holds exactly the game's picture (written by an export, never edited).</summary>
+		private static bool Untouched(Project project, string relative, FacePack faces, int number, string part)
+		{
+			try
+			{
+				string full = Path.Combine(project.Directory, relative.Replace('/', Path.DirectorySeparatorChar));
+				if (!File.Exists(full) || faces.Picture(number, part) is not (int w, int h, byte[] game)) return false;
+				byte[] mine = PngRead.Decode(File.ReadAllBytes(full), out int mw, out int mh);
+				return mine != null && mw == w && mh == h && mine.AsSpan().SequenceEqual(game);
+			}
+			catch (Exception) { return false; }
 		}
 
 		/// <summary>A pack's (or every pack's) pictures as a zip of &lt;pack&gt;/&lt;part&gt;-&lt;number&gt;.png - the mod's own where it

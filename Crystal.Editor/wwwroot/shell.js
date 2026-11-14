@@ -2134,7 +2134,7 @@ function facesFor(doc) {
         + (state.selected && state.selected.part === part.name && state.selected.n === entry.n ? ' selected' : '')
         + (entry.replaced ? ' mine' : '') + (faded ? ' faded' : '') + (entry.game || entry.replaced ? '' : ' empty');
       cell.setAttribute('aria-pressed', String(state.shown[part.name] === entry.n));
-      cell.title = `${part.name} ${entry.n}` + (entry.replaced ? ` - yours (${entry.replaced})` : entry.game ? ` - the game's, ${entry.game.width} × ${entry.game.height}` : ' - none in this set')
+      cell.title = `${part.name} ${entry.n}` + (entry.replaced ? ` - yours (${entry.replaced})` + (entry.linkedFrom ? `, the same picture as ${entry.linkedFrom}` : '') : entry.game ? ` - the game's, ${entry.game.width} × ${entry.game.height}` : ' - none in this set')
         + (faded ? '\nNot shown in OpenFF: the model keeps its own picture here until you replace this one' : '')
         + (faces.standsIn ? '\nClick to wear it and pick it; drop a PNG on it to replace it' : '\nClick to wear it on the model');
       if (entry.game || entry.replaced) {
@@ -2235,7 +2235,7 @@ function facesFor(doc) {
     const where = document.createElement('span');
     where.className = 'faces-where';
     // The file's name, not the folders every face shares - those are in the tooltip and the note under Edit as files.
-    where.textContent = pickedEntry.replaced ? pickedEntry.replaced.replace(/^assets\/faces\//, '') : `the game's · ${pickedEntry.game.width} × ${pickedEntry.game.height}`;
+    where.textContent = pickedEntry.replaced ? pickedEntry.replaced.replace(/^assets\/faces\//, '') + (pickedEntry.linkedFrom ? ` · shared with ${pickedEntry.linkedFrom}` : '') : `the game's · ${pickedEntry.game.width} × ${pickedEntry.game.height}`;
     where.title = pickedEntry.replaced
       ? pickedEntry.replaced + '\nEdit this file in an image editor: Crystal takes it again when you come back, the game within a second'
       : `${state.pack}, picture ${n} of the game's face set`;

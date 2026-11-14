@@ -2459,7 +2459,7 @@ namespace Crystal.Editor
 						if (body?["facePart"]?.GetValue<string>() is string facePart) { SendJson(context, Faces.SetFacePart(_project, name, facePart, body?["material"]?.GetValue<string>())); return; }
 						bool clear = body?["clear"]?.GetValue<bool>() ?? false;
 						byte[] bytes = clear ? null : System.Convert.FromBase64String(body?["bytes"]?.GetValue<string>() ?? "");
-						SendJson(context, Faces.Replace(_project, name, body?["pack"]?.GetValue<string>(), body?["part"]?.GetValue<string>(), body?["n"]?.GetValue<int>() ?? -1, bytes));
+						SendJson(context, Faces.Replace(_workspace, _project, name, body?["pack"]?.GetValue<string>(), body?["part"]?.GetValue<string>(), body?["n"]?.GetValue<int>() ?? -1, bytes));
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
