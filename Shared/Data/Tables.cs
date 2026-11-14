@@ -602,6 +602,11 @@ namespace OpenFF.Data
 		public int[] ExperienceToLevel = Array.Empty<int>();
 		public List<CharacterDefinition> Characters = new List<CharacterDefinition>();
 		public List<ItemDefinition> Items = new List<ItemDefinition>();
+
+		/// <summary>FF4: babil_item.msd's lines by message id and the symbol each opens with - the names and captions, and the
+		/// lines no item names: 6000 the empty hand ("Empty" with the fist), 8000 an empty armour slot.</summary>
+		public Dictionary<uint, string> ItemTexts = new Dictionary<uint, string>();
+		public Dictionary<uint, int> ItemTextIcons = new Dictionary<uint, int>();
 		public List<SpellDefinition> Spells = new List<SpellDefinition>();
 		public List<Efficacy> Efficacies = new List<Efficacy>();
 		public List<JobDefinition> Jobs = new List<JobDefinition>();

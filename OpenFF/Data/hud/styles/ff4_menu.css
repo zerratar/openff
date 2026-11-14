@@ -64,6 +64,9 @@
 .m-black { background-color: #000000; }
 .m-key-bar { background-color: #00000080; }   /* Steam's: what is under it halved */
 .m-small { font-size: 16px; }
+/* Equipment's figure after the lit piece: Steam's pure green up, pure red down. */
+.m-small.m-up { color: #00ff00; }
+.m-small.m-down { color: #ff0000; }
 .m-question-window { background-image: resource("shell/window.png"); -ff-slice: 6; }
 .m-pill-art {
   background-image: resource("files/MENU_Common.dat/button_00.NCGR");

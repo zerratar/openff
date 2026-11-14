@@ -39,10 +39,12 @@ namespace OpenFF.Client
 			public string Number = "", State = "", Condition = "", Action = "";
 		}
 
-		/// <summary>A line of figures: its word and its value (Strength 13).</summary>
+		/// <summary>A line of figures: its word and its value (Strength 13); on Equipment with a piece lit in the bag, the
+		/// figure it would become (Arrow "→", After, Up or Down) when it changes.</summary>
 		public sealed class StatRow
 		{
-			public string Label = "", Value = "";
+			public string Label = "", Value = "", Arrow = "", After = "";
+			public bool Up, Down;
 		}
 
 		/// <summary>An equipment slot: its word (Right, Head...), what is worn there and its symbol.</summary>

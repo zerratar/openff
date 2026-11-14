@@ -665,6 +665,7 @@ namespace OpenFF.Data
 			}
 			Dictionary<uint, int> itemIcons = new Dictionary<uint, int>();
 			Dictionary<uint, string> names = TableFiles.ReadNames(chain, "babil_item.msd", tables, itemIcons);
+			if (names != null) { tables.ItemTexts = names; tables.ItemTextIcons = itemIcons; }
 			(ItemKind Kind, int Stride)[] chains = { (ItemKind.Consumable, 48), (ItemKind.Weapon, 88), (ItemKind.Armour, 84), (ItemKind.KeyItem, 32) };
 			for (int c = 0; c < 4; c++)
 			{

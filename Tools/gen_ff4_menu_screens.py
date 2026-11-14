@@ -176,6 +176,10 @@ for k in range(11):
     small.append(frame('fig%d' % k, 588.5 + 486 * col, 23.75 + 27 * row, 326, 27, None, 'data-source="menu.stat[%d]"' % k, indent('\n'.join([
         frame('label', 0, 0, 326, 27, 'm-small', 'bind-text="{label}"'),
         frame('value', 0, 0, 326, 27, 'm-small m-right', 'bind-text="{value}"'),
+        # A piece lit in the bag: each figure it would change as Steam shows it - the figure where it stands, an arrow a
+        # cell on (x 1568.5) and the figure after from x 1609, pure green up, pure red down.
+        frame('cmpArrow', 338.5, 0, 40, 27, 'm-small', 'bind-text="{arrow}"'),
+        frame('cmpAfter', 379, 0, 120, 27, 'm-small', 'bind-text="{after}" bind-class="m-up: up; m-down: down"'),
     ]), 1)))
 eq_head = '\n'.join([
     frame('face', 74.4, 27, 135, 135, 'm-face', 'bind-style="-ff-cell: face {menu.head.face}"'),

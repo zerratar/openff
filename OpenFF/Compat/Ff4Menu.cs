@@ -960,7 +960,9 @@ namespace OpenFF.Client
 				Character c = Member;
 				h.Title = T(50004, "Equipment");
 				FillHead(h.Head, c);
-				FillFigures(h, c);
+				// A piece lit in the bag: the figures it would change, as Steam shows them (old -> new, green up, red down).
+				List<int> lit = _mode == Mode.EquipItem ? Candidates(c, _slot) : null;
+				FillFigures(h, c, lit != null && _pick < lit.Count ? lit[_pick] : -1, _slot);
 				FillSlots(h.Slot, c, _mode == Mode.EquipSlot ? _slot : -1);
 				// The bag's pieces for the lit slot, five in view; the line is the lit piece's own (babil_item.msd: "Attack: 10
 				// Element: Dark").
@@ -1010,23 +1012,47 @@ namespace OpenFF.Client
 			if (h.Sight) Ff4NaviMap.Instance?.DrawSight(_scroll);
 		}
 
+		private static readonly uint[] FigureTexts = { 50420, 50421, 50422, 50423, 50424, 50425, 50426, 50427, 50428, 50429, 50430 };
+
 		/// <summary>The member's eleven figures in MenuLayout_Status's order: the five attributes, then attack, accuracy, defence,
-		/// evasion and the magic pair.</summary>
-		private static void FillFigures(Ff4MenuHud.Data h, Character c)
+		/// evasion and the magic pair. Empty-handed, Steam's menu shows Attack 0 and Accuracy 100 (Dark Knight Cecil with his
+		/// sword taken off).</summary>
+		private static int[] Figures(Character c)
 		{
 			GameTables tables = Ff4Party.Tables;
 			OpenFF.Data.Stats st = c.StatsWith(tables);
 			int weapon = Ff4Battle.Weapon(c, tables);
-			(uint text, int value)[] figures =
+			return new[]
 			{
-				(50420, st.Strength), (50421, st.Agility), (50422, st.Vitality), (50423, st.Intellect), (50424, st.Spirit),
-				(50425, Math.Max(1, weapon > 0 ? weapon : st.Strength / 2)), (50426, weapon > 0 ? Ff4Battle.WeaponHit(c, tables) : 90),
-				(50427, Ff4Battle.Armour(c, tables)), (50428, Ff4Battle.Evasion(c, tables)), (50429, Ff4Battle.MagicArmour(c, tables)), (50430, 0),
+				st.Strength, st.Agility, st.Vitality, st.Intellect, st.Spirit,
+				weapon, weapon > 0 ? Ff4Battle.WeaponHit(c, tables) : 100,
+				Ff4Battle.Armour(c, tables), Ff4Battle.Evasion(c, tables), Ff4Battle.MagicArmour(c, tables), 0,
 			};
+		}
+
+		/// <summary>The figures into the rows; with <paramref name="trying"/> (a piece of the bag, lit for <paramref name="slot"/>),
+		/// each figure it would change also as its after - the piece put on the slot for the count and taken off again.</summary>
+		private static void FillFigures(Ff4MenuHud.Data h, Character c, int trying = -1, int slot = -1)
+		{
+			int[] now = Figures(c);
+			int[] after = null;
+			if (trying >= 0 && slot >= 0 && slot < c.Equipment.Length && c.Equipment[slot] != trying)
+			{
+				int worn = c.Equipment[slot];
+				c.Equipment[slot] = trying;
+				try { after = Figures(c); }
+				finally { c.Equipment[slot] = worn; }
+			}
 			for (int k = 0; k < h.Stat.Count; k++)
 			{
-				h.Stat[k].Label = T(figures[k].text);
-				h.Stat[k].Value = figures[k].value.ToString();
+				Ff4MenuHud.StatRow row = h.Stat[k];
+				row.Label = T(FigureTexts[k]);
+				row.Value = now[k].ToString();
+				bool changes = after != null && after[k] != now[k];
+				row.Arrow = changes ? "→" : "";
+				row.After = changes ? after[k].ToString() : "";
+				row.Up = changes && after[k] > now[k];
+				row.Down = changes && after[k] < now[k];
 			}
 		}
 
@@ -1071,6 +1097,13 @@ namespace OpenFF.Client
 				rows[i].Label = SlotName(i);
 				rows[i].Name = id != 0 ? item?.Name ?? ("item " + id) : "";
 				rows[i].Icon = item?.Icon ?? -1;
+				// An empty hand reads as Steam's: babil_item.msd 6000, "Empty" with the fist; an empty armour slot stays blank.
+				GameTables tables = Ff4Party.Tables;
+				if (id == 0 && i < 2 && tables != null && tables.ItemTexts.TryGetValue(6000, out string empty))
+				{
+					rows[i].Name = empty;
+					rows[i].Icon = tables.ItemTextIcons.TryGetValue(6000, out int fist) ? fist : -1;
+				}
 				rows[i].Lit = i == lit;
 			}
 		}
