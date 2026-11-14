@@ -64,7 +64,12 @@ namespace OpenFF.Client
 					{
 						Texture2D flat;
 						using (MemoryStream stream = new MemoryStream(file.Images[image].Bytes)) flat = Texture2D.FromStream(device, stream);
-						texture = Mipmapped(device, flat, (w, h) => Coverage(file, image, w, h));
+						// Pixel art is drawn as it is: a picture a nearest-filtered material shows (the sampler a game model's
+						// export carries), or one of 256 or less a side. Its islands' rims are real texels - the mouth's line, the
+						// shirt's seams - and the rim cleaning below, meant for big soft generated atlases, smeared them.
+						bool nearest = file.Materials.Exists(m => m.Image == image && m.Nearest);
+						texture = nearest || Math.Max(flat.Width, flat.Height) <= 256 ? flat : Mipmapped(device, flat, (w, h) => Coverage(file, image, w, h));
+						if (texture == flat) Log.Write(LogChannel.File, "meshes: the " + flat.Width + "x" + flat.Height + " picture " + image + " drawn as it is (" + (nearest ? "nearest-filtered" : "small") + ")");
 					}
 				}
 				catch (Exception ex) { model.Problem = "image " + image + ": " + ex.Message; }
