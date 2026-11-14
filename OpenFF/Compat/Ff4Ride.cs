@@ -1412,6 +1412,8 @@ namespace OpenFF.Client
 
 		public override void OnUpdate()
 		{
+			// FF4's alone: FF3 has no "!" over its lead.
+			if (!GameProfile.IsFf4) { BalloonShown = false; return; }
 			if (OpenFF.Game.Input.Pressed(Pad.A)) _latchA = true;
 			if (OpenFF.Game.Input.Pressed(Pad.B)) _latchB = true;
 			if (_waitFrames > 0) _waitFrames--;
