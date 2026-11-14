@@ -40,8 +40,10 @@
 // j101_001.face, a numbered set of eye and mouth pictures) and shows one of its pictures at a time
 // (ChangeFaceEye 3: a blink, a wide-eyed start). "faces" gives a picture of the mod's own for a pack's part and
 // number; the material of the part's name (or "faceParts"' choice) wears it while the scene shows that number. A
-// number the mod has no picture for shows the game's own, decoded from the pack, when the material's picture is the
-// game's size (the file was painted over the game's sheet) - "gameFaces": false keeps the file's picture instead.
+// number the mod has no picture for shows the material's own picture - the face stays as the file has it - unless the
+// material's picture looks like the game's (a model made from the game's, its eye and mouth sheets kept): then the game's
+// own pictures from the pack, so such a model has its expressions with nothing added. "gameFaces": true shows the game's
+// whatever the file's picture is, false never.
 //
 //   { "model": "j101", "gltf": "assets/werewolf.glb",
 //     "faces": { "j101_001": { "eye": { "0": "assets/faces/j101_001/eye-0.png", "3": "assets/faces/j101_001/eye-3.png" },
@@ -100,8 +102,12 @@ namespace OpenFF.Data
 		/// <summary>A face part (eye, mouth) -> the material of the file that wears it, when not the material of its name.</summary>
 		public Dictionary<string, string> FaceParts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-		/// <summary>Whether a face picture the mod has none for shows the game's own (on a material of the game's size).</summary>
-		public bool GameFaces = true;
+		/// <summary>Whether a face picture the mod has none for shows the game's own: null (automatic) when the material's
+		/// picture looks like the game's, true always, false never.</summary>
+		public bool? GameFaces;
+
+		/// <summary>"auto", "always" or "never", as Crystal shows it.</summary>
+		public string GameFacesMode => GameFaces == true ? "always" : GameFaces == false ? "never" : "auto";
 
 		public static string FaceKey(string pack, string part, int number) => (pack ?? "").ToLowerInvariant() + "/" + (part ?? "").ToLowerInvariant() + "/" + number;
 
@@ -180,7 +186,7 @@ namespace OpenFF.Data
 				Offset = Triple(node["offset"]),
 				Fitted = node["fitted"]?.GetValue<bool>() ?? false,
 				Filter = node["filter"]?.GetValue<string>() is string f && (f == "nearest" || f == "linear") ? f : null,
-				GameFaces = node["gameFaces"]?.GetValue<bool>() ?? true,
+				GameFaces = node["gameFaces"] is JsonValue gameFaces && gameFaces.TryGetValue(out bool always) ? always : null,
 				Source = source
 			};
 			if (node["textures"] is JsonObject textures)
@@ -279,7 +285,7 @@ namespace OpenFF.Data
 				foreach (KeyValuePair<string, string> pair in FaceParts) faceParts[pair.Key] = pair.Value;
 				node["faceParts"] = faceParts;
 			}
-			if (!GameFaces) node["gameFaces"] = false;
+			if (GameFaces != null) node["gameFaces"] = GameFaces.Value;
 			if (Bones.Count > 0)
 			{
 				JsonObject bones = new JsonObject();

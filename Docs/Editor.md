@@ -301,8 +301,13 @@ glTF itself is not changed: the swaps go to `defs/models/<name>.json`. Under
 **Expressions** (on a character's game model and on its stand-in) are the model's face
 packs, the eye and mouth pictures FF3's scenes flip through. Click a picture to wear it,
 press **Play** to run a sequence (`0 1 2 1 0`) at a speed you pick, and use **Replace…** to
-give a number a PNG of yours (`assets/faces/<pack>/<part>-<number>.png`). Modding.md, *A
-stand-in's pictures and expressions*.
+give a number a PNG of yours (`assets/faces/<pack>/<part>-<number>.png`), or drop one on
+it. **Export to project** writes every picture as a file to edit in an image editor. Crystal
+takes the changes when you come back to it, and **Download .zip** gives the same files to
+edit elsewhere. Drop the edited files back on the card and each goes in by its name. A
+stand-in whose eye or mouth looks like the game's gets the game's expressions
+automatically. One drawn differently keeps its own face until you add pictures, and the
+card says which applies. Modding.md, *A stand-in's pictures and expressions*.
 
 ### Models
 

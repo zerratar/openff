@@ -2455,7 +2455,7 @@ namespace Crystal.Editor
 					try
 					{
 						string name = body?["name"]?.GetValue<string>() ?? throw new ArgumentException("no model named");
-						if (body?["gameFaces"] is JsonNode gameFaces) { SendJson(context, Faces.SetGameFaces(_project, name, gameFaces.GetValue<bool>())); return; }
+						if (body?["gameFaces"] is JsonNode gameFaces) { SendJson(context, Faces.SetGameFaces(_project, name, gameFaces.GetValueKind() == System.Text.Json.JsonValueKind.String ? gameFaces.GetValue<string>() : gameFaces.GetValue<bool>() ? "always" : "never")); return; }
 						if (body?["facePart"]?.GetValue<string>() is string facePart) { SendJson(context, Faces.SetFacePart(_project, name, facePart, body?["material"]?.GetValue<string>())); return; }
 						bool clear = body?["clear"]?.GetValue<bool>() ?? false;
 						byte[] bytes = clear ? null : System.Convert.FromBase64String(body?["bytes"]?.GetValue<string>() ?? "");

@@ -51,6 +51,7 @@ namespace Crystal.Editor
 			if (string.IsNullOrEmpty(model)) return new { model = (string)null, packs = new object[0] };
 			Regex mine = new Regex("^" + Regex.Escape(model) + @"(_\d+)?\.face$", RegexOptions.IgnoreCase);
 			List<object> packs = new List<object>();
+			List<FacePack> read = new List<FacePack>();
 			HashSet<string> parts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			foreach (WorkspaceEntry entry in workspace.List(".face"))
 			{
@@ -59,6 +60,7 @@ namespace Crystal.Editor
 				string pack = Path.GetFileNameWithoutExtension(file);
 				FacePack faces = Read(workspace, pack);
 				if (faces == null) continue;
+				read.Add(faces);
 				foreach (string part in faces.Parts) parts.Add(part);
 				packs.Add(new
 				{
@@ -78,7 +80,10 @@ namespace Crystal.Editor
 			}
 
 			// The material each part is drawn on: a glTF's by name (or the definition's faceParts), the game model's texture of the part's name.
+			// And per part, whether that material's picture is one of the game's (a model made from the game's sheets): such a
+			// stand-in wears the game's expressions where the mod has none; a face drawn anew keeps its own picture there.
 			Dictionary<string, string> on = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			Dictionary<string, object> looks = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 			if (GltfBundle.IsAsset(name))
 			{
 				string path = GltfBundle.Resolve(project, name);
@@ -86,18 +91,24 @@ namespace Crystal.Editor
 				{
 					OpenFF.Graphics.GltfFile file = OpenFF.Graphics.GltfFile.Load(path);
 					ModModel rules = definition ?? new ModModel();
-					foreach (OpenFF.Graphics.GltfMaterial material in file.Materials)
-						if (rules.FacePartOf(material.Name, parts) is string part && !on.ContainsKey(part)) on[part] = material.Name;
+					for (int m = 0; m < file.Materials.Count; m++)
+					{
+						OpenFF.Graphics.GltfMaterial material = file.Materials[m];
+						if (rules.FacePartOf(material.Name, parts) is not string part || on.ContainsKey(part)) continue;
+						on[part] = material.Name;
+						looks[part] = LooksLikeGame(file, material, m, rules, read, part);
+					}
 				}
 			}
-			else foreach (string part in parts) on[part] = part;
+			else foreach (string part in parts) { on[part] = part; looks[part] = new { alike = true, difference = 0 }; }
 
 			return new
 			{
 				model,
 				standsIn = definition != null,
 				definition = definition == null ? null : "defs/models/" + Path.GetFileName(definition.Source),
-				gameFaces = definition?.GameFaces ?? true,
+				gameFaces = (definition ?? new ModModel()).GameFacesMode,
+				looks,
 				faceParts = definition?.FaceParts,
 				on,
 				packs
@@ -239,13 +250,32 @@ namespace Crystal.Editor
 			return new { ok = true, part, material };
 		}
 
-		/// <summary>Whether a face picture the mod has none for shows the game's own on the stand-in.</summary>
-		public static object SetGameFaces(Project project, string name, bool on)
+		/// <summary>The picture a stand-in's material shows (the definition's in place of the file's) set against the game's
+		/// pictures of a part, as the client sets it (FacePack.SameAsGame).</summary>
+		private static object LooksLikeGame(OpenFF.Graphics.GltfFile file, OpenFF.Graphics.GltfMaterial material, int index, ModModel rules, List<FacePack> packs, string part)
+		{
+			byte[] bytes = null;
+			string own = rules.TexturePath(material.Name, index);
+			if (own != null && File.Exists(own)) bytes = File.ReadAllBytes(own);
+			else if (material.Image >= 0 && material.Image < file.Images.Count) bytes = file.Images[material.Image].Bytes;
+			if (bytes == null) return new { alike = false, difference = (int?)null, reason = "no picture" };
+			byte[] rgba;
+			int width, height;
+			try { rgba = PngRead.Decode(bytes, out width, out height); }
+			catch (Exception) { return new { alike = false, difference = (int?)null, reason = "not a PNG" }; }
+			int best = int.MaxValue;
+			foreach (FacePack faces in packs) if (best > 0) best = Math.Min(best, faces.Closest(width, height, rgba, part));
+			return new { alike = best <= FacePack.SameAsGame, difference = best == int.MaxValue ? (int?)null : best, reason = best == int.MaxValue ? "a different size" : null };
+		}
+
+		/// <summary>Whether a face picture the mod has none for shows the game's own on the stand-in: "auto" (when the material's
+		/// picture looks like the game's), "always" or "never".</summary>
+		public static object SetGameFaces(Project project, string name, string mode)
 		{
 			ModModel definition = ModelOf(project, name).Definition ?? throw new ArgumentException("no stand-in for this model yet");
-			definition.GameFaces = on;
+			definition.GameFaces = mode == "always" ? true : mode == "never" ? false : null;
 			File.WriteAllText(definition.Source, definition.ToJson());
-			return new { ok = true, gameFaces = on };
+			return new { ok = true, gameFaces = definition.GameFacesMode };
 		}
 	}
 }

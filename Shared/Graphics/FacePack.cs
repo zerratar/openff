@@ -61,6 +61,47 @@ namespace OpenFF.Graphics
 			return null;
 		}
 
+		/// <summary>How far apart two pictures are: the mean colour difference over the pixels either shows (0-255, a pixel
+		/// shown in one and not the other counting 255); int.MaxValue for pictures of different sizes.</summary>
+		public static int Difference(int width, int height, byte[] a, int otherWidth, int otherHeight, byte[] b)
+		{
+			if (a == null || b == null || width != otherWidth || height != otherHeight || a.Length != b.Length) return int.MaxValue;
+			long sum = 0;
+			int count = 0;
+			for (int i = 0; i + 3 < a.Length; i += 4)
+			{
+				bool shownA = a[i + 3] >= 128, shownB = b[i + 3] >= 128;
+				if (!shownA && !shownB) continue;
+				count++;
+				sum += shownA != shownB ? 255 : (Math.Abs(a[i] - b[i]) + Math.Abs(a[i + 1] - b[i + 1]) + Math.Abs(a[i + 2] - b[i + 2])) / 3;
+			}
+			return count == 0 ? 0 : (int)(sum / count);
+		}
+
+		/// <summary>A material's picture this close (Difference) to one of the game's pictures of a part is the game's - a
+		/// model made from the game's sheets, which may then wear the game's expressions. Copies come out at 0; a
+		/// re-saved or lightly touched-up one a few; a face drawn anew 40 and more.</summary>
+		public const int SameAsGame = 16;
+
+		/// <summary>The smallest Difference between a picture and this pack's pictures of a part.</summary>
+		public int Closest(int width, int height, byte[] rgba, string part)
+		{
+			int best = int.MaxValue;
+			for (int n = 0; n < Sets.Count && best > 0; n++)
+				if (Picture(n, part) is (int w, int h, byte[] game)) best = Math.Min(best, Difference(width, height, rgba, w, h, game));
+			return best;
+		}
+
+		/// <summary>The names the packs of a pack's model can have (j101_001 -> j101, j101_001 ... j101_020).</summary>
+		public static IEnumerable<string> SiblingNames(string pack)
+		{
+			string model = pack;
+			int cut = pack.LastIndexOf('_');
+			if (cut > 0 && int.TryParse(pack.Substring(cut + 1), out _)) model = pack.Substring(0, cut);
+			yield return model;
+			for (int i = 1; i <= 20; i++) yield return model + "_" + i.ToString("000");
+		}
+
 		private static string Name(byte[] data, int at)
 		{
 			int end = at;

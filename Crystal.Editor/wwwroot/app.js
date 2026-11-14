@@ -2642,12 +2642,27 @@ async function openModel(name) {
   if (!viewer) return;
   if (activeDoc) activeDoc.viewer = viewer;
 
+  // The bar says the size in a few words; what the file itself claims (often the same) is in the tooltip.
   const triangles = model.indices.length / 3;
-  facts.textContent = `${model.groups.length} part(s)  ·  `
-    + `${(model.buffer.length / 8).toLocaleString()} vertices  ·  `
-    + `${triangles.toLocaleString()} triangles  ·  `
+  facts.textContent = `${model.groups.length} part${model.groups.length === 1 ? '' : 's'} · `
+    + `${(model.buffer.length / 8).toLocaleString()} vertices · ${triangles.toLocaleString()} triangles`;
+  facts.title = `drawn: ${(model.buffer.length / 8).toLocaleString()} vertices, ${triangles.toLocaleString()} triangles\n`
     + `the model says ${model.vertices.toLocaleString()} vertices, `
     + `${model.triangles.toLocaleString()} triangles and ${model.quads.toLocaleString()} quads`;
+
+  // Which half of a stand-in pair this is, in the bar where it stays in sight whatever the inspector shows; a click
+  // opens the other half.
+  const other = model.standsInFor ? `files/${model.standsInFor}.nmdp.lz` : model.replacedBy || null;
+  if (other) {
+    const chip = document.createElement('button');
+    chip.className = 'model-chip';
+    chip.textContent = model.standsInFor ? `stands in for ${model.standsInFor}` : `replaced by ${shortName(model.replacedBy)}`;
+    chip.title = model.standsInFor
+      ? `OpenFF draws this file in place of the game's ${model.standsInFor} - click to open ${model.standsInFor}`
+      : `OpenFF draws ${model.replacedBy} in this model's place - click to open it`;
+    chip.onclick = () => openDoc('model', other);
+    facts.before(chip);
+  }
 
   // The parts are listed in the hierarchy; picking one there shows it here.
   if (activeDoc) {
@@ -2659,7 +2674,8 @@ async function openModel(name) {
   }
 
   if (model.groups.some(g => g.hidden)) {
-    facts.textContent += '  ·  one part is switched off by its node';
+    facts.textContent += ' · a part switched off';
+    facts.title += '\none part is switched off by its node (hidden parts shows it)';
   }
 
   // The mouse. Looking: the left button orbits, the middle (or Shift + right) drags the view,
@@ -3274,7 +3290,8 @@ async function openModel(name) {
     // On OpenFF the game's model is untouched and the client draws the glTF instead: say so, and
     // let the definition be taken back.
     if (model.replacedBy) {
-      facts.textContent += `  ·  in OpenFF the client draws ${model.replacedBy.replace(/^assets\//, '')} in place of this model (defs/models)`;
+      // The bar's "replaced by" chip says it; the definition behind it goes in the facts' tooltip.
+      facts.title += `\nin OpenFF the client draws ${model.replacedBy.replace(/^assets\//, '')} in place of this model (defs/models)`;
       revertButton.textContent = model.overridden ? 'Undo remake' : 'Stop replacing';
       revertButton.title = model.overridden ? 'take the remake out and the glTF definition with it' : `take out defs/models: the client draws ${shortName(name)} itself again`;
     }
@@ -3782,13 +3799,17 @@ function buildModelBone(skin, bone) {
     }
     if (mine > 0) { touched++; total += mine; if (mine >= best) ruled++; }
   }
-  const lines = [
-    parent ? `under ${parent}` : 'a root bone',
-    children.length ? `over ${children.join(', ')}` : 'no bones under it',
-    `${touched.toLocaleString()} vertices carry some of it, ${ruled.toLocaleString()} mostly (${total.toFixed(0)} vertices' worth in all)`,
-    'in weights mode this is the bone shown and painted; Alt+click the mesh picks the bone under the cursor'
-  ];
-  for (const line of lines) { const p = document.createElement('p'); p.className = 'note'; p.textContent = line; panel.append(p); }
+  // Facts in the same list every other inspector uses, the how-to under them as a quiet note.
+  panel.append(factList([
+    ['parent', parent || 'none - a root bone'],
+    ['children', children.length ? children.join(', ') : 'none'],
+    ['vertices', `${touched.toLocaleString()} carry some of it, ${ruled.toLocaleString()} mostly`],
+    ['weight', `${total.toFixed(0)} vertices' worth in all`]
+  ]));
+  const how = document.createElement('p');
+  how.className = 'model-note';
+  how.textContent = 'In weights mode this is the bone shown and painted; Alt+click the mesh picks the bone under the cursor.';
+  panel.append(how);
   return panel;
 }
 
@@ -3796,9 +3817,11 @@ function buildModelPart(group, packageName) {
   const panel = document.createElement('div');
   if (!group) return panel;
 
+  // Named by its material, as the hierarchy and the Materials card name it; the shape is a fact below.
   const title = document.createElement('h3');
-  title.textContent = group.shape || 'part';
+  title.textContent = group.material || group.shape || 'part';
   panel.append(title);
+  const picture = (group.texture || '').replace(/^file:/, '').replace(/@\d+$/, '');
 
   if (group.texture) {
     const stage = document.createElement('div');
@@ -3819,14 +3842,21 @@ function buildModelPart(group, packageName) {
   if (group.hidden) notes.push('switched off by its node - never drawn');
 
   panel.append(factList([
+    ['shape', group.shape],
     ['node', group.node],
-    ['material', group.material || 'none'],
-    ['texture', group.texture || 'none'],
+    ['picture', picture ? picture + (group.replaced ? ' (yours)' : '') : 'none'],
+    ['size', group.pictureWidth ? `${group.pictureWidth} × ${group.pictureHeight}` + (group.filter ? (group.filter === 'nearest' ? ', crisp' : ', smoothed') : '') : ''],
     ['triangles', group.count ? group.count / 3 : 0],
     ['tint', '#' + (group.colour >>> 0).toString(16).padStart(6, '0')],
     ['alpha', Math.round((group.alpha ?? 1) * 100) + '%'],
     ['notes', notes.join(' · ')]
   ]));
+  // A stand-in glTF's part: its picture replaced, reset or saved right here, as on the Materials card - picking the
+  // part in the hierarchy is the other way a modder arrives at it.
+  const doc = typeof activeDoc !== 'undefined' ? activeDoc : null;
+  if (doc && doc.data && doc.data.standsIn && /\.(glb|gltf)$/i.test(packageName) && typeof materialActions === 'function') {
+    panel.append(materialActions(doc, group.material || group.shape, group));
+  }
   return panel;
 }
 

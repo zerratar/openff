@@ -902,9 +902,11 @@ function outlineFor(doc) {
   if (doc.kind === 'model' && data.groups) {
     const groups = [{
       label: 'Parts',
+      // A part by its material (eye, mouth - the names the Materials and Expressions cards use), the picture beside
+      // it as a file name: a model's parts often share one shape name, and file:...@stamp says nothing to a modder.
       children: data.groups.map((g, i) => ({
-        label: g.shape || `part ${i}`,
-        note: g.texture || '',
+        label: g.material || g.shape || `part ${i}`,
+        note: (g.texture || '').replace(/^file:/, '').replace(/@\d+$/, '').split('/').pop(),
         ref: `part:${i}`,
         icon: 'part'
       }))
@@ -1736,8 +1738,58 @@ function drawInspector() {
   kind.className = 'sub';
   kind.textContent = doc.name;
   box.append(heading, kind);
+  const role = modelRoleCard(doc);
+  if (role) box.append(role);
   if (facts.length) box.append(factList(facts));
   if (materials) box.append(materials);
+}
+
+/// What a model is to the mod, said first: a glTF standing in for a game model, a game model a glTF stands in for,
+/// the game's own, or a glTF not in play yet - with the way to the other half of the pair. A modder changing a
+/// character's look works across both files, and which one is open decides what the cards under it can do.
+function modelRoleCard(doc) {
+  const data = doc.data;
+  if (doc.kind !== 'model' || !data || !data.groups) return null;
+  const own = /\.(glb|gltf)$/i.test(doc.name || '');
+  const card = document.createElement('div');
+  card.className = 'model-role';
+  const head = document.createElement('div');
+  head.className = 'model-role-head';
+  const text = document.createElement('p');
+  const actions = document.createElement('div');
+  actions.className = 'material-actions';
+  const button = (label, title, run) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.title = title;
+    b.onclick = run;
+    actions.append(b);
+  };
+  const put = (tag, line, tone) => {
+    head.textContent = tag;
+    text.textContent = line;
+    if (tone) card.classList.add(tone);
+  };
+  if (own && data.standsInFor) {
+    put(`Stands in for ${data.standsInFor}`, `OpenFF draws this file wherever the game draws ${data.standsInFor} - field, battle and menus.`
+      + (data.definitionFitted ? ' Its skeleton is fitted to the game\'s and retargeted.' : ''), 'live');
+    button(`View ${data.standsInFor}`, 'The game\'s own model this file replaces - its faces and motions are the ones listed here', () => openDoc('model', `files/${data.standsInFor}.nmdp.lz`));
+    if (data.definition) button('Definition', data.definition + ' - the file that binds the two; clips, fit and bones live there too', () => openDoc('code', data.definition));
+  } else if (own) {
+    if (data.kind !== 'character' && !/^assets\//i.test(doc.name)) return null;
+    put('Not in play', 'No game model is drawn as this file yet. Pick the character it replaces under In play.');
+    if (/^assets\//i.test(doc.name)) button('In play…', 'The file\'s card in the project: choose the game model it stands in for', () => inspectAsset('model', doc.name, { reveal: true }));
+  } else if (data.replacedBy) {
+    put(`Replaced by ${shortName(data.replacedBy)}`, `In OpenFF the mod draws ${data.replacedBy} in this model's place. Its pictures are changed there; the faces below are the ones it wears.`, 'live');
+    button('Open the stand-in', data.replacedBy, () => openDoc('model', data.replacedBy));
+  } else if (data.overridden) {
+    put('Remade by the mod', 'The project\'s glTF is written over this model of the game\'s - its skeleton and motions kept.');
+  } else {
+    return null;
+  }
+  card.append(head, text);
+  if (actions.childElementCount) card.append(actions);
+  return card;
 }
 
 function factList(pairs) {
@@ -1775,7 +1827,8 @@ function materialsFor(doc) {
 
   for (const [name, group] of seen) {
     const row = document.createElement('div');
-    row.className = 'material';
+    row.className = 'material' + (group.replaced ? ' mine' : '');
+    if (group.texture) row.title = 'Open the picture';
 
     const thumb = document.createElement('div');
     thumb.className = 'material-thumb';
@@ -1793,26 +1846,37 @@ function materialsFor(doc) {
 
     const about = document.createElement('div');
     about.className = 'material-about';
-    const title = document.createElement('b');
-    title.textContent = name || '(unnamed)';
+    // The name, with "yours" beside it when the mod's own picture is on - the same word and colour the expressions use.
+    const title = document.createElement('div');
+    title.className = 'material-name';
+    const b = document.createElement('b');
+    b.textContent = name || '(unnamed)';
+    title.append(b);
+    if (group.replaced) {
+      const mine = document.createElement('em');
+      mine.className = 'yours';
+      mine.textContent = 'yours';
+      mine.title = 'The mod\'s own picture is on in place of the file\'s';
+      title.append(mine);
+    }
     const note = document.createElement('span');
     note.textContent = group.replaced ? group.texture.replace(/^file:/, '').replace(/@\d+$/, '') : (group.texture || 'no texture');
+    note.title = note.textContent;
+    // One line of facts: the tint as a swatch, then size and filter (a mod's glTF), alpha and translucency.
+    const colour = '#' + (group.colour >>> 0).toString(16).padStart(6, '0');
     const tint = document.createElement('span');
     tint.className = 'material-tint';
     const dot = document.createElement('i');
-    dot.style.background = '#' + (group.colour >>> 0).toString(16).padStart(6, '0');
-    tint.append(dot, document.createTextNode(
-      'tint · alpha ' + Math.round((group.alpha ?? 1) * 100) + '%'
-      + (group.translucent ? ' · translucent' : '')));
+    dot.style.background = colour;
+    dot.title = 'tint ' + colour;
+    const facts = [];
+    if (group.pictureWidth) facts.push(`${group.pictureWidth} × ${group.pictureHeight}`);
+    if (group.pictureWidth && group.filter) facts.push(group.filter === 'nearest' ? 'crisp' : 'smoothed');
+    facts.push('alpha ' + Math.round((group.alpha ?? 1) * 100) + '%');
+    if (group.translucent) facts.push('translucent');
+    tint.append(dot, document.createTextNode(facts.join(' · ')));
+    if (group.filter) tint.title = group.filter === 'nearest' ? 'Drawn crisp (nearest): pixel art stays sharp' : 'Drawn smoothed (linear)';
     about.append(title, note, tint);
-    if (group.pictureWidth) {
-      // A mod's glTF: the picture's size, how the client filters it, and whether it is the file's or the mod's own.
-      const size = document.createElement('span');
-      size.textContent = `${group.pictureWidth} × ${group.pictureHeight}`
-        + (group.filter ? ' · ' + (group.filter === 'nearest' ? 'crisp (nearest)' : 'smoothed (linear)') : '')
-        + (group.replaced ? ' · the mod\'s own picture' : '');
-      about.append(size);
-    }
     if (own) about.append(materialActions(doc, name, group));
 
     row.append(thumb, about);
@@ -1825,7 +1889,7 @@ function materialsFor(doc) {
   if (own && data.standsIn) box.append(filterChooser(doc));
   if (own && !data.standsIn) {
     const hint = document.createElement('p');
-    hint.className = 'muted';
+    hint.className = 'model-note';
     hint.textContent = 'Have this file stand in for a game model (Use in OpenFF) to swap its pictures here without re-exporting it.';
     box.append(hint);
   }
@@ -1846,15 +1910,16 @@ function facePictureUrl(doc, pack, part, n, game) {
     + `&part=${encodeURIComponent(part)}&n=${n}${game ? '&game=1' : ''}&v=${doc.faceStamp || 0}`);
 }
 
-/// Whether the client would show a number's picture on the stand-in: the mod's own always; the game's only when
-/// gameFaces is on and the material's own picture is the game's size (the file painted over the game's sheet).
+/// Whether the client would show a number's picture on the stand-in: the mod's own always; the game's when gameFaces
+/// is "always", or "auto" and the material's own picture looks like the game's (a model made from the game's sheets).
+/// Otherwise the material keeps its own picture: a face drawn anew has no expressions until the mod adds them.
 function faceShownInGame(doc, part, entry) {
   if (entry.replaced) return true;
   const faces = doc.faces;
   if (!/\.(glb|gltf)$/i.test(doc.name || '')) return Boolean(entry.game);
-  if (!faces.gameFaces || !entry.game) return false;
-  const group = (doc.data.groups || []).find(g => g.material === faces.on[part]);
-  return !group || !group.pictureWidth || (group.pictureWidth === entry.game.width && group.pictureHeight === entry.game.height);
+  if (!entry.game || faces.gameFaces === 'never') return false;
+  if (faces.gameFaces === 'always') return true;
+  return Boolean(faces.looks && faces.looks[part] && faces.looks[part].alike);
 }
 
 /// Puts a number of a part on the model in the view (null: the material's own back).
@@ -1934,10 +1999,10 @@ function facesFor(doc) {
   box.className = 'faces';
   const heading = document.createElement('h3');
   heading.textContent = 'Expressions';
+  // One short line: what this is and the one thing to do first. The how-to of replacing sits beside the controls it is about.
   const intro = document.createElement('p');
-  intro.className = 'muted';
-  intro.textContent = `The faces a scene puts on ${faces.model}: pick a set, click a picture to see it on the model, Play to flip through.`
-    + (faces.standsIn ? ' To change one, drop a PNG on it (or Replace…); Export to project gives you every picture as a file to edit.' : '');
+  intro.className = 'model-note plain';
+  intro.textContent = `The eyes and mouths scenes put on ${faces.model}. Click a picture to wear it on the model in the view.`;
   box.append(heading, intro);
 
   // The set: one face pack (j101_001...), as the scene names it.
@@ -1952,6 +2017,7 @@ function facesFor(doc) {
     choose.append(option);
   }
   choose.value = state.pack;
+  choose.title = 'A face set: scenes pick one, then switch between its numbers (a blink, a smile)';
   choose.onchange = () => {
     stopFacePlay(doc);
     for (const part of Object.keys(state.shown)) wearFace(doc, part, null);
@@ -1961,7 +2027,7 @@ function facesFor(doc) {
   };
   const neutral = document.createElement('button');
   neutral.textContent = 'Own face';
-  neutral.title = 'The model\'s own pictures, as it looks with no face set on';
+  neutral.title = 'Take the worn pictures off: the model as it looks with no face set on';
   neutral.onclick = () => { stopFacePlay(doc); for (const part of Object.keys(faces.on)) wearFace(doc, part, null); redraw(); };
   top.append(choose, neutral);
   box.append(top);
@@ -1969,9 +2035,11 @@ function facesFor(doc) {
   // The files: every picture into the project to edit in an image editor (taken again as they change), a zip of them,
   // and the folder they are in. Pictures dropped on the card go back in by their names.
   const after = () => { doc.faceStamp = (doc.faceStamp || 0) + 1; doc.faces = undefined; projectChanged(); drawInspector(); };
+  // Built here, shown under the picked picture: one picture at a time comes first, the whole set as files after it.
   const files = document.createElement('div');
-  files.className = 'faces-files material-actions';
+  files.className = 'faces-files';
   const exportPack = document.createElement('button');
+  exportPack.className = 'primary';
   exportPack.textContent = 'Export to project';
   exportPack.title = `Every picture of ${state.pack} written to assets/faces/${state.pack}/ (eye-0.png, mouth-6.png...) and used by the stand-in: `
     + 'edit them in any image editor and Crystal and the game take the changes. Shift-click: every pack.';
@@ -1983,8 +2051,9 @@ function facesFor(doc) {
     after();
   };
   const zip = document.createElement('a');
-  zip.textContent = 'Download .zip';
-  zip.title = 'The pictures as <pack>/<part>-<number>.png - edit them and drop them back on this card';
+  zip.className = 'button-like';
+  zip.textContent = '.zip';
+  zip.title = `Download ${state.pack}'s pictures as ${state.pack}/<part>-<number>.png - edit them and drop them back on this card`;
   zip.href = wsUrl(`/api/model/face-zip?name=${encodeURIComponent(doc.name)}&pack=${encodeURIComponent(state.pack)}`);
   zip.download = `${state.pack}.zip`;
   const folder = document.createElement('button');
@@ -1994,12 +2063,12 @@ function facesFor(doc) {
     const result = await api('/api/project/reveal', { path: doc.faceFolder || null }).catch(e => ({ ok: false, error: e.message }));
     if (!result.ok) say(result.error, 'bad');
   };
-  files.append(exportPack, zip, folder);
-  box.append(files);
+  files.append(exportPack, folder, zip);
 
   // Drop PNGs anywhere on the card: each goes to the number its name says (eye-3.png, j101_001-mouth-7.png).
+  // Leaving for a child of the card is not leaving it - that would flicker the outline on every thumbnail crossed.
   box.ondragover = (event) => { if (faces.standsIn) { event.preventDefault(); box.classList.add('dropping'); } };
-  box.ondragleave = () => box.classList.remove('dropping');
+  box.ondragleave = (event) => { if (!box.contains(event.relatedTarget)) box.classList.remove('dropping'); };
   box.ondrop = async (event) => {
     event.preventDefault();
     box.classList.remove('dropping');
@@ -2015,7 +2084,10 @@ function facesFor(doc) {
     if (done) after();
   };
 
-  // Every part's numbers as thumbnails: the one worn outlined, the mod's own marked.
+  // Every part's numbers as thumbnails: the one worn outlined, the mod's own marked, and - on a stand-in - the game's
+  // pictures OpenFF would not show faded, so what happens to a picture nobody replaced can be seen, not just read.
+  let fadedAny = false;
+  let mineAny = false;
   for (const part of pack.parts) {
     const row = document.createElement('div');
     row.className = 'faces-part';
@@ -2024,6 +2096,7 @@ function facesFor(doc) {
     const b = document.createElement('b');
     b.textContent = part.name;
     const on = document.createElement('span');
+    if (!faces.on[part.name]) on.className = 'missing';
     on.textContent = faces.on[part.name] ? `on ${faces.on[part.name]}` : 'no material of this name';
     on.title = faces.on[part.name]
       ? `The scene's ${part.name} picture is drawn on the material "${faces.on[part.name]}"`
@@ -2053,11 +2126,17 @@ function facesFor(doc) {
     // A pack's numbers each hold some parts' pictures (j101_001: 0-5 eyes, 6-8 mouths) - a part lists the ones it has.
     for (const entry of part.numbers) {
       if (!entry.game && !entry.replaced) continue;
+      const faded = own && !faceShownInGame(doc, part.name, entry);
+      fadedAny = fadedAny || faded;
+      mineAny = mineAny || Boolean(entry.replaced);
       const cell = document.createElement('button');
       cell.className = 'face' + (state.shown[part.name] === entry.n ? ' worn' : '')
         + (state.selected && state.selected.part === part.name && state.selected.n === entry.n ? ' selected' : '')
-        + (entry.replaced ? ' mine' : '') + (entry.game || entry.replaced ? '' : ' empty');
-      cell.title = `${state.pack} ${part.name} ${entry.n}` + (entry.replaced ? ` - yours (${entry.replaced})` : entry.game ? ` - the game's, ${entry.game.width} × ${entry.game.height}` : ' - none in this set');
+        + (entry.replaced ? ' mine' : '') + (faded ? ' faded' : '') + (entry.game || entry.replaced ? '' : ' empty');
+      cell.setAttribute('aria-pressed', String(state.shown[part.name] === entry.n));
+      cell.title = `${part.name} ${entry.n}` + (entry.replaced ? ` - yours (${entry.replaced})` : entry.game ? ` - the game's, ${entry.game.width} × ${entry.game.height}` : ' - none in this set')
+        + (faded ? '\nNot shown in OpenFF: the model keeps its own picture here until you replace this one' : '')
+        + (faces.standsIn ? '\nClick to wear it and pick it; drop a PNG on it to replace it' : '\nClick to wear it on the model');
       if (entry.game || entry.replaced) {
         const img = document.createElement('img');
         img.loading = 'lazy';
@@ -2093,13 +2172,151 @@ function facesFor(doc) {
     box.append(row);
   }
 
+  // What the marks mean, only the ones this set shows.
+  if (mineAny || fadedAny) {
+    const legend = document.createElement('div');
+    legend.className = 'faces-legend';
+    if (mineAny) {
+      const mine = document.createElement('span');
+      mine.innerHTML = '<i class="dot"></i>yours';
+      legend.append(mine);
+    }
+    if (fadedAny) {
+      const faded = document.createElement('span');
+      faded.innerHTML = '<i class="fade"></i>faded: OpenFF keeps the model\'s own';
+      faded.title = 'These are the game\'s pictures, not used on this stand-in - see "Pictures you have not replaced" below';
+      legend.append(faded);
+    }
+    box.append(legend);
+  }
+
+  const subhead = (text) => {
+    const h = document.createElement('div');
+    h.className = 'faces-subhead';
+    h.textContent = text;
+    return h;
+  };
+
+  // The picked picture, large enough to judge, with what it is, where it comes from and what to do with it: replace it
+  // with a PNG of yours, the game's back, or save it to paint over. Nothing picked: a line saying how to start.
+  const pickedEntry = state.selected ? (pack.parts.find(p => p.name === state.selected.part) || { numbers: [] }).numbers[state.selected.n] : null;
+  if (pickedEntry && (pickedEntry.game || pickedEntry.replaced)) {
+    const { part, n } = state.selected;
+    const picked = document.createElement('div');
+    picked.className = 'faces-picked';
+    // Yours beside the game's when both exist, so a replacement can be checked against what it replaces.
+    const previews = document.createElement('div');
+    previews.className = 'faces-previews';
+    const preview = (url, caption) => {
+      const figure = document.createElement('figure');
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = caption;
+      const label = document.createElement('figcaption');
+      label.textContent = caption;
+      figure.append(img, label);
+      previews.append(figure);
+    };
+    if (pickedEntry.replaced) preview(facePictureUrl(doc, state.pack, part, n), 'yours');
+    if (pickedEntry.game) preview(facePictureUrl(doc, state.pack, part, n, true), 'game');
+    const about = document.createElement('div');
+    about.className = 'faces-picked-about';
+    const what = document.createElement('div');
+    what.className = 'material-name';
+    const b = document.createElement('b');
+    b.textContent = `${part} ${n}`;
+    what.append(b);
+    if (pickedEntry.replaced) {
+      const mine = document.createElement('em');
+      mine.className = 'yours';
+      mine.textContent = 'yours';
+      what.append(mine);
+    }
+    const where = document.createElement('span');
+    where.className = 'faces-where';
+    // The file's name, not the folders every face shares - those are in the tooltip and the note under Edit as files.
+    where.textContent = pickedEntry.replaced ? pickedEntry.replaced.replace(/^assets\/faces\//, '') : `the game's · ${pickedEntry.game.width} × ${pickedEntry.game.height}`;
+    where.title = pickedEntry.replaced
+      ? pickedEntry.replaced + '\nEdit this file in an image editor: Crystal takes it again when you come back, the game within a second'
+      : `${state.pack}, picture ${n} of the game's face set`;
+    const actions = document.createElement('div');
+    actions.className = 'material-actions';
+    if (faces.standsIn) {
+      const replace = document.createElement('button');
+      replace.textContent = 'Replace…';
+      replace.title = `A PNG of yours for ${state.pack} ${part} ${n}, written to assets/faces/${state.pack}/${part}-${n}.png`;
+      replace.onclick = () => {
+        const chooser = document.createElement('input');
+        chooser.type = 'file';
+        chooser.accept = 'image/png';
+        chooser.onchange = async () => {
+          const file = chooser.files && chooser.files[0];
+          if (!file) return;
+          try { await replaceFace(doc, state.pack, part, n, file); } catch (error) { alert(error.message); return; }
+          state.shown[part] = n;
+          after();
+        };
+        chooser.click();
+      };
+      actions.append(replace);
+      if (pickedEntry.replaced) {
+        const reset = document.createElement('button');
+        reset.textContent = 'Reset';
+        reset.title = pickedEntry.game ? 'Take yours off: the game\'s picture back' : 'Take yours off';
+        reset.onclick = async () => {
+          const result = await api('/api/model/face-replace', { name: doc.name, pack: state.pack, part, n, clear: true })
+            .catch(e => ({ ok: false, error: e.message }));
+          if (!result.ok) { alert(result.error); return; }
+          after();
+        };
+        actions.append(reset);
+      }
+    }
+    const save = document.createElement('a');
+    save.textContent = pickedEntry.game ? 'Save game PNG' : 'Save PNG';
+    save.title = 'This picture as a file, to paint over and Replace with';
+    save.href = facePictureUrl(doc, state.pack, part, n, Boolean(pickedEntry.game));
+    save.download = `${state.pack}-${part}-${n}.png`;
+    actions.append(save);
+    about.append(what, where, actions);
+    picked.append(previews, about);
+    box.append(picked);
+    if (own && !faceShownInGame(doc, part, pickedEntry)) {
+      // Said where the eye already is, with the two ways out of it.
+      const note = document.createElement('p');
+      note.className = 'model-note warn';
+      note.textContent = faces.gameFaces === 'never'
+        ? 'Not shown in OpenFF: the game\'s faces are off for this stand-in, so it keeps the material\'s own picture here. Replace this one to change that.'
+        : `Not shown in OpenFF: this stand-in's ${part} is drawn differently from the game's, so it keeps its own picture here. Replace this one, or set "Pictures you have not replaced" below to Always.`;
+      box.append(note);
+    }
+  } else if (faces.standsIn) {
+    const empty = document.createElement('p');
+    empty.className = 'model-note';
+    empty.textContent = 'Pick a picture to replace it with a PNG of yours - or drop one straight on it.';
+    box.append(empty);
+  }
+
+  // The whole set as files: exported into the project to edit in any image editor, taken again on coming back.
+  box.append(subhead('Edit as files'), files);
+  if (faces.standsIn) {
+    const drop = document.createElement('p');
+    drop.className = 'faces-drop';
+    drop.innerHTML = `Edit the PNGs in <code>assets/faces/${state.pack}/</code> - Crystal takes them again when you come back.`
+      + ' Or drop PNGs on this card: <code>eye-3.png</code> replaces eye 3.';
+    box.append(drop);
+  }
+
   // Playback: a row of numbers flipped through at a pace, on one part or every part - a blink is "0 1 2 1 0".
+  // One line: the button, which part, the numbers, the pace.
   const play = document.createElement('div');
   play.className = 'faces-play';
   const toggle = document.createElement('button');
   toggle.textContent = state.timer ? '■ Stop' : '▶ Play';
+  if (state.timer) toggle.className = 'primary';
   const which = document.createElement('select');
-  for (const [value, text] of [['', 'every part'], ...pack.parts.map(p => [p.name, p.name])]) {
+  which.title = 'The part to flip through';
+  for (const [value, text] of [['', 'all parts'], ...pack.parts.map(p => [p.name, p.name])]) {
     const option = document.createElement('option');
     option.value = value;
     option.textContent = text;
@@ -2115,6 +2332,8 @@ function facesFor(doc) {
   sequence.value = state.sequence;
   sequence.title = 'The numbers to flip through, in order (empty: every number). A blink: 0 1 2 1 0';
   sequence.oninput = () => { state.sequence = sequence.value; };
+  // Enter plays, as the button would.
+  sequence.onkeydown = (event) => { if (event.key === 'Enter') toggle.click(); };
   const fps = document.createElement('input');
   fps.type = 'number';
   fps.min = 1;
@@ -2144,97 +2363,55 @@ function facesFor(doc) {
     redraw();
   };
   play.append(toggle, which, sequence, fps, perSecond);
-  box.append(play);
+  box.append(subhead('Preview'), play);
 
-  // The picked picture: replace it with a PNG of yours, the game's back, or save it to paint over.
-  const pickedEntry = state.selected ? (pack.parts.find(p => p.name === state.selected.part) || { numbers: [] }).numbers[state.selected.n] : null;
-  if (pickedEntry) {
-    const { part, n } = state.selected;
-    const picked = document.createElement('div');
-    picked.className = 'faces-picked material-actions';
-    const what = document.createElement('b');
-    what.textContent = `${part} ${n}`;
-    picked.append(what);
-    if (faces.standsIn) {
-      const replace = document.createElement('button');
-      replace.textContent = 'Replace…';
-      replace.title = `A PNG of yours for ${state.pack} ${part} ${n}, written to assets/faces/${state.pack}/${part}-${n}.png`;
-      replace.onclick = () => {
-        const chooser = document.createElement('input');
-        chooser.type = 'file';
-        chooser.accept = 'image/png';
-        chooser.onchange = async () => {
-          const file = chooser.files && chooser.files[0];
-          if (!file) return;
-          try { await replaceFace(doc, state.pack, part, n, file); } catch (error) { alert(error.message); return; }
-          state.shown[part] = n;
-          after();
-        };
-        chooser.click();
-      };
-      picked.append(replace);
-      if (pickedEntry.replaced) {
-        const reset = document.createElement('button');
-        reset.textContent = 'Reset';
-        reset.title = 'The game\'s picture back';
-        reset.onclick = async () => {
-          const result = await api('/api/model/face-replace', { name: doc.name, pack: state.pack, part, n, clear: true })
-            .catch(e => ({ ok: false, error: e.message }));
-          if (!result.ok) { alert(result.error); return; }
-          after();
-        };
-        picked.append(reset);
-      }
-    }
-    if (pickedEntry.replaced) {
-      const where = document.createElement('span');
-      where.className = 'muted';
-      where.textContent = pickedEntry.replaced;
-      where.title = 'Edit this file in an image editor: Crystal takes it again when you come back, the game within a second';
-      picked.append(where);
-    }
-    const save = document.createElement('a');
-    save.textContent = pickedEntry.game ? 'Save game PNG' : 'Save PNG';
-    save.title = 'This picture as a file, to paint over and Replace with';
-    save.href = facePictureUrl(doc, state.pack, part, n, Boolean(pickedEntry.game));
-    save.download = `${state.pack}-${part}-${n}.png`;
-    picked.append(save);
-    box.append(picked);
-    if (own && !faceShownInGame(doc, part, pickedEntry)) {
-      const note = document.createElement('p');
-      note.className = 'muted';
-      const group = (doc.data.groups || []).find(g => g.material === faces.on[part]);
-      note.textContent = !faces.gameFaces
-        ? 'The game\'s faces are off for this stand-in: this number keeps the material\'s own picture until you replace it.'
-        : `The game's picture is ${pickedEntry.game ? pickedEntry.game.width + ' × ' + pickedEntry.game.height : 'missing'}, the material's ${group ? group.pictureWidth + ' × ' + group.pictureHeight : 'unknown'}: `
-          + 'a different layout, so the client keeps the material\'s own picture here until you replace it.';
-      box.append(note);
-    }
-  }
-
+  const andList = (words) => words.length < 2 ? words.join('') : words.slice(0, -1).join(', ') + ' and ' + words[words.length - 1];
   if (faces.standsIn && own) {
-    const line = document.createElement('label');
-    line.className = 'material-filter';
-    const check = document.createElement('input');
-    check.type = 'checkbox';
-    check.checked = faces.gameFaces;
-    check.onchange = async () => {
-      const result = await api('/api/model/face-replace', { name: doc.name, gameFaces: check.checked }).catch(e => ({ ok: false, error: e.message }));
+    // Where you have no picture: the game's when the face looks like the game's (automatic), always, or never. The
+    // options stay short so the closed select reads whole; what the choice means for this model is said under it.
+    box.append(subhead('Pictures you have not replaced'));
+    const mode = document.createElement('select');
+    mode.className = 'faces-mode';
+    for (const [value, text] of [['auto', 'Automatic'], ['always', 'Always the game\'s'], ['never', 'Never - the model\'s own']]) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = text;
+      mode.append(option);
+    }
+    mode.value = faces.gameFaces || 'auto';
+    mode.onchange = async () => {
+      const result = await api('/api/model/face-replace', { name: doc.name, gameFaces: mode.value }).catch(e => ({ ok: false, error: e.message }));
       if (!result.ok) { alert(result.error); return; }
       doc.faces = undefined;
       projectChanged();
       drawInspector();
     };
-    line.append(check, document.createTextNode(' Faces you have not replaced show the game\'s'));
-    box.append(line);
+    const looks = faces.looks || {};
+    const named = pack.parts.map(p => p.name).filter(p => faces.on[p]);
+    const alike = named.filter(p => looks[p] && looks[p].alike);
+    const apart = named.filter(p => !(looks[p] && looks[p].alike));
+    const said = [];
+    if ((faces.gameFaces || 'auto') === 'auto') {
+      if (alike.length) said.push(`This stand-in's ${andList(alike)} look${alike.length === 1 ? 's' : ''} like the game's, so the game's pictures show where you have none.`);
+      if (apart.length) said.push(`${alike.length ? 'Its' : "This stand-in's"} ${andList(apart)} ${apart.length === 1 ? 'is' : 'are'} drawn differently, so ${apart.length === 1 ? 'it keeps its' : 'they keep their'} own picture until you replace one (faded above).`);
+    } else if (faces.gameFaces === 'always') {
+      said.push('The game\'s picture shows wherever you have none of your own.');
+    } else {
+      said.push('Only your pictures show; everywhere else the model keeps its own.');
+    }
+    const meaning = document.createElement('p');
+    meaning.className = 'model-note plain';
+    meaning.textContent = said.join(' ');
+    meaning.title = named.map(p => looks[p] ? `${p}: ${looks[p].difference ?? '?'} apart from the game's${looks[p].reason ? ' (' + looks[p].reason + ')' : ''}` : p).join('\n');
+    box.append(mode, meaning);
   } else if (!faces.standsIn) {
     const hint = document.createElement('p');
-    hint.className = 'muted';
+    hint.className = 'model-note';
     hint.textContent = `To replace these, give ${faces.model} a stand-in glTF (open the .glb, Use in OpenFF) and replace them there - your pictures go to assets/faces/ and the definition.`;
     box.append(hint);
   } else if (!own) {
     const hint = document.createElement('p');
-    hint.className = 'muted';
+    hint.className = 'model-note';
     hint.textContent = `${faces.model} has a stand-in (${faces.definition}): replacing here changes what it wears in OpenFF.`;
     box.append(hint);
   }
@@ -2302,7 +2479,10 @@ function materialActions(doc, name, group) {
 function filterChooser(doc) {
   const line = document.createElement('label');
   line.className = 'material-filter';
-  line.append(document.createTextNode('Pictures drawn '));
+  line.title = 'Crisp keeps pixel art sharp; smoothed blurs it a little, as a painted picture wants';
+  const words = document.createElement('span');
+  words.textContent = 'Pictures drawn';
+  line.append(words);
   const select = document.createElement('select');
   for (const [value, label] of [['', 'as the file says'], ['nearest', 'crisp (nearest)'], ['linear', 'smoothed (linear)']]) {
     const option = document.createElement('option');
@@ -2347,11 +2527,13 @@ function factsFor(doc) {
     facts.push(['exits', data.scene.exits.length]);
     facts.push(['script', shortName(data.script || '')]);
   } else if (doc.kind === 'model' && data.groups) {
+    // The mesh in one line (quads only when there are any), then what a modder counts: parts, bones.
+    if (data.kind) facts[0] = ['kind', `${data.kind} model`];
+    facts.push(['mesh', `${(data.vertices || 0).toLocaleString()} vertices · ${(data.triangles || 0).toLocaleString()} triangles`
+      + (data.quads ? ` · ${data.quads.toLocaleString()} quads` : '')]);
     facts.push(['parts', data.groups.length]);
-    facts.push(['vertices', data.vertices]);
-    facts.push(['triangles', data.triangles]);
-    facts.push(['quads', data.quads]);
-    facts.push(['nodes', (data.nodes || []).length]);
+    if (data.skin && data.skin.joints) facts.push(['bones', data.skin.joints.length]);
+    if ((data.nodes || []).length > 1) facts.push(['nodes', data.nodes.length]);
   } else if (doc.kind === 'cell' && data.cells) {
     facts.push(['cells', data.cells.length]);
     facts.push(['parts', data.cells.reduce((n, c) => n + c.parts.length, 0)]);

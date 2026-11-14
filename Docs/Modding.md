@@ -1079,9 +1079,21 @@ numbered pictures (`ChangeFaceEye 3`, `ChangeFaceMouth 7`) for blinks, surprise 
 j101 has eight packs. In each, every number holds an eye or a mouth picture; j101_001 has
 eyes at 0-5 and mouths at 6-8. A stand-in follows along through its materials named after
 the parts (`eye`, `Eyes`, `eye.001`), or the ones `faceParts` names. For each number it
-shows your picture if `faces` has one. Otherwise it shows the game's own picture from the
-pack, but only when the material's picture is the game's size, which means the file was
-painted over the game's sheet. `"gameFaces": false` keeps the file's own picture instead:
+shows your picture if `faces` has one. For a number you have no picture for, it depends on
+whether the stand-in's face looks like the game's:
+
+- **It looks like the game's.** The model was made from the game's eye and mouth sheets,
+  for example exported from Crystal and reshaped. Then the game's own expressions show,
+  with nothing added, so the stand-in blinks and reacts like the original.
+- **It's drawn differently.** The material keeps its own picture, so the face doesn't
+  change until you add pictures. Any pictures you add are used, and numbers without one
+  fall back to the material's own picture.
+
+The comparison is per part, against every picture in the model's face packs. A copy scores
+0, and a face drawn anew scores 40 or more; a part counts as the game's at 16 or below. Both
+Crystal and the game log the result:
+`models: j101's eye is drawn anew (difference 56): it keeps its own picture where the mod has none`.
+`"gameFaces": true` always shows the game's pictures, and `false` never does:
 
 ```json
 { "model": "j101", "gltf": "assets/werewolf.glb",

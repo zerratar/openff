@@ -329,7 +329,8 @@ namespace OpenFF.Client
 		// ---- expressions ---------------------------------------------------------------------------------
 		// A scene's face pack (SetUpCharacter_FaceData j101_001) and the number it shows of each part (ChangeFaceEye 3)
 		// reach the stand-in through its material of the part's name: the mod's picture for that pack, part and number
-		// ("faces"), else the game's own from the pack when the material's picture is the game's size.
+		// ("faces"), else the game's own from the pack when the material's picture looks like one of the game's (a model
+		// made from the game's sheets) - else the material's own picture: a face drawn anew keeps it until the mod adds its own.
 
 		private static readonly ModModel NoDefinition = new ModModel();
 		private static readonly Dictionary<string, FacePack> _facePacks = new Dictionary<string, FacePack>(StringComparer.OrdinalIgnoreCase);
@@ -355,12 +356,41 @@ namespace OpenFF.Client
 				if (definition.Filter == null && material.Nearest != true) filter = Math.Max(mine.Width, mine.Height) <= 256 ? TextureFilter.Point : TextureFilter.Linear;
 				return mine;
 			}
-			if (!definition.GameFaces) return null;
+			if (definition.GameFaces == false) return null;
 			Texture2D game = GameFace(pack, faces, part, number, device);
-			if (game == null || own == null || own.Width != game.Width || own.Height != game.Height) return null;
+			if (game == null) return null;
+			if (definition.GameFaces == null && !LooksLikeGame(look, own, pack, part, material.Name)) return null;
 			Log.First(LogChannel.General, "models-face-" + look.Model + "-" + pack + "-" + part + "-" + number, 1, () => "models: " + look.Model + "'s " + material.Name + " shows " + pack + " " + part + " " + number + " - the game's");
 			if (definition.Filter == null) filter = TextureFilter.Point;
 			return game;
+		}
+
+		/// <summary>Per picture of a stand-in's material and face part: whether it is one of the game's (FacePack.SameAsGame).</summary>
+		private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Texture2D, Dictionary<string, bool>> _gameLike = new System.Runtime.CompilerServices.ConditionalWeakTable<Texture2D, Dictionary<string, bool>>();
+
+		private static bool LooksLikeGame(Look look, Texture2D own, string pack, string part, string materialName)
+		{
+			if (own == null) return false;
+			Dictionary<string, bool> known = _gameLike.GetOrCreateValue(own);
+			if (known.TryGetValue(part, out bool alike)) return alike;
+			int best = int.MaxValue;
+			try
+			{
+				if (own.Format == SurfaceFormat.Color)
+				{
+					byte[] rgba = new byte[own.Width * own.Height * 4];
+					own.GetData(0, null, rgba, 0, rgba.Length);
+					foreach (string name in FacePack.SiblingNames(pack))
+						if (best > 0 && FacePackOf(name) is FacePack faces) best = Math.Min(best, faces.Closest(own.Width, own.Height, rgba, part));
+				}
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "models: " + look.Model + "'s " + materialName + ": " + ex.Message); }
+			alike = best <= FacePack.SameAsGame;
+			known[part] = alike;
+			Log.Write(LogChannel.General, "models: " + look.Model + "'s " + materialName + (alike
+				? " is the game's " + part + " (difference " + best + "): the scenes' " + part + " pictures are the game's where the mod has none"
+				: " is drawn anew (" + (best == int.MaxValue ? "no game " + part + " of its size" : "difference " + best) + "): it keeps its own picture where the mod has none"));
+			return alike;
 		}
 
 		private static FacePack FacePackOf(string pack)
