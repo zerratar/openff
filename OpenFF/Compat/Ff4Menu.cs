@@ -85,6 +85,7 @@ namespace OpenFF.Client
 			Game.Input.Capture = true;
 			BuildCommands();
 			_question = false;
+			_lookAtOpen = Ff4PartyCommands.LeaderLook();
 			// Balloon::blnCreate picks the thought as the menu opens (and may set or clear its flags then).
 			try { _thought = Ff4Speculation.Thought(); } catch (Exception) { _thought = null; }
 			Log.Write(LogChannel.File, "menu: open - " + Ff4Party.Party.Describe().Replace("\n", " | "));
@@ -102,10 +103,14 @@ namespace OpenFF.Client
 			catch (Exception) { return false; }
 		}
 
+		private string _lookAtOpen;
+
 		private void Close()
 		{
 			_open = false;
 			Game.Input.Capture = false;
+			// WSMenu's exit waits on the party loader: a leader turned Toad, Pig or Mini (or back), or a new leader, walks as such.
+			if (!_fromTitle && !_fromEnding && _lookAtOpen != null && Ff4PartyCommands.LeaderLook() != _lookAtOpen) Ff4PartyCommands.LeaderChanged();
 			Log.Write(LogChannel.File, "menu: close");
 		}
 

@@ -248,6 +248,20 @@ namespace OpenFF.Client
 
 		private static string ModelOf(int type) => type == 14 || type == 16 ? "p40_00" : "p" + Math.Clamp(type, 0, 99).ToString("00") + "_00";
 
+		/// <summary>What the field's leader looks like now: its model and whether it walks small (Mini) - the menu remakes the
+		/// hero when this changed while it was open (WSMenu's party loader, wsmOnExitWaitOfPartyLoader: a Toad, a Pig, a new leader).</summary>
+		public static string LeaderLook()
+		{
+			Party p = Ff4Party.Party;
+			if (p == null || p.Members.Count == 0) return "";
+			int type = Ff4Speculation.FieldSymbol >= 0 ? Ff4Speculation.FieldSymbol : p.Members[0].Id;
+			Character c = p.Get(type) ?? p.Members[0];
+			return FieldModel() + (Has(c, 6) ? " small" : "");
+		}
+
+		/// <summary>The hero made again for the leader's look now.</summary>
+		public static void LeaderChanged() => RemakeHero();
+
 		/// <summary>The hero made again as FieldModel says, where it stands (CPlayerHuman::changeJob's remake - FF3's job change).</summary>
 		private static void RemakeHero()
 		{

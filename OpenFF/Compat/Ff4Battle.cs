@@ -220,7 +220,7 @@ namespace OpenFF.Client
 			_cameraType = party.CameraType;
 			_startingParty = party;   // its events start with the fight (on a stage, once the stage has come)
 			bool started = Start(ids, inScene, battleMap);
-			if (started) Log.Write(LogChannel.General, "battle: encounter group " + partyId);
+			if (started) Log.Write(LogChannel.General, "battle: encounter group " + partyId + ", party root " + _rootId + " (" + string.Join(" ", System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(0, 5), k => Ff4BattleStage.PartySpot(_rootId, k).ToString())) + ")");
 			else _startingParty = null;
 			return started;
 		}

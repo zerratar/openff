@@ -1442,7 +1442,8 @@ namespace OpenFF.Client
 		/// <summary>
 		/// FF4's voice player (FUN_00459eec in libff4): voice/&lt;name&gt;.akb, else the language's own - en_ for English,
 		/// ja_ for Japanese; a line the language has no recording of stays silent (861 ja_ files to 698 en_: the English
-		/// game skips the rest, it does not play the Japanese). At 0.9, unless the script gives a volume of its own.
+		/// game skips the rest, it does not play the Japanese). At 0.9, unless the script gives a volume of its own, times
+		/// the Settings' Voices.
 		/// </summary>
 		private static void PlayVoice(string file, float? volume)
 		{
@@ -1462,7 +1463,7 @@ namespace OpenFF.Client
 					_voice.Dispose();
 				}
 				_voice = sound.CreateInstance();
-				_voice.Volume = Math.Max(0f, Math.Min(1f, volume ?? 0.9f));
+				_voice.Volume = Math.Max(0f, Math.Min(1f, (volume ?? 0.9f) * OpenFF.Client.Ff4Settings.Current.Voices / 10f));   // Settings' Voices, 0..10 as Music's
 				_voice.Play();
 				Log.Write(LogChannel.File, "script: FF4 voice " + name + " (" + sound.Duration.TotalSeconds.ToString("0.0") + "s)");
 			});
