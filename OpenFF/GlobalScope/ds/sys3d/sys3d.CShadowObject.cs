@@ -80,6 +80,16 @@ internal static partial class GlobalScope
 							{
 								pos.y = ground.y;
 							}
+							else if (FeetHeight(out int feet))
+							{
+								// PORT: no collision under it. FF4 gives a scene cast's shadow the stage's model as its ground
+								// (ce_ShadowSetting's setShadowStage) and drops the disc onto it - Steam's Red Wings' deck, a stage
+								// with no collision, has a faint disc under each soldier's feet. The floor stood on is taken from
+								// the cast's feet: the lower foot joint, within a fifth of a unit of the ground on the field
+								// (Cecil's L_asi / R_asi 0.1 and 0.2 over it); the cast's own position is no floor here, a scene's
+								// motion root leaving it at 0 under a deck it lifts the model onto.
+								pos.y = feet;
+							}
 							if (!_jointSeen)
 							{
 								_jointSeen = true;
@@ -95,6 +105,26 @@ internal static partial class GlobalScope
 				}
 
 				private static readonly MtxFx43 sys3d_reuse_joint_mtx = new MtxFx43();
+				private static readonly MtxFx43 sys3d_reuse_foot_mtx = new MtxFx43();
+				private static readonly string[] FootJoints = { "L_asi", "R_asi" };
+				private bool _feetReserved;
+
+				/// <summary>The lower of the model's foot joints this frame (reserved on the first ask, read from the next).</summary>
+				private bool FeetHeight(out int y)
+				{
+					y = int.MaxValue;
+					foreach (string foot in FootJoints)
+					{
+						if (_pRenderObject.getJntMtx(foot, sys3d_reuse_foot_mtx)) y = Math.Min(y, sys3d_reuse_foot_mtx._31);
+					}
+					if (y != int.MaxValue) return true;
+					if (!_feetReserved)
+					{
+						_feetReserved = true;
+						foreach (string foot in FootJoints) _pRenderObject.reserveToGetJntMtx(foot);
+					}
+					return false;
+				}
 				private bool _jointSeen;
 				private int _jointMissed;
 

@@ -1597,12 +1597,14 @@ namespace OpenFF.Client
 				// FF4 lifts the disc 0x29 over the base and lets the DS's polygon ids settle the rest; here a
 				// disc flush with the deck loses the depth test, so it gets FF3's own half unit (CPlayerHuman.into).
 				Characters.setShadowHeight(ctrl, 2048);
-				if (scale > 0 && scale != 4096)
+				// libff4 sets the scale outright - (scale, 0, scale): 4096 a disc of the model's own size, flat - not the
+				// character's default (FF3's 2) times it, which made a cast's disc twice Steam's width on the Red Wings' deck.
+				if (scale > 0)
 				{
 					GlobalScope.VecFx32 s = new GlobalScope.VecFx32();
 					Characters.getShadowScale(ctrl, s);
-					s.x = (int)((long)s.x * scale / 4096);
-					s.z = (int)((long)s.z * scale / 4096);
+					s.x = scale;
+					s.z = scale;
 					Characters.setShadowScale(ctrl, s);
 				}
 				if (x != 0 || y != 0 || z != 0)
