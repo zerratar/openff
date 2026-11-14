@@ -76,6 +76,22 @@ namespace OpenFF.Client
 		private XElement _laid;     // the layout as last laid out, and what it was laid out from
 		private string _laidKey;
 		private string _computedKey;
+		private string _matchKey, _computedKeyLaidFrom;
+		private readonly MenuStyles.LookCache _lookCache = new MenuStyles.LookCache();
+
+		/// <summary>What a layout reads of the cascade: each frame's place and size properties and its display.</summary>
+		private static string LayoutKey(List<(XElement Frame, Dictionary<string, string> Computed)> computed)
+		{
+			System.Text.StringBuilder key = new System.Text.StringBuilder();
+			foreach ((XElement frame, Dictionary<string, string> c) in computed)
+			{
+				key.Append('|');
+				foreach (string name in MenuLayout.Properties) if (c.TryGetValue(name, out string v)) key.Append(name).Append(':').Append(v).Append(';');
+				if (c.TryGetValue("display", out string display)) key.Append("display:").Append(display);
+			}
+			return key.ToString();
+		}
+		private readonly MenuStyles.MatchCache _matches = new MenuStyles.MatchCache();
 		private List<(XElement Frame, Dictionary<string, string> Computed)> _computed;
 		private readonly Dictionary<string, Texture> _pictures = new Dictionary<string, Texture>(StringComparer.OrdinalIgnoreCase);
 
@@ -139,21 +155,33 @@ namespace OpenFF.Client
 			{
 				Bind(root);
 				// Cascaded and laid out again only when a frame's classes, styles, state or text changed (the same otherwise) - a
-				// screen as big as the menu's is too much to cascade every frame.
+				// screen as big as the menu's is too much to cascade every frame. Which rules match a frame holds while its
+				// classes, states and the frames themselves do (its attributes but its style): what bindings move each frame - a
+				// gauge's style, a number's text - only re-merges inline styles and inheritance over the kept matches.
 				string key = string.Join("|", _menu.Descendants("frame").Select(f => string.Join("~", f.Attributes().Select(a => a.Value)) + "~" + (string)f.Element("data")));
-				if (key != _computedKey || _computed == null) { _computed = MenuStyles.Computed(_menu, _sheet); _computedKey = key; }
+				if (key != _computedKey || _computed == null)
+				{
+					string matchKey = string.Join("|", _menu.Descendants("frame").Select(f => string.Join("~", f.Attributes().Where(a => a.Name.LocalName != "style").Select(a => a.Value))));
+					if (matchKey != _matchKey) { _matches.Clear(); _matchKey = matchKey; }
+					_computed = MenuStyles.Computed(_menu, _sheet, _matches);
+					_computedKey = key;
+				}
 				List<(XElement Frame, Dictionary<string, string> Computed)> computed = _computed;
 				Dictionary<XElement, Dictionary<string, string>> shown = _animator.Step(computed, _sheet, _clock.Elapsed.TotalSeconds);
-				Dictionary<XElement, MenuStyles.Look> looks = MenuStyles.Looks(_menu, computed, shown);
+				Dictionary<XElement, MenuStyles.Look> looks = MenuStyles.Looks(_menu, computed, shown, _lookCache);
 				Dictionary<XElement, Dictionary<string, string>> values = new Dictionary<XElement, Dictionary<string, string>>();
 				foreach ((XElement frame, Dictionary<string, string> c) in computed) values[frame] = shown != null && shown.TryGetValue(frame, out Dictionary<string, string> s) ? s : c;
-				if (key != _laidKey || _laid == null)
+				// Laid out again only when what the layout reads moved - a frame's place and size properties, display, the frames
+				// themselves - not for a colour, a crop or a text (the drawing takes those from the cascade, not the copy).
+				string laidKey = key == _computedKeyLaidFrom && _laid != null ? _laidKey : LayoutKey(computed);
+				_computedKeyLaidFrom = key;
+				if (laidKey != _laidKey || _laid == null)
 				{
 					XElement laid = new XElement(_menu);
-					MenuStyles.Apply(laid, _sheet);
+					MenuStyles.ApplyComputed(laid, _menu, computed);
 					MenuLayout.Bake(laid);
 					_laid = laid;
-					_laidKey = key;
+					_laidKey = laidKey;
 				}
 				float sx = DrawList.ScreenWidth / _width, sy = DrawList.ScreenHeight / _height;
 				// A point of the layout (x, y) is drawn at (ax + x kx, ay + y ky); a frame's scale (CSS scale: about its centre)
@@ -190,8 +218,12 @@ namespace OpenFF.Client
 		{
 			MenuBindingScope top = new MenuBindingScope { Root = root };
 			Dictionary<XElement, MenuBindingScope> scopes = new Dictionary<XElement, MenuBindingScope>();
-			foreach (XElement frame in _menu.Descendants("frame"))
+			// What a bind-display has taken away is not bound: nothing in it is drawn, and it is bound again the frame it shows
+			// (a screen of the menu's many, the field's key bar - the rest of the menu's layout is not worked out under it).
+			Stack<XElement> todo = new Stack<XElement>(_menu.Elements("frame").Reverse());
+			while (todo.Count > 0)
 			{
+				XElement frame = todo.Pop();
 				MenuBindingScope scope = ScopeOf(frame, top, scopes);
 				foreach (KeyValuePair<string, string> c in MenuStyles.Declarations((string)frame.Attribute("bind-class")))
 					SetClass(frame, c.Key, MenuBindings.Test(c.Value, scope));
@@ -203,6 +235,7 @@ namespace OpenFF.Client
 				if (style != ((string)frame.Attribute("style") ?? "")) frame.SetAttributeValue("style", style.Length == 0 ? null : style);
 				if (frame.Attribute("bind-text") is XAttribute bt) _texts[frame] = MenuBindings.Format(bt.Value, scope);
 				else if (frame.Element("data") is XElement data && !string.IsNullOrWhiteSpace(data.Value)) _texts[frame] = data.Value.Trim();
+				if (display == null) foreach (XElement child in frame.Elements("frame").Reverse()) todo.Push(child);
 			}
 		}
 

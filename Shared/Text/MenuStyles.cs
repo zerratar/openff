@@ -164,6 +164,8 @@ namespace OpenFF.Content
 			/// <summary>The frame's translate as it is now (a transition's, an animation's): what it draws moved by the difference from the one its layout was built with.</summary>
 			public string Translate;
 
+			public Look Copy() => (Look)MemberwiseClone();
+
 			public bool SameAs(Look o) => o != null && Colour == o.Colour && Font == o.Font && Align == o.Align && Math.Abs(Opacity - o.Opacity) < 0.001
 				&& Hidden == o.Hidden && Window == o.Window && Bar == o.Bar && NoPanel == o.NoPanel && Tint == o.Tint && Background == o.Background && Portrait == o.Portrait
 				&& TextStyle == o.TextStyle && Transition == o.Transition && Animation == o.Animation && Translate == o.Translate;
@@ -184,7 +186,22 @@ namespace OpenFF.Content
 		}
 
 		/// <summary>Every frame's look from its properties (the cascade's, or what an animator made of them): each frame's opacity its parents' times its own.</summary>
-		public static Dictionary<XElement, Look> Looks(XElement screen, IEnumerable<(XElement Frame, Dictionary<string, string> Computed)> computed, IReadOnlyDictionary<XElement, Dictionary<string, string>> shown = null)
+		/// <summary>Each frame's look as last worked out and what from (its values and opacity): a running screen asks again every
+		/// frame, and a frame whose values have not moved keeps its look.</summary>
+		public sealed class LookCache
+		{
+			internal readonly Dictionary<XElement, (Dictionary<string, string> Values, double Opacity, Look Look)> Known = new Dictionary<XElement, (Dictionary<string, string>, double, Look)>();
+		}
+
+		private static bool SameValues(Dictionary<string, string> a, Dictionary<string, string> b)
+		{
+			if (ReferenceEquals(a, b)) return true;
+			if (a == null || b == null || a.Count != b.Count) return false;
+			foreach (KeyValuePair<string, string> kv in a) if (!b.TryGetValue(kv.Key, out string v) || v != kv.Value) return false;
+			return true;
+		}
+
+		public static Dictionary<XElement, Look> Looks(XElement screen, IEnumerable<(XElement Frame, Dictionary<string, string> Computed)> computed, IReadOnlyDictionary<XElement, Dictionary<string, string>> shown = null, LookCache cache = null)
 		{
 			Dictionary<XElement, Look> looks = new Dictionary<XElement, Look>();
 			if (screen == null) return looks;
@@ -197,12 +214,18 @@ namespace OpenFF.Content
 				double parent = frame.Parent != null && opacity.TryGetValue(frame.Parent, out double po) ? po : 1;
 				double mine = Opacity(values, parent);
 				opacity[frame] = mine;
-				Look look = LookOf(frame, values, mine);
+				Look look;
+				if (cache != null && cache.Known.TryGetValue(frame, out var known) && Math.Abs(known.Opacity - mine) < 1e-9 && SameValues(known.Values, values)) look = known.Look;
+				else
+				{
+					look = LookOf(frame, values, mine);
+					if (cache != null) cache.Known[frame] = (new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase), mine, look);
+				}
 				// display: none takes the frame and everything in it away, as CSS does (it is not inherited, but what is inside goes with it).
 				if ((values.TryGetValue("display", out string display) && display.Trim().Equals("none", StringComparison.OrdinalIgnoreCase)) || (frame.Parent != null && gone.Contains(frame.Parent)))
 				{
 					gone.Add(frame);
-					look.Hidden = true;
+					if (!look.Hidden) { look = look.Copy(); look.Hidden = true; }   // the kept look is left as worked out
 				}
 				looks[frame] = look;
 			}
@@ -213,24 +236,63 @@ namespace OpenFF.Content
 		/// The screen and every frame of it, in the layout's order, with its properties cascaded (the inherited ones from its
 		/// parent's) - the screen first. What Apply bakes, before it is baked: an animator works on these.
 		/// </summary>
-		public static List<(XElement Frame, Dictionary<string, string> Computed)> Computed(XElement screen, Sheet sheet)
+		public static List<(XElement Frame, Dictionary<string, string> Computed)> Computed(XElement screen, Sheet sheet) => Computed(screen, sheet, null);
+
+		/// <summary>
+		/// The rules each frame matches, kept from one cascade to the next. A selector reads a frame's name, class, states, id
+		/// and place among its siblings - never its style attribute or its text - so while those hold, a running screen whose
+		/// bindings move only styles and texts (a battle's charging gauges, every frame) re-merges each frame's inline style
+		/// and inheritance over its kept matches instead of matching every rule against every frame again. Cleared by the
+		/// screen when a class, a state or the frames themselves change.
+		/// </summary>
+		public sealed class MatchCache
+		{
+			internal readonly Dictionary<XElement, List<KeyValuePair<string, string>>> Matched = new Dictionary<XElement, List<KeyValuePair<string, string>>>();
+			public void Clear() => Matched.Clear();
+		}
+
+		public static List<(XElement Frame, Dictionary<string, string> Computed)> Computed(XElement screen, Sheet sheet, MatchCache cache)
 		{
 			List<(XElement, Dictionary<string, string>)> list = new List<(XElement, Dictionary<string, string>)>();
 			if (screen == null) return list;
 			List<Rule> rules = sheet?.Rules ?? new List<Rule>();
-			Dictionary<string, string> top = Cascade(screen, rules, null);
+			Dictionary<string, string> top = Cascade(screen, rules, null, cache);
 			list.Add((screen, top));
 			void Walk(XElement parent, Dictionary<string, string> inherited)
 			{
 				foreach (XElement frame in parent.Elements("frame"))
 				{
-					Dictionary<string, string> c = Cascade(frame, rules, inherited);
+					Dictionary<string, string> c = Cascade(frame, rules, inherited, cache);
 					list.Add((frame, c));
 					Walk(frame, c);
 				}
 			}
 			Walk(screen, top);
 			return list;
+		}
+
+		/// <summary>
+		/// What Apply bakes, from a cascade already worked out (Computed) for <paramref name="original"/>: onto
+		/// <paramref name="copy"/>, a deep copy of it, frame for frame - so a screen laying itself out again does not run
+		/// the cascade a second time.
+		/// </summary>
+		public static void ApplyComputed(XElement copy, XElement original, List<(XElement Frame, Dictionary<string, string> Computed)> computed)
+		{
+			if (copy == null || original == null) return;
+			Dictionary<XElement, Dictionary<string, string>> by = new Dictionary<XElement, Dictionary<string, string>>();
+			foreach ((XElement frame, Dictionary<string, string> c) in computed) by[frame] = c;
+			void Walk(XElement o, XElement c, double opacity)
+			{
+				using IEnumerator<XElement> os = o.Elements("frame").GetEnumerator(), cs = c.Elements("frame").GetEnumerator();
+				while (os.MoveNext() && cs.MoveNext())
+				{
+					if (!by.TryGetValue(os.Current, out Dictionary<string, string> values)) continue;
+					double own = Opacity(values, opacity);
+					Bake(cs.Current, values, own);
+					Walk(os.Current, cs.Current, own);
+				}
+			}
+			Walk(original, copy, by.TryGetValue(original, out Dictionary<string, string> top) ? Opacity(top, 1) : 1);
 		}
 
 		/// <summary>One frame's look from its properties: baked onto a copy of it (its children left out) and read back, by the very code the bake uses.</summary>
@@ -324,17 +386,21 @@ namespace OpenFF.Content
 		}
 
 		/// <summary>An element's properties: inherited ones from its parent, then the sheets' rules that match it in cascade order, then its own style attribute.</summary>
-		private static Dictionary<string, string> Cascade(XElement element, List<Rule> rules, Dictionary<string, string> inherited)
+		private static Dictionary<string, string> Cascade(XElement element, List<Rule> rules, Dictionary<string, string> inherited, MatchCache cache = null)
 		{
 			Dictionary<string, string> values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 			if (inherited != null)
 			{
 				foreach (KeyValuePair<string, string> kv in inherited) if (Inherited.Contains(kv.Key)) values[kv.Key] = kv.Value;
 			}
-			foreach ((Rule rule, int specificity) in rules.Select(r => (r, r.Match(element))).Where(m => m.Item2 >= 0).OrderBy(m => m.Item2).ThenBy(m => m.r.Order))
+			if (cache == null || !cache.Matched.TryGetValue(element, out List<KeyValuePair<string, string>> matched))
 			{
-				foreach (KeyValuePair<string, string> d in rule.Declarations) values[d.Key] = d.Value;
+				matched = new List<KeyValuePair<string, string>>();
+				foreach ((Rule rule, int specificity) in rules.Select(r => (r, r.Match(element))).Where(m => m.Item2 >= 0).OrderBy(m => m.Item2).ThenBy(m => m.r.Order))
+					matched.AddRange(rule.Declarations);
+				if (cache != null) cache.Matched[element] = matched;
 			}
+			foreach (KeyValuePair<string, string> d in matched) values[d.Key] = d.Value;
 			foreach (KeyValuePair<string, string> d in Declarations((string)element.Attribute("style"))) values[d.Key] = d.Value;
 			return values;
 		}
