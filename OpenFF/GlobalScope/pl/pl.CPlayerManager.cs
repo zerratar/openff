@@ -253,15 +253,18 @@ internal static partial class GlobalScope
 				}
 				case 'o':
 				case 'w':
+				default:   // PORT: FF4 boots any model as a structure (moSetupStructure) - a monster's (m090_00) stands on Babil's floor
 					if (num2 == 0)
 					{
 						strcpy(out arg, "o001");
 					}
 					num = setUpMapObject(arg);
+					if (num < 0) return -1;
 					num += (int)(FIELD_CHARACTER_NUM - MAP_OBJECT_NUM);
 					m_Player[num].PlayerMoveType_set(PLAYER_MOVE_TYPE.PLAYER_MOVE_TYPE_HERO_FIELD);
 					break;
 				}
+				if (num < 0) return -1;
 				m_Player[num].setModelName(arg);
 				m_Player[num].setPosition(_Position);
 				m_Player[num].setRotation(_Rotation);

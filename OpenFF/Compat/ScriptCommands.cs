@@ -90,7 +90,7 @@ namespace OpenFF.Client
 						if (_reported.Add((int)opcode + 200000))
 						{
 							ScriptOp op = ScriptOpTable.Ff4.Get((int)opcode);
-							Log.Write(LogChannel.General, "script: FF4 command " + opcode + (op != null ? " " + op.Name : "") + " threw " + ex.GetType().Name + ": " + ex.Message + " - skipped from here on");
+							Log.Write(LogChannel.General, "script: FF4 command " + opcode + (op != null ? " " + op.Name : "") + " threw " + ex.GetType().Name + ": " + ex.Message + " at " + string.Join(" < ", (ex.StackTrace ?? "").Split('\n').Take(4).Select(l => l.Trim())) + " - logged once");
 						}
 					}
 				}
