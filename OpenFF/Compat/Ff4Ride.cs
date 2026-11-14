@@ -254,6 +254,14 @@ namespace OpenFF.Client
 			&& !OpenFF.Game.Dialogue.IsOpen && !Ff4Battle.Active && !Ff4Extras.Busy && !Ff4Chests.Busy && !EncounterZoom.Playing
 			&& !BlurRotate.Playing && !(Ff4NaviMap.Instance?.IsOpen ?? false);
 
+		/// <summary>The vehicles the field map marks (world_state_prepare's NMIVehicle per vehicle the party has on this
+		/// world): type, place (fx32), turn about y, and whether it is the one ridden.</summary>
+		public static IEnumerable<(int Type, int X, int Z, int RotY, bool Ridden)> MapVehicles()
+		{
+			foreach (Vehicle v in _vehicles)
+				if (v != null && v.Shown && Ff4Vehicles.Acquired(v.Type)) yield return (v.Type, v.X, v.Z, v.RotY, Riding && v == _ride);
+		}
+
 		/// <summary>VehicleObject::collision: the lead within 10 of a vehicle the party has, walking towards it.</summary>
 		private static void CheckBoard()
 		{

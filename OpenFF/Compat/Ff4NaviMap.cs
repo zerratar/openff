@@ -431,7 +431,26 @@ namespace OpenFF.Client
 				for (int k = 0; k < 4; k++)
 					Ff4Ui.Cell(d, "d_map_obj.NCER", "d_map_obj.NCGR", cells[k], X(960f + (xs[k] - 240) * 3.375f), Y(540.85f + (224 - 160) * 3.375f), Ff4Ui.Scale);
 			}
-			if (_showPlayer) DrawPin(d, _map, MapLeft, _map.PartyFraction(at, _stage));
+			if (_map.Kind == 'f') DrawVehicles(d, _map, MapLeft);
+			// NMIPlayer's visibility: the pin is not drawn while the party rides - the vehicle's own mark moves instead.
+			if (_showPlayer && !Ff4Ride.Riding) DrawPin(d, _map, MapLeft, _map.PartyFraction(at, _stage));
+		}
+
+		/// <summary>NMIVehicle: each vehicle the party has on this world, w_map_vehicle_0N (N the vehicle: 0 hovercraft ... 4
+		/// chocobo, 5 black chocobo) - its eight animations the eight facings (the turn about y >> 13), each three cells (the
+		/// black chocobo two) of three frames at 60 a second.</summary>
+		private void DrawVehicles(DrawList d, MapData m, float left)
+		{
+			foreach ((int type, int x, int z, int rotY, bool ridden) in Ff4Ride.MapVehicles())
+			{
+				if (type < 0 || type > 5) continue;
+				(float fx, float fz) = m.PartyFraction(new Vector3(x / 4096f, 0, z / 4096f), _stage);
+				int facing = (rotY & 0xFFFF) >> 13 & 7;
+				int frames = type == 5 ? 2 : 3;
+				int cell = 3 * facing + _frame * 2 / 3 % frames;
+				string bank = "w_map_vehicle_" + type.ToString("00");
+				Ff4Ui.Cell(d, bank + ".NCER", bank + ".NCGR", cell, X(left + fx * 512 * Px), Y(MapTop + fz * 384 * Px), Ff4Ui.Scale);
+			}
 		}
 
 		/// <summary>The picture where seen and the blank sheet elsewhere (a town has none), a 16 x 16 cell at a time, from <paramref name="left"/>.</summary>
