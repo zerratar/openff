@@ -7,6 +7,22 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## 0.3.9 - Shared expressions, FF4 field magic (2026-11-14)
+
+For modders, a character's face packs now share their pictures: replace a face once in Crystal and every pack that shows the same picture uses it, so redrawing j101_001's nine faces covers all eight packs. In FF4, white magic can now be cast from the menu, and battles keep their frame rate on the enemy's turn.
+
+**Added**
+- Crystal, expressions: a model's face packs are smaller picks of the same pictures (j101_002's 2 is j101_001's 3). A picture you replace now fills every pack showing that same picture, in Crystal and in the game. The others read *shared with*, and giving one back to the game gives back all of them. **Export to project** writes each shared picture once, and copies from an older export that you haven't edited follow the first one. Mods made before this pick up the sharing with nothing to change.
+- FF4: spells cast from the Magic menu as on Steam. Enter on a spell picks a member, and Left picks the whole party for a spell that can spread. Cure and its line heal, Esuna cures, Raise and Arise revive, Float, Mini and Toad switch on and off. MP Efficiency halves the cost here too.
+- FF4: level-ups grow each character as the game does, from the growth table, with HP rolled per level and the battle commands' bonuses above level 70.
+- FF4: monsters' full records (MP, elements, resistances, weaknesses, races, status immunities), used by the battle. Crystal's Monsters page lists them.
+- FF4: the field map shows the vehicles you have on each world map, turned the way they face.
+
+**Fixes**
+- FF4 battle: the frame rate no longer halves while the enemy acts. The HUD stopped recomputing its whole layout every frame while gauges charged.
+- FF4 scenes: the cast's shadows are Steam's size, under their feet and as faint as Steam's.
+- FF4 scenes: the caption bar's text is Steam's size, and two-line captions no longer overlap.
+
 ## 0.3.8 - Steam achievements (2026-11-14)
 
 OpenFF now earns your Steam achievements in both games, by each game's own rules, when you play from your Steam copy with Steam running, and Steam shows you in the game with the playtime counting. Mods don't turn them off; `"achievements": false` in settings.json does. FF4's Equipment screen also compares a piece before you put it on, as Steam's does.

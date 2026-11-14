@@ -8,7 +8,7 @@ rem
 rem The version is the <Version> in OpenFF\OpenFF.csproj, Crystal.Editor\Crystal.Editor.csproj
 rem and OpenFF.Engine\OpenFF.Engine.csproj; keep the three the same and this line with them.
 setlocal
-set VERSION=0.3.8
+set VERSION=0.3.9
 cd /d "%~dp0"
 if exist dist\OpenFF rmdir /s /q dist\OpenFF
 dotnet publish OpenFF\OpenFF.csproj -c Release -r win-x64 --self-contained true -o dist\OpenFF -nologo -v q || goto fail
@@ -46,7 +46,7 @@ if exist dist\OpenFF-%VERSION%-win-x64.zip del dist\OpenFF-%VERSION%-win-x64.zip
 powershell -NoProfile -Command "Compress-Archive -Path dist\OpenFF -DestinationPath dist\OpenFF-%VERSION%-win-x64.zip -CompressionLevel Optimal" || goto fail
 if not exist dist\OpenFF-%VERSION%-win-x64.zip goto fail
 rem The zip's SHA-256, which the client checks a downloaded update against before it installs it.
-powershell -NoProfile -Command "$h = (Get-FileHash -Algorithm SHA256 'dist\OpenFF-%VERSION%-win-x64.zip').Hash.ToLower(); Set-Content -NoNewline -Encoding ascii 'dist\OpenFF-%VERSION%-win-x64.zip.sha256' ($h + '  OpenFF-%VERSION%-win-x64.zip')" || goto fail
+powershell -NoProfile -Command "$f = [IO.File]::OpenRead((Resolve-Path 'dist\OpenFF-%VERSION%-win-x64.zip')); $h = -join ([Security.Cryptography.SHA256]::Create().ComputeHash($f) | ForEach-Object { $_.ToString('x2') }); $f.Close(); Set-Content -NoNewline -Encoding ascii 'dist\OpenFF-%VERSION%-win-x64.zip.sha256' ($h + '  OpenFF-%VERSION%-win-x64.zip')" || goto fail
 echo.
 echo dist\OpenFF: OpenFF.exe plays, crystal.exe edits, mods\ is where mods go.
 echo dist\OpenFF-%VERSION%-win-x64.zip: the release, and its .sha256 beside it.
