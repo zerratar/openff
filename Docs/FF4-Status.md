@@ -22,7 +22,7 @@ behaviour or to a stand-in. That is why "renders" comes first and "behaves" late
 | The overworld | FF4's chip layout (mirrored in z relative to FF3's - measured against 33 scripted arrivals), the chips streaming in, the tilted mountain and forest quads seen from FF4's camera side. |
 | Characters and objects | Cecil and the party's field models, NPC bodies, objects; the field motion sets renumbered so idle, walk and run play as such. |
 | Lighting and materials | Scene lights and toon shading not applied; a few scene shots show sky geometry wrongly (the Red Wings' flight). |
-| Shadows | The field's; scene casts' own shadow discs follow their hips but are not yet visible. |
+| Shadows | The field's; scene casts' own shadow discs follow their hips (ce_ShadowSetting). Without ground under them they are not seen, as on Steam: its opening on the Red Wings (a stage with no collision) shows no disc under Cecil or the soldiers either - libff4's drawShadowPolygon puts an offset shadow at the joint's height when no ground interface answers. |
 
 ## The field - 80%
 
@@ -51,7 +51,7 @@ scene engine, which is ours from the binary's disassembly.
 | Field events | Scripted walks and turns (MoveCharacter_*Coordination2, Turn*2) and the event camera following the cast (CUFollowCamera: moveCamera_LookPlayer2, setCameraOffset easing in over its frames) as libff4's; a map's first script steps survive the host noticing the map change. |
 | 2D programs | ce_CallProgram as Steam's FF4.exe runs it: e03's drawn sequence (Baron over its panning sky, the moons, the birds, the six lines of narration), e19's picture, e26's rising lines, the original development staff (FF4.exe's own list), the scene messages. Placed from Steam's code; not yet set beside Steam's frames (ff4hook cannot start a scene in Steam). |
 | Lights, fog, grey | The toon tables (from FF4.exe), lights per cast, the scenes' fog, the grey-scale shots (glayScale*), bind objects and their joints, auto rotation. |
-| Open | The flight's sky geometry and per-shot visibility; the casts' shadow discs. |
+| Open | The flight's sky geometry and per-shot visibility. |
 
 ## Party data - 90%
 
