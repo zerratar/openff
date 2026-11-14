@@ -116,6 +116,7 @@ namespace OpenFF.Client
 			public int DecidedAbility, DecidedTarget = 1;   // its turnAction as decided: the ability (1 Attack, a spell's or item's id...) and a monster's target type
 			public bool SwordDrawn;           // Odin's sword raised (MABDrawSword): motion 102 its idle until it next acts
 			public bool NotDeath;             // an event's NotDeathFlagOn: it cannot fall
+			public bool Unseen;               // a record with no model: its stand-in never shown
 			public int AtwLeft, AtwMax;       // a decided action's wait before it joins the turns (ATG state 2), 1/4096ths of a frame
 			public Action Pending;            // the action waiting it out
 			public bool Alive => Hp > 0;
@@ -245,7 +246,11 @@ namespace OpenFF.Client
 			bool octomammoth = m.Id == Octomammoth;
 			string model = octomammoth ? "m" + m.Family.ToString("000") + "a" : info?.Model ?? ("m" + m.Family.ToString("000") + "_00");
 			Npc npc = Game.Npcs.SpawnModel(model, at, 0f);
-			if (npc == null) { Say("no model for " + m.Name); return null; }
+			// A record with no model (family -1: Mopingway in t12_70's fight) - libff4 loads m-01_00, finds nothing and draws
+			// nothing; the foe is in the fight all the same. A stand-in model kept hidden holds its place here.
+			bool unseen = false;
+			if (npc == null && m.Family < 0 && (npc = Game.Npcs.SpawnModel("m000_00", at, 0f)) != null) { unseen = true; npc.Hidden = true; Say(m.Name + " has no model: in the fight unseen"); }
+			if (npc == null) { Say("no model for " + m.Name + " (" + model + ", family " + m.Family + ", model id " + m.ModelId + ")"); return null; }
 			if (m.Scale > 0.01f && Math.Abs(m.Scale - 1f) > 0.001f) { try { npc.Scale = m.Scale; } catch (Exception) { } }
 			try
 			{
@@ -268,6 +273,7 @@ namespace OpenFF.Client
 				Gauge = StartGauge(true),
 				AtbRate = m.AtbRateMin + (float)_random.NextDouble() * Math.Max(0f, m.AtbRateMax - m.AtbRateMin),
 				Facing = facing ?? 0f,
+				Unseen = unseen,
 			};
 			if (octomammoth) SpawnLegs(foe);
 			if (join) _foes.Add(foe);
@@ -813,6 +819,7 @@ namespace OpenFF.Client
 
 		private void Fight()
 		{
+			foreach (Fighter f in _foes) if (f.Unseen && f.Npc != null) f.Npc.Hidden = true;
 			Idle();
 			ShowConditions();
 			if (_closing) return;
