@@ -47,7 +47,7 @@ namespace OpenFF
 		public string Path { get; protected set; }
 	}
 
-	public enum DrawKind { Text, Rect, Line, Sprite, Banner }
+	public enum DrawKind { Text, Rect, Line, Sprite, Banner, Clip }
 
 	public struct DrawCommand
 	{
@@ -111,6 +111,19 @@ namespace OpenFF
 		public float MeasureText(string text, int size = 12)
 		{
 			return TextMeasure == null || string.IsNullOrEmpty(text) ? 0f : TextMeasure(text, size);
+		}
+
+		/// <summary>What is drawn after this, until Unclip (or another Clip), shows only inside the rectangle - a scrolled text
+		/// cut at its window's edges.</summary>
+		public void Clip(float x, float y, float w, float h)
+		{
+			_commands.Add(new DrawCommand { Kind = DrawKind.Clip, X = x, Y = y, W = Math.Max(0f, w), H = Math.Max(0f, h), Group = _group });
+		}
+
+		/// <summary>Drawing shows everywhere again.</summary>
+		public void Unclip()
+		{
+			_commands.Add(new DrawCommand { Kind = DrawKind.Clip, X = 0, Y = 0, W = -1f, H = -1f, Group = _group });
 		}
 
 		public void Rect(float x, float y, float w, float h, Color color, bool filled = true)

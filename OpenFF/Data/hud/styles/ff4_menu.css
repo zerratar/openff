@@ -192,3 +192,5 @@
    (MENU_Common's fukidashi, 64 x 64 at 0.95). */
 .m-ask-text { color: #ffffff; font-size: 30px; line-height: 67.5px; text-shadow: 3.375px 3.375px #000000; }
 .m-talk-icon { background-image: resource("files/MENU_Common.dat/fukidashi.NCBR"); }
+/* Help's page: its lines 54 apart (FF4.exe's help text). */
+.m-help-page { line-height: 54px; vertical-align: top; }

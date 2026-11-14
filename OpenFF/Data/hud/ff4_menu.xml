@@ -2453,6 +2453,130 @@
         <frame class="m-key-label" bind-text="{menu.confirm}"><id>label0</id><x>1409.5</x><y>0</y><width>360</width><height>60.75</height></frame>
       </frame>
     </frame>
+    <!-- Settings' Help (FF4.exe's own screens, measured off Steam's at 1920 x 1080): the topics (babil_menu.msd 50900, 50902 ...
+         50918) in one window under the title, 135 a row, the strip moved just enough to keep the lit one whole; a topic's page
+         (50901 ... 50919) in the same window, 54 a line from 80 under its top, moved 67.5 a step while Up or Down is held,
+         cut at the window's edges; the keys' caps in its lines where %key_assignNN% stands. -->
+    <frame bind-display="menu.helpList">
+    <id>helpList</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+      <frame class="m-pane">
+      <id>topics</id><x>155.5</x><y>87.75</y><width>1609</width><height>864</height>
+        <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>1622.5</width><height>877.5</height></frame>
+        <frame style="overflow: hidden">
+        <id>clip</id><x>0</x><y>0</y><width>1535.5</width><height>864</height>
+          <frame bind-style="top: {menu.helpListTop}px">
+          <id>rows</id><x>0</x><y>0</y><width>1535.5</width><height>1350</height>
+          <frame class="m-command" data-source="menu.helpRow[0]" bind-display="present" bind-class="lit: lit">
+          <id>row0</id><x>0</x><y>0</y><width>1535.5</width><height>135</height>
+            <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-text" bind-text="{name}"><id>name</id><x>82.5</x><y>0</y><width>1400</width><height>135</height></frame>
+            <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>135</height></frame>
+          </frame>
+          <frame class="m-command" data-source="menu.helpRow[1]" bind-display="present" bind-class="lit: lit">
+          <id>row1</id><x>0</x><y>135</y><width>1535.5</width><height>135</height>
+            <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-text" bind-text="{name}"><id>name</id><x>82.5</x><y>0</y><width>1400</width><height>135</height></frame>
+            <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>135</height></frame>
+          </frame>
+          <frame class="m-command" data-source="menu.helpRow[2]" bind-display="present" bind-class="lit: lit">
+          <id>row2</id><x>0</x><y>270</y><width>1535.5</width><height>135</height>
+            <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-text" bind-text="{name}"><id>name</id><x>82.5</x><y>0</y><width>1400</width><height>135</height></frame>
+            <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>135</height></frame>
+          </frame>
+          <frame class="m-command" data-source="menu.helpRow[3]" bind-display="present" bind-class="lit: lit">
+          <id>row3</id><x>0</x><y>405</y><width>1535.5</width><height>135</height>
+            <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-text" bind-text="{name}"><id>name</id><x>82.5</x><y>0</y><width>1400</width><height>135</height></frame>
+            <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>135</height></frame>
+          </frame>
+          <frame class="m-command" data-source="menu.helpRow[4]" bind-display="present" bind-class="lit: lit">
+          <id>row4</id><x>0</x><y>540</y><width>1535.5</width><height>135</height>
+            <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-text" bind-text="{name}"><id>name</id><x>82.5</x><y>0</y><width>1400</width><height>135</height></frame>
+            <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>135</height></frame>
+          </frame>
+          <frame class="m-command" data-source="menu.helpRow[5]" bind-display="present" bind-class="lit: lit">
+          <id>row5</id><x>0</x><y>675</y><width>1535.5</width><height>135</height>
+            <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-text" bind-text="{name}"><id>name</id><x>82.5</x><y>0</y><width>1400</width><height>135</height></frame>
+            <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>135</height></frame>
+          </frame>
+          <frame class="m-command" data-source="menu.helpRow[6]" bind-display="present" bind-class="lit: lit">
+          <id>row6</id><x>0</x><y>810</y><width>1535.5</width><height>135</height>
+            <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-text" bind-text="{name}"><id>name</id><x>82.5</x><y>0</y><width>1400</width><height>135</height></frame>
+            <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>135</height></frame>
+          </frame>
+          <frame class="m-command" data-source="menu.helpRow[7]" bind-display="present" bind-class="lit: lit">
+          <id>row7</id><x>0</x><y>945</y><width>1535.5</width><height>135</height>
+            <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-text" bind-text="{name}"><id>name</id><x>82.5</x><y>0</y><width>1400</width><height>135</height></frame>
+            <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>135</height></frame>
+          </frame>
+          <frame class="m-command" data-source="menu.helpRow[8]" bind-display="present" bind-class="lit: lit">
+          <id>row8</id><x>0</x><y>1080</y><width>1535.5</width><height>135</height>
+            <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-text" bind-text="{name}"><id>name</id><x>82.5</x><y>0</y><width>1400</width><height>135</height></frame>
+            <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>135</height></frame>
+          </frame>
+          <frame class="m-command" data-source="menu.helpRow[9]" bind-display="present" bind-class="lit: lit">
+          <id>row9</id><x>0</x><y>1215</y><width>1535.5</width><height>135</height>
+            <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1535.5</width><height>135</height></frame>
+            <frame class="m-text" bind-text="{name}"><id>name</id><x>82.5</x><y>0</y><width>1400</width><height>135</height></frame>
+            <frame class="hand" bind-visible="lit"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>135</height></frame>
+          </frame>
+          </frame>
+        </frame>
+        <frame bind-display="menu.helpScroll.shown">
+        <id>helpListScroll</id><x>1541.4</x><y>0</y><width>60.75</width><height>864</height>
+          <frame class="m-scroll-up"><id>up</id><x>0</x><y>0</y><width>60.75</width><height>33.75</height></frame>
+          <frame class="m-scroll-track"><id>track</id><x>0</x><y>33.75</y><width>60.75</width><height>796.5</height></frame>
+          <frame class="m-scroll-down"><id>down</id><x>0</x><y>830.25</y><width>60.75</width><height>33.75</height></frame>
+          <frame class="m-scroll-knob" bind-visible="menu.helpScroll.knob" bind-style="top: {menu.helpScroll.knobTop}px; height: {menu.helpScroll.knobHeight}px"><id>knob</id><x>3.4</x><y>33.75</y><width>54</width><height>796.5</height></frame>
+        </frame>
+      </frame>
+      <frame>
+      <id>helpListKeys</id><x>0</x><y>995.6</y><width>1920</width><height>60.75</height>
+        <frame class="key-cap" style="-ff-cell: key 43"><id>key0</id><x>1348.7</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.confirm}"><id>label0</id><x>1409.5</x><y>0</y><width>360</width><height>60.75</height></frame>
+        <frame class="key-cap" style="-ff-cell: key 15"><id>key1</id><x>1568.5</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.back}"><id>label1</id><x>1629.3</x><y>0</y><width>360</width><height>60.75</height></frame>
+      </frame>
+    </frame>
+    <frame bind-display="menu.helpPage">
+    <id>helpPage</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+      <frame class="m-pane">
+      <id>page</id><x>155.5</x><y>87.75</y><width>1609</width><height>864</height>
+        <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>1622.5</width><height>877.5</height></frame>
+        <frame style="overflow: hidden">
+        <id>clip</id><x>0</x><y>0</y><width>1535.5</width><height>864</height>
+          <frame class="m-text m-help-page" bind-text="{menu.helpText}" bind-style="top: {menu.helpTextTop}px"><id>text</id><x>34.5</x><y>0</y><width>1490</width><height>60</height></frame>
+        </frame>
+        <frame bind-display="menu.helpPageScroll.shown">
+        <id>helpPageScroll</id><x>1541.4</x><y>0</y><width>60.75</width><height>864</height>
+          <frame class="m-scroll-up"><id>up</id><x>0</x><y>0</y><width>60.75</width><height>33.75</height></frame>
+          <frame class="m-scroll-track"><id>track</id><x>0</x><y>33.75</y><width>60.75</width><height>796.5</height></frame>
+          <frame class="m-scroll-down"><id>down</id><x>0</x><y>830.25</y><width>60.75</width><height>33.75</height></frame>
+          <frame class="m-scroll-knob" bind-visible="menu.helpPageScroll.knob" bind-style="top: {menu.helpPageScroll.knobTop}px; height: {menu.helpPageScroll.knobHeight}px"><id>knob</id><x>3.4</x><y>33.75</y><width>54</width><height>796.5</height></frame>
+        </frame>
+      </frame>
+      <frame>
+      <id>helpPageKeys</id><x>0</x><y>995.6</y><width>1920</width><height>60.75</height>
+        <frame class="key-cap" style="-ff-cell: key 15"><id>key0</id><x>1568.5</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-text="{menu.back}"><id>label0</id><x>1629.3</x><y>0</y><width>360</width><height>60.75</height></frame>
+      </frame>
+    </frame>
     <frame bind-display="menu.save">
     <id>save</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
       <frame class="m-pane">

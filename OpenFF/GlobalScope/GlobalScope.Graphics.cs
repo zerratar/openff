@@ -301,9 +301,12 @@ internal static partial class GlobalScope
                 1f);
 
             _fit = fit;
-            spBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, null, fit);
+            spBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, TextClip ?? RasterizerState.CullCounterClockwise, null, fit);
             depth = 0f;
         }
+
+        /// <summary>OpenFF: the scissor-testing state a clipped text pass begins with (ModDraw's DrawList.Clip); null for none.</summary>
+        public static RasterizerState TextClip;
 
         // The text pass's matrix, for a slanted text's batch of its own.
         private Matrix _fit = Matrix.Identity;
@@ -320,7 +323,7 @@ internal static partial class GlobalScope
             spBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, skew * _fit);
             OpenFF.Client.TrueTypeText.Draw(spBatch, text, x, y, color, rotation, origin, scale, flip, depth, iSize);
             spBatch.End();
-            spBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, null, _fit);
+            spBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, TextClip ?? RasterizerState.CullCounterClockwise, null, _fit);
         }
 
         public void DrawStringEnd()

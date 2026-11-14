@@ -82,6 +82,7 @@ namespace OpenFF.Client
 			_command = _commandScroll = 0;
 			_member = 0;
 			_swapFrom = -1;
+			_help = HelpView.None;
 			Game.Input.Capture = true;
 			BuildCommands();
 			_question = false;
@@ -874,8 +875,11 @@ namespace OpenFF.Client
 			if (h.Sight) FillSight(h);
 			if (h.Shop) FillShop(h);
 			if (h.Save) FillSave(h);
-			h.Settings = _screen == Screen.Settings;
+			h.Settings = _screen == Screen.Settings && _help == HelpView.None;
+			h.HelpList = _screen == Screen.Settings && _help == HelpView.List;
+			h.HelpPage = _screen == Screen.Settings && _help == HelpView.Page;
 			if (h.Settings) FillSettings(h);
+			if (h.HelpList || h.HelpPage) FillHelp(h);
 			if (h.Party)
 			{
 				bool places = _mode == Mode.SwapMember;

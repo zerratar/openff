@@ -57,6 +57,9 @@ namespace OpenFF.Client
 			return fallback ?? ("#" + id);
 		}
 
+		/// <summary>A babil_menu.msd text with its line breaks kept (Help's pages); null when unknown.</summary>
+		public static string MenuPage(uint id) => PageText("babil_menu.msd", id, null);
+
 		/// <summary>A line of babil_common.msd (the field's system messages), its line breaks kept; the fallback when unknown.</summary>
 		public static string CommonText(uint id, string fallback = null) => PageText("babil_common.msd", id, fallback);
 

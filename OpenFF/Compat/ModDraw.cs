@@ -156,12 +156,27 @@ namespace OpenFF.Client
 			// after a text (a window over a menu) covers it, as its layout's order says.
 			GlobalScope.Graphics graphics = GlobalScope.m_Graphics;
 			int at = 0;
+			RasterizerState clipping = null;
 			while (at < commands.Count)
 			{
+				if (commands[at].Kind == OpenFF.DrawKind.Clip)
+				{
+					// A clip: what follows shows only inside its rectangle (the device's scissor), until the next clip or an unclip.
+					OpenFF.DrawCommand c = commands[at++];
+					if (c.W < 0f) clipping = null;
+					else
+					{
+						int cx = (int)Math.Floor(c.X * sx), cy = (int)Math.Floor(c.Y * sy);
+						Rectangle r = new Rectangle(cx, cy, (int)Math.Ceiling((c.X + c.W) * sx) - cx, (int)Math.Ceiling((c.Y + c.H) * sy) - cy);
+						GraphicsDevice.ScissorRectangle = Rectangle.Intersect(r, new Rectangle(0, 0, view.Width, view.Height));
+						clipping = _scissorOn ??= new RasterizerState { CullMode = CullMode.None, ScissorTestEnable = true };
+					}
+					continue;
+				}
 				if (commands[at].Kind != OpenFF.DrawKind.Text)
 				{
-					_batch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
-					for (int i = at; i < commands.Count && commands[i].Kind != OpenFF.DrawKind.Text; i++, at++)
+					_batch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, null, null, clipping);
+					for (int i = at; i < commands.Count && commands[i].Kind != OpenFF.DrawKind.Text && commands[i].Kind != OpenFF.DrawKind.Clip; i++, at++)
 					{
 						OpenFF.DrawCommand c = commands[i];
 						Microsoft.Xna.Framework.Color colour = new Microsoft.Xna.Framework.Color(c.Color.R, c.Color.G, c.Color.B, c.Color.A);
@@ -215,6 +230,7 @@ namespace OpenFF.Client
 				graphics.SetImageOrigin(0f, 0f);
 				graphics.SetImageRotation(0f);
 				graphics.SetImageScale(1f, 1f);
+				GlobalScope.Graphics.TextClip = clipping;
 				graphics.DrawStringStart();
 				for (; at < commands.Count && commands[at].Kind == OpenFF.DrawKind.Text; at++)
 				{
@@ -226,6 +242,7 @@ namespace OpenFF.Client
 					if (scaled) graphics.SetImageScale(1f, 1f);
 				}
 				graphics.DrawStringEnd();
+				GlobalScope.Graphics.TextClip = null;
 			}
 
 			if (Banner.Shown == null || graphics == null)
@@ -255,6 +272,8 @@ namespace OpenFF.Client
 		{
 			_batch.Draw(_pixel, new Vector2(x, y), null, colour, 0f, Vector2.Zero, new Vector2(w, h), SpriteEffects.None, 0f);
 		}
+
+		private RasterizerState _scissorOn;
 
 		private void EnsureResources()
 		{
