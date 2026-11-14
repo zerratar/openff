@@ -550,7 +550,7 @@ namespace OpenFF.Client
 					Color tint = GameColour(materials, i, material);
 					VertexPositionColorTexture[] vertices = Skin(binding, i, mesh, primitive, root, placement, tint, alphaRate / 100f);
 					NativeRenderer.Draw(device, 4u, vertices, 0, vertices.Length, Matrix.Identity, projection, primitive.Texture,
-						TextureFilter.Linear, TextureAddressMode.Wrap, TextureAddressMode.Wrap,
+						primitive.Filter, TextureAddressMode.Wrap, TextureAddressMode.Wrap,
 						alphaTest: !translucent, alphaReference: 0.5f, alphaFunction: CompareFunction.Greater,
 						depthTest: true, depthWrite: !translucent, depthFunction: CompareFunction.LessEqual,
 						cull: false, cullMode: CullMode.None, destinationBlend: Blend.InverseSourceAlpha);

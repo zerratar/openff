@@ -183,7 +183,7 @@ namespace OpenFF.Client
 						GltfPrimitive p = h.Model.Primitives[i];
 						VertexPositionColorTexture[] vertices = h.Posed != null && i < h.Posed.Length && h.Posed[i] != null ? h.Posed[i] : p.Vertices;
 						NativeRenderer.Draw(device, 4u, vertices, 0, vertices.Length, world, projection, p.Texture,
-							TextureFilter.Linear, TextureAddressMode.Wrap, TextureAddressMode.Wrap,
+							p.Filter, TextureAddressMode.Wrap, TextureAddressMode.Wrap,
 							alphaTest: !p.Translucent, alphaReference: 0.5f, alphaFunction: CompareFunction.Greater,
 							depthTest: true, depthWrite: !p.Translucent, depthFunction: CompareFunction.LessEqual,
 							cull: false, cullMode: CullMode.None, destinationBlend: Blend.InverseSourceAlpha);

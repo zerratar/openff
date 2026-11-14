@@ -157,7 +157,7 @@ namespace OpenFF.Client
 					if (pass == 2 && !translucent) continue;   // the translucent pass
 					if (alphaRate < 100) vertices = Faded(vertices, alphaRate / 100f);
 					NativeRenderer.Draw(device, 4u, vertices, 0, vertices.Length, world, projection, p.Texture,
-						TextureFilter.Linear, TextureAddressMode.Wrap, TextureAddressMode.Wrap,
+						p.Filter, TextureAddressMode.Wrap, TextureAddressMode.Wrap,
 						alphaTest: !translucent, alphaReference: 0.5f, alphaFunction: CompareFunction.Greater,
 						depthTest: true, depthWrite: !translucent, depthFunction: CompareFunction.LessEqual,
 						cull: false, cullMode: CullMode.None, destinationBlend: Blend.InverseSourceAlpha);

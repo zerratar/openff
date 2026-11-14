@@ -30,6 +30,9 @@ namespace OpenFF.Graphics
 		public int Image = -1;
 		public bool DoubleSided;
 		public bool Blend;
+		/// <summary>The base colour texture's sampler asks for nearest filtering (magFilter 9728): pixel art, drawn with
+		/// crisp texels rather than smoothed.</summary>
+		public bool Nearest;
 	}
 
 	/// <summary>A node of the tree: its own transform, its parent, what it draws.</summary>
@@ -180,6 +183,12 @@ namespace OpenFF.Graphics
 							{
 								JsonElement tex = texes[bt.GetProperty("index").GetInt32()];
 								if (tex.TryGetProperty("source", out JsonElement source)) material.Image = source.GetInt32();
+								if (tex.TryGetProperty("sampler", out JsonElement si) && root.TryGetProperty("samplers", out JsonElement samplers)
+									&& si.GetInt32() >= 0 && si.GetInt32() < samplers.GetArrayLength()
+									&& samplers[si.GetInt32()].TryGetProperty("magFilter", out JsonElement mag))
+								{
+									material.Nearest = mag.GetInt32() == 9728;
+								}
 							}
 						}
 						material.DoubleSided = m.TryGetProperty("doubleSided", out JsonElement ds) && ds.GetBoolean();
