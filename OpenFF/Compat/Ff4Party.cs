@@ -209,6 +209,10 @@ namespace OpenFF.Client
 			public int AutoCommand = 1;
 			public int DecantLevel;
 			public bool HpPlus, MpPlus;
+			/// <summary>The maximums before the +50%s and the attributes as grown (past 70 the commands' bonuses are in
+			/// them); a save without them takes them from the maximums and the table.</summary>
+			public int HpBase, MpBase;
+			public int[] Stats;
 		}
 
 		public sealed class Saved
@@ -235,6 +239,8 @@ namespace OpenFF.Client
 					Abilities = new List<int>(c.Abilities), Spells = new List<int>(c.Spells),
 					CommandSlots = c.CommandSlots != null ? (int[])c.CommandSlots.Clone() : null, DecantLevel = c.DecantLevel, HpPlus = c.HpPlus, MpPlus = c.MpPlus,
 					AutoCommand = c.AutoCommand,
+					HpBase = c.HpBase, MpBase = c.MpBase,
+					Stats = new[] { c.Base.Strength, c.Base.Agility, c.Base.Vitality, c.Base.Intellect, c.Base.Spirit },
 				});
 			}
 			foreach (OpenFF.Data.ItemStack stack in p.Inventory) s.Items.Add(new[] { stack.ItemId, stack.Count });
@@ -264,6 +270,10 @@ namespace OpenFF.Client
 				c.AutoCommand = sc.AutoCommand > 0 ? sc.AutoCommand : 1;
 				c.HpPlus = sc.HpPlus;
 				c.MpPlus = sc.MpPlus;
+				c.HpBase = sc.HpBase > 0 ? sc.HpBase : Math.Max(1, c.HpPlus ? c.MaxHp * 2 / 3 : c.MaxHp);
+				c.MpBase = sc.MpBase > 0 || sc.Stats != null ? sc.MpBase : (c.MpPlus ? c.MaxMp * 2 / 3 : c.MaxMp);
+				if (sc.Stats != null && sc.Stats.Length == 5)
+					c.Base = new OpenFF.Data.Stats { Strength = sc.Stats[0], Agility = sc.Stats[1], Vitality = sc.Stats[2], Intellect = sc.Stats[3], Spirit = sc.Stats[4] };
 			}
 			List<SavedCharacter> lineUp = s.Roster.FindAll(r => r.Slot >= 0);
 			lineUp.Sort((a, b) => a.Slot.CompareTo(b.Slot));
@@ -447,6 +457,11 @@ namespace OpenFF.Client
 		{
 			Character c = P.Ensure(id, level);
 			c?.SetLevel(level, false);
+			if (c != null)
+			{
+				Ff4Augments.AfterLevelUp(c);
+				Log.Write(LogChannel.File, "party: " + c.Name + " to level " + c.Level + " - HP " + c.MaxHp + " (base " + c.HpBase + "), MP " + c.MaxMp + " (base " + c.MpBase + "), str " + c.Base.Strength + " spd " + c.Base.Agility + " sta " + c.Base.Vitality + " int " + c.Base.Intellect + " spi " + c.Base.Spirit + (c.CommandSlots != null ? ", commands " + string.Join(",", c.CommandSlots) : ""));
+			}
 			if (c != null && P.Tables.ExperienceToLevel.Length >= level) c.Experience = P.Tables.ExperienceToLevel[Math.Clamp(level, 1, P.Tables.ExperienceToLevel.Length) - 1];
 		}
 
@@ -500,7 +515,7 @@ namespace OpenFF.Client
 			int before = c.Level;
 			c.Experience += Math.Max(0, amount);
 			int level = P.Tables.LevelForExperience(c.Experience);
-			if (level > before) c.SetLevel(level, false);
+			if (level > before) { c.SetLevel(level, false); Ff4Augments.AfterLevelUp(c); }
 			return level > before;
 		}
 

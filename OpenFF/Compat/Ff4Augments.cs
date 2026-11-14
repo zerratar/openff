@@ -140,10 +140,10 @@ namespace OpenFF.Client
 			}
 		}
 
-		/// <summary>A level climbed: MP's maximum is the table's again (and HP's, for one whose HP is not rolled on), the +50%s on them again.</summary>
+		/// <summary>A level climbed (or set): the maximums are the bases again (Character.SetLevel), the +50%s on them again.</summary>
 		public static void AfterLevelUp(Character c)
 		{
-			if (!c.Definition.RollsHp) c.HpPlus = false;
+			c.HpPlus = false;
 			c.MpPlus = false;
 			Refresh(c);
 		}

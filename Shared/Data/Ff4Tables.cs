@@ -477,6 +477,37 @@ namespace OpenFF.Data
 			}
 		}
 
+		/// <summary>The magic schools a spell in a command slot counts as (libff4's table at 0x1bb9a4): white as White Magic
+		/// (6), black as Black Magic (5), summons as Summon (13), songs as Bardsong (18), ninjutsu as Ninjutsu (83); the
+		/// item and enemy schools count as nothing.</summary>
+		private static readonly int[] SchoolCommand = { 6, 5, 13, 18, -1, -1, 83 };
+
+		/// <summary>Player::abilityBouns: the seven command slots' growth past 70 summed (HP, MP, strength, stamina, speed,
+		/// intellect, spirit) - a spell in a slot by its school's command; a character not laid out yet by its commands.</summary>
+		private static int[] GrowthOver70(Character c, Dictionary<int, int[]> growth, GameTables tables)
+		{
+			int[] sum = new int[7];
+			IEnumerable<int> slots = c.CommandSlots;
+			if (slots == null)
+			{
+				List<int> commands = new List<int>();
+				foreach (Learned l in c.Definition.Learning)
+					if (l.Ability == l.Command && l.Level <= c.Level && !commands.Contains(l.Ability)) commands.Add(l.Ability);
+				slots = commands.Count > 7 ? commands.GetRange(0, 7) : commands;
+			}
+			foreach (int id in slots)
+			{
+				if (!growth.TryGetValue(id, out int[] g))
+				{
+					SpellDefinition spell = id >= 256 ? tables.Spell(id) : null;
+					int school = spell != null ? (int)spell.School : -1;
+					if (school < 0 || school >= SchoolCommand.Length || SchoolCommand[school] < 0 || !growth.TryGetValue(SchoolCommand[school], out g)) continue;
+				}
+				for (int k = 0; k < 7; k++) sum[k] += g[k];
+			}
+			return sum;
+		}
+
 		private static void ReadPlayers(ContentChain chain, GameTables tables)
 		{
 			if (!TableFiles.ReadAny(chain, "player.chaindata", out byte[] data))
@@ -495,6 +526,20 @@ namespace OpenFF.Data
 			int levels = pack.Size(0) / 4;
 			tables.ExperienceToLevel = new int[levels];
 			for (int i = 0; i < levels; i++) tables.ExperienceToLevel[i] = ChainPack.S32(pack.Data, pack.Offset(0) + 4 * i);
+
+			// Chain 36 (10-byte records; PlayerParty::abilityBouns): what a battle command adds each level past 70 - s16 the
+			// command, then s8 HP, MP, strength, stamina, speed, intellect, spirit (Fight: 10 HP and 1 strength; White
+			// Magic: 5 MP and 1 spirit).
+			Dictionary<int, int[]> growth = new Dictionary<int, int[]>();
+			if (pack.Count > 36)
+			{
+				for (int at = pack.Offset(36), end = at + pack.Size(36); at + 10 <= end; at += 10)
+				{
+					int[] g = new int[7];
+					for (int k = 0; k < 7; k++) g[k] = (sbyte)pack.Data[at + 2 + k];
+					growth[ChainPack.S16(pack.Data, at)] = g;
+				}
+			}
 
 			for (int type = 0; type < CharacterTypes; type++)
 			{
@@ -546,6 +591,7 @@ namespace OpenFF.Data
 						def.Learning.Add(new Learned { Command = ability < 1500 ? ability : command, Ability = ability, Level = Math.Max(1, level) });
 					}
 				}
+				def.BonusOver70 = character => GrowthOver70(character, growth, tables);
 				tables.Characters.Add(def);
 			}
 

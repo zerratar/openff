@@ -25,7 +25,11 @@ namespace OpenFF.Data
 		public int Mp { get; set; }
 		public int MaxMp { get; set; }
 		/// <summary>The attributes from the growth table at the current level, before equipment.</summary>
-		public Stats Base { get; private set; } = new Stats();
+		public Stats Base { get; set; } = new Stats();
+		/// <summary>FF4: the maximum HP and MP before the +50% augments (PlayerHp +2, the player save's MP at +0x1BC) - what
+		/// a level climbed moves; 0 until the character has a level.</summary>
+		public int HpBase { get; set; }
+		public int MpBase { get; set; }
 		/// <summary>Item ids by slot, 0 for nothing.</summary>
 		public int[] Equipment { get; } = new int[5];
 		public List<int> Abilities { get; } = new List<int>();
@@ -57,15 +61,55 @@ namespace OpenFF.Data
 		{
 			int from = Level;
 			Level = Math.Max(1, level);
-			if (Definition.Levels.Length > 0)
+			if (Definition.Levels.Length > 0 && Definition.RollsHp)
 			{
-				// FF4 rolls the levels climbed (a level down starts over from nothing); otherwise the expected maximum.
-				if (Definition.RollsHp)
+				// FF4, as pl::Player::levelUp / setParameter and PlayerHp::setMaxHp: climbing, each attribute and MP move by
+				// the table's new row less its old (whatever else moved them stays moved); a level down, or a character
+				// made at a level, takes the rows as they are. Past 70 every level adds the commands' bonus (abilityBouns).
+				// HP rolls the levels climbed (a level down rolls again from nothing). The maximums are the bases; the
+				// +50% augments go on them after (Ff4Augments).
+				if (Level != from || HpBase == 0)
 				{
-					if (Level == from && MaxHp > 0) { }
-					else MaxHp = Math.Max(1, Level > from && MaxHp > 0 ? MaxHp + Definition.RollHp(from, Level) : Definition.RollHp(0, Level));
+					bool climb = Level > from && from >= 1 && HpBase > 0;
+					int[] bonus = Level > 70 ? Definition.BonusOver70?.Invoke(this) : null;
+					int over = Level - Math.Max(climb ? from : 0, 70);
+					Stats now = Definition.StatsAt(Level);
+					if (climb)
+					{
+						Stats was = Definition.StatsAt(from);
+						now.Strength += Base.Strength - was.Strength;
+						now.Agility += Base.Agility - was.Agility;
+						now.Vitality += Base.Vitality - was.Vitality;
+						now.Intellect += Base.Intellect - was.Intellect;
+						now.Spirit += Base.Spirit - was.Spirit;
+					}
+					int mp = Definition.MaxMpAt(Level) + (climb ? MpBase - Definition.MaxMpAt(from) : 0);
+					if (bonus != null && bonus.Length >= 7 && over > 0)
+					{
+						mp += bonus[1] * over;
+						now.Strength += bonus[2] * over;
+						now.Vitality += bonus[3] * over;
+						now.Agility += bonus[4] * over;
+						now.Intellect += bonus[5] * over;
+						now.Spirit += bonus[6] * over;
+					}
+					now.Strength = Math.Clamp(now.Strength, 0, 99);
+					now.Agility = Math.Clamp(now.Agility, 0, 99);
+					now.Vitality = Math.Clamp(now.Vitality, 0, 99);
+					now.Intellect = Math.Clamp(now.Intellect, 0, 99);
+					now.Spirit = Math.Clamp(now.Spirit, 0, 99);
+					Base = now;
+					MpBase = Math.Clamp(mp, 0, 999);
+					int hpBonus = bonus != null && bonus.Length >= 1 ? bonus[0] : 0;
+					HpBase = Math.Clamp(climb ? HpBase + Definition.RollHp(from, Level, hpBonus) : Definition.RollHp(0, Level, hpBonus), 1, 9999);
 				}
-				else MaxHp = Math.Max(1, Definition.MaxHpAt(Level));
+				MaxHp = HpBase;
+				MaxMp = MpBase;
+				HpPlus = MpPlus = false;   // the maximums are the bases again; Ff4Augments puts the +50%s back on
+			}
+			else if (Definition.Levels.Length > 0)
+			{
+				MaxHp = Math.Max(1, Definition.MaxHpAt(Level));
 				MaxMp = Math.Max(0, Definition.MaxMpAt(Level));
 				Base = Definition.StatsAt(Level);
 			}

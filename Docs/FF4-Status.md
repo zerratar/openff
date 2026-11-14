@@ -53,14 +53,15 @@ scene engine, which is ours from the binary's disassembly.
 | Lights, fog, grey | The toon tables (from FF4.exe), lights per cast, the scenes' fog, the grey-scale shots (glayScale*), bind objects and their joints, auto rotation. |
 | Open | The flight's sky geometry and per-shot visibility; the casts' shadow discs. |
 
-## Party data - 60%
+## Party data - 75%
 
 | | State |
 | --- | --- |
 | Characters, growth, magic, equipment, items | FF4's tables read from the binary and its files onto the unified data layer (`Shared/Data`), the same layer FF3's jobs and spells sit on. |
 | Logos and title | Steam's, read from FF4.exe (Ff4Title): the Square Enix and Matrix logos, then the title - background, logo, CONTINUE / NEW GAME / LOAD GAME / QUIT GAME by the same rules and in the same places, the glove, the Prelude. New Game fades to white and starts in t00_00, whose event calls the opening scene with no fade, so the scene fades in from white as on Steam; maps are left and entered with FF4's 15-frame fades, not FF3's shutter (Ff4MapChange). New Game asks the difficulty first as Steam's DifficultyPart (Normal / Hard over black; Normal's damage x1.2 onto monsters and x0.7 onto the party, Hard neither - kept in ff4-settings.json). Load Game opens Steam's load screen - the menu's Save screen over the title, the hand on the slot written last, "Load data from Slot N?", Back or Title Menu back to the commands. CONTINUE shows when there is a quicksave and resumes it at once, as Steam's (the quicksave is kept, as libff4 keeps its suspend data). The opening movie (opening.mkv) is not played; the title's mouse widgets are not there. |
 | Saves | On the unified layer: three slots, written from the menu's Save screen (Steam's) with the place and the play time; a slot loads into the field from the title's Load Game or `--load`. The ending's save is the cleared game's: the party made a new game's keeping the bag (initForNewgame(true)), and loaded it starts New Game+ with the extras' and the records' flags (NewGameInitPart). FF4's own save format is not written. |
-| Open | Growth curves and monster records in part; the details of each are in FF4-Internals. |
+| Growth | As libff4's levelUp / setParameter / PlayerHp::setMaxHp: climbing a level moves each attribute and MP by the table's new row less its old (anything else that moved them stays moved); HP rolls between the rows' least and most; past level 70 every level adds the battle commands' bonuses (player.chaindata chain 36: Fight 10 HP and 1 strength, White Magic 5 MP and 1 spirit..., a spell in a slot by its school's command); a level down takes the rows as they are. The bases are kept in the save, the +50% augments on top. |
+| Open | Monster records in part; the details are in FF4-Internals. |
 
 ## Encounters, shops, inns - 75%
 

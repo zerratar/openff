@@ -125,18 +125,24 @@ namespace OpenFF.Data
 		private static readonly Random _hpRoll = new Random();
 
 		/// <summary>The hit points gained climbing from <paramref name="from"/> to <paramref name="to"/>, rolled as the game rolls them.</summary>
-		public int RollHp(int from, int to)
+		public int RollHp(int from, int to, int bonusOver70 = 0)
 		{
 			int min = 0, max = 0;
 			for (int level = Math.Max(1, from + 1); level <= Math.Min(to, Levels.Length); level++)
 			{
-				min += Levels[level - 1].HpGainMin;
-				max += Levels[level - 1].HpGainMax;
+				// PlayerHp::setMaxHp: each level past 70 adds the commands' HP bonus to both ends of the roll.
+				int bonus = level > 70 ? bonusOver70 : 0;
+				min += Levels[level - 1].HpGainMin + bonus;
+				max += Levels[level - 1].HpGainMax + bonus;
 			}
 			return max - min < 1 ? min : min + _hpRoll.Next(max - min + 1);
 		}
 		/// <summary>Commands and spells with the level each arrives at, in the game's order; empty when the game has no such list.</summary>
 		public List<Learned> Learning = new List<Learned>();
+
+		/// <summary>FF4: what each level past 70 adds (Player::abilityBouns) for a character as it stands - its battle commands'
+		/// bonuses summed: HP, MP, strength, stamina, speed, intellect, spirit. Null where the game has none.</summary>
+		public Func<Character, int[]> BonusOver70;
 
 		public int MaxLevel => Levels.Length;
 
