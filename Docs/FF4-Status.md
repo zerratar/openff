@@ -21,7 +21,7 @@ behaviour or to a stand-in. That is why "renders" comes first and "behaves" late
 | Maps: towns, castles, dungeons, event stages | Render from the Steam files in place - models, textures (FF4's texcoord command decoded), water, bridges, animations. |
 | The overworld | FF4's chip layout (mirrored in z relative to FF3's - measured against 33 scripted arrivals), the chips streaming in, the tilted mountain and forest quads seen from FF4's camera side. |
 | Characters and objects | Cecil and the party's field models, NPC bodies, objects; the field motion sets renumbered so idle, walk and run play as such. |
-| Lighting and materials | Scene lights and toon shading not applied; a few scene shots show sky geometry wrongly (the Red Wings' flight). |
+| Lighting and materials | Scene lights and toon shading not applied. The Red Wings' flight set beside Steam's shot by shot - the sky, its clouds, the spinning propellers' blur: the same. |
 | Shadows | The field's; scene casts' own (ce_ShadowSetting) as libff4's: the disc follows the hips' x and z at the scale the script gives (4096 the model's own size, not the character's default times it), flat, dropped onto the ground - the collision, or where none is (the Red Wings' deck) the floor at the cast's own height (its feet when they stand well over it), as FF4 drops it onto the stage model (setShadowStage) - and lifted half a unit over it (FF4's 0x40 relies on the DS's polygon ids; here the deck would win the depth test). Set beside Steam's opening and "Must we now be thieves" frames: the same faint discs, the same size, under the soldiers' feet. |
 
 ## The field - 80%
@@ -47,11 +47,10 @@ scene engine, which is ours from the binary's disassembly.
 | Effects | The scenes' effects (the flashback sparkles, the wind streaks) from their packs, scaled and placed as the script says. |
 | Into battle | `ce_CallBattle`: the encounter whirl (SPBlurRotate) to white, then the battle on its stage as a part change, and back to the scene after. |
 | Faces and props | Expressions through face textures; bind objects (a spear in a hand) posed from the host's joint. |
-| Text | The message bar; the name window; the field's message window opening from its middle over five frames and its caption bar, as Steam's, drawn from a layout (`ff4_field_hud`). |
+| Text | The message bar; the name window; the field's message window opening from its middle over five frames and its caption bar, as Steam's, drawn from a layout (`ff4_field_hud`). The scene bar's line measured off Steam's opening at 1920 x 1080: its capitals 37 rows high, two lines 64 apart and centred as a block, its width within 1%. |
 | Field events | Scripted walks and turns (MoveCharacter_*Coordination2, Turn*2) and the event camera following the cast (CUFollowCamera: moveCamera_LookPlayer2, setCameraOffset easing in over its frames) as libff4's; a map's first script steps survive the host noticing the map change. |
 | 2D programs | ce_CallProgram as Steam's FF4.exe runs it: e03's drawn sequence (Baron over its panning sky, the moons, the birds, the six lines of narration), e19's picture, e26's rising lines, the original development staff (FF4.exe's own list), the scene messages. Placed from Steam's code; not yet set beside Steam's frames (ff4hook cannot start a scene in Steam). |
 | Lights, fog, grey | The toon tables (from FF4.exe), lights per cast, the scenes' fog, the grey-scale shots (glayScale*), bind objects and their joints, auto rotation. |
-| Open | The flight's sky geometry and per-shot visibility. |
 
 ## Party data - 90%
 
