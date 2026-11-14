@@ -31,6 +31,13 @@ namespace Crystal.Editor
 		public string Node { get; set; }
 		public string Material { get; set; }
 		public string Texture { get; set; }
+		/// <summary>A mod's glTF: the material's place in the file, whether its picture is the definition's own (defs/models
+		/// "textures"), the picture's size, and the filter the client draws it with ("nearest" or "linear").</summary>
+		public int MaterialIndex { get; set; } = -1;
+		public bool Replaced { get; set; }
+		public int PictureWidth { get; set; }
+		public int PictureHeight { get; set; }
+		public string Filter { get; set; }
 
 		/// <summary>Where in the index buffer this group's triangles are.</summary>
 		public int Start { get; set; }
@@ -79,6 +86,9 @@ namespace Crystal.Editor
 	internal sealed class ModelBundle
 	{
 		public string Name { get; set; }
+		/// <summary>A mod's glTF: the game model it stands in for (defs/models), and that definition's "filter" (null: the file's samplers).</summary>
+		public string StandsIn { get; set; }
+		public string DefinitionFilter { get; set; }
 		public int Vertices { get; set; }
 		public int Triangles { get; set; }
 		public int Quads { get; set; }

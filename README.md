@@ -51,6 +51,8 @@ Command-line switches (start on any map, window size, logs): [Command line](Docs
 Put a mod in a folder under `mods\` beside `OpenFF.exe`. A mod can:
 
 - **replace game files**: models, textures, text and sounds;
+- **draw a character as a glTF model** (from Blender or anywhere), with its pictures and its
+  expressions (the eye and mouth pictures scenes switch between) swapped as plain PNGs;
 - **restyle screens**: menus and HUDs are layouts and stylesheets;
 - **add maps, scenes and items**;
 - **run C# code** through the OpenFF API (the hero, the party, battles, the camera, saves and more).

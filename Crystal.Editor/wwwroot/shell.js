@@ -1770,6 +1770,8 @@ function materialsFor(doc) {
   const heading = document.createElement('h3');
   heading.textContent = 'Materials';
   box.append(heading);
+  // A mod's own glTF (assets/x.glb): its pictures can be swapped and saved.
+  const own = /\.(glb|gltf)$/i.test(doc.name || '');
 
   for (const [name, group] of seen) {
     const row = document.createElement('div');
@@ -1794,7 +1796,7 @@ function materialsFor(doc) {
     const title = document.createElement('b');
     title.textContent = name || '(unnamed)';
     const note = document.createElement('span');
-    note.textContent = group.texture || 'no texture';
+    note.textContent = group.replaced ? group.texture.replace(/^file:/, '').replace(/@\d+$/, '') : (group.texture || 'no texture');
     const tint = document.createElement('span');
     tint.className = 'material-tint';
     const dot = document.createElement('i');
@@ -1803,6 +1805,15 @@ function materialsFor(doc) {
       'tint · alpha ' + Math.round((group.alpha ?? 1) * 100) + '%'
       + (group.translucent ? ' · translucent' : '')));
     about.append(title, note, tint);
+    if (group.pictureWidth) {
+      // A mod's glTF: the picture's size, how the client filters it, and whether it is the file's or the mod's own.
+      const size = document.createElement('span');
+      size.textContent = `${group.pictureWidth} × ${group.pictureHeight}`
+        + (group.filter ? ' · ' + (group.filter === 'nearest' ? 'crisp (nearest)' : 'smoothed (linear)') : '')
+        + (group.replaced ? ' · the mod\'s own picture' : '');
+      about.append(size);
+    }
+    if (own) about.append(materialActions(doc, name, group));
 
     row.append(thumb, about);
     row.onclick = () => {
@@ -1811,7 +1822,504 @@ function materialsFor(doc) {
     };
     box.append(row);
   }
+  if (own && data.standsIn) box.append(filterChooser(doc));
+  if (own && !data.standsIn) {
+    const hint = document.createElement('p');
+    hint.className = 'muted';
+    hint.textContent = 'Have this file stand in for a game model (Use in OpenFF) to swap its pictures here without re-exporting it.';
+    box.append(hint);
+  }
+  const faces = facesFor(doc);
+  if (faces) box.append(faces);
   return box;
+}
+
+// ---------------------------------------------------------------- expressions
+// A character's faces: the game's face packs for the model (j101_001.face...), each a numbered set of eye and mouth
+// pictures a scene puts on (SetUpCharacter_FaceData) and flips through (ChangeFaceEye / ChangeFaceMouth: a blink, a
+// start, a smile). Every picture is listed here; clicking one puts it on the model in the view, Play flips through a
+// row of numbers, and on a stand-in glTF each can be replaced with a PNG of the mod's own (assets/faces/...).
+
+/// The picture's URL: the mod's own where it has one (or the game's, asked for), stamped so a replaced one is fetched again.
+function facePictureUrl(doc, pack, part, n, game) {
+  return wsUrl(`/api/model/face-picture?name=${encodeURIComponent(doc.name)}&pack=${encodeURIComponent(pack)}`
+    + `&part=${encodeURIComponent(part)}&n=${n}${game ? '&game=1' : ''}&v=${doc.faceStamp || 0}`);
+}
+
+/// Whether the client would show a number's picture on the stand-in: the mod's own always; the game's only when
+/// gameFaces is on and the material's own picture is the game's size (the file painted over the game's sheet).
+function faceShownInGame(doc, part, entry) {
+  if (entry.replaced) return true;
+  const faces = doc.faces;
+  if (!/\.(glb|gltf)$/i.test(doc.name || '')) return Boolean(entry.game);
+  if (!faces.gameFaces || !entry.game) return false;
+  const group = (doc.data.groups || []).find(g => g.material === faces.on[part]);
+  return !group || !group.pictureWidth || (group.pictureWidth === entry.game.width && group.pictureHeight === entry.game.height);
+}
+
+/// Puts a number of a part on the model in the view (null: the material's own back).
+function wearFace(doc, part, n) {
+  const faces = doc.faces;
+  const state = doc.faceState;
+  if (!faces || !state || !doc.viewer || !doc.viewer.setOverride) return;
+  const key = faces.on[part];
+  if (!key) return;
+  if (n === null || n === undefined) delete state.shown[part]; else state.shown[part] = n;
+  const pack = faces.packs.find(p => p.name === state.pack);
+  const entry = pack && n !== null && n !== undefined ? (pack.parts.find(p => p.name === part) || { numbers: [] }).numbers[n] : null;
+  doc.viewer.setOverride(key, entry && faceShownInGame(doc, part, entry) ? facePictureUrl(doc, state.pack, part, n) : null);
+}
+
+/// A dropped or chosen PNG for a pack's part and number: written to assets/faces/ and named in the definition.
+async function replaceFace(doc, pack, part, n, file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  const result = await api('/api/model/face-replace', { name: doc.name, pack, part, n, bytes: btoa(binary) })
+    .catch(e => ({ ok: false, error: e.message }));
+  if (!result.ok) throw new Error(result.error);
+  return result;
+}
+
+/// Where a file dropped on the card goes, by its name: eye-3.png (this pack), j101_001-eye-3.png or j101_001/eye-3.png
+/// - the names Save and Download give - or null.
+function faceTargetOf(fileName, faces, pack) {
+  const m = /^(?:(.+?)[-_/\\])?([a-z]+)[-_ ]?(\d+)\.png$/i.exec(fileName.split(/[\\/]/).slice(-2).join('/'));
+  if (!m) return null;
+  const packName = m[1] && faces.packs.some(p => p.name.toLowerCase() === m[1].toLowerCase()) ? faces.packs.find(p => p.name.toLowerCase() === m[1].toLowerCase()).name : pack;
+  const target = faces.packs.find(p => p.name === packName);
+  const part = target && target.parts.find(p => p.name.toLowerCase() === m[2].toLowerCase());
+  const n = Number(m[3]);
+  return part && n < target.count ? { pack: packName, part: part.name, n } : null;
+}
+
+/// Pictures edited outside (an image editor on the exported files) are taken again when Crystal gets the focus back.
+window.addEventListener('focus', () => {
+  const doc = typeof activeDoc !== 'undefined' ? activeDoc : null;
+  if (!doc || doc.kind !== 'model' || !doc.faces || !doc.faceState) return;
+  doc.faceStamp = (doc.faceStamp || 0) + 1;
+  doc.faces = undefined;
+  drawInspector();
+});
+
+function stopFacePlay(doc) {
+  if (doc.faceState && doc.faceState.timer) { clearInterval(doc.faceState.timer); doc.faceState.timer = null; }
+}
+
+function facesFor(doc) {
+  if (doc.kind !== 'model' || !doc.data || !doc.data.groups) return null;
+  if (doc.faces === undefined) {
+    doc.faces = null;
+    api(`/api/model/faces?name=${encodeURIComponent(doc.name)}`)
+      .then(result => {
+        doc.faces = result && !result.error ? result : { packs: [] };
+        // What was worn before a reload (a replaced picture) goes back on.
+        if (doc.faceState) for (const [part, n] of Object.entries(doc.faceState.shown)) wearFace(doc, part, n);
+        if (activeDoc === doc) drawInspector();
+      })
+      .catch(() => { doc.faces = { packs: [] }; });
+    return null;
+  }
+  const faces = doc.faces;
+  if (!faces || !faces.packs || !faces.packs.length) return null;
+  const own = /\.(glb|gltf)$/i.test(doc.name || '');
+  if (!doc.faceState || !faces.packs.some(p => p.name === doc.faceState.pack)) {
+    doc.faceState = { pack: faces.packs[0].name, shown: {}, selected: null, timer: null, sequence: '', fps: 6, part: '' };
+  }
+  const state = doc.faceState;
+  const pack = faces.packs.find(p => p.name === state.pack);
+  const redraw = () => { if (activeDoc === doc) drawInspector(); };
+
+  const box = document.createElement('div');
+  box.className = 'faces';
+  const heading = document.createElement('h3');
+  heading.textContent = 'Expressions';
+  const intro = document.createElement('p');
+  intro.className = 'muted';
+  intro.textContent = `The faces a scene puts on ${faces.model}: pick a set, click a picture to see it on the model, Play to flip through.`
+    + (faces.standsIn ? ' To change one, drop a PNG on it (or Replace…); Export to project gives you every picture as a file to edit.' : '');
+  box.append(heading, intro);
+
+  // The set: one face pack (j101_001...), as the scene names it.
+  const top = document.createElement('div');
+  top.className = 'faces-top';
+  const choose = document.createElement('select');
+  for (const p of faces.packs) {
+    const option = document.createElement('option');
+    option.value = p.name;
+    const mine = p.parts.reduce((n, part) => n + part.numbers.filter(e => e.replaced).length, 0);
+    option.textContent = `${p.name} · ${p.count} faces${mine ? ` · ${mine} yours` : ''}`;
+    choose.append(option);
+  }
+  choose.value = state.pack;
+  choose.onchange = () => {
+    stopFacePlay(doc);
+    for (const part of Object.keys(state.shown)) wearFace(doc, part, null);
+    state.pack = choose.value;
+    state.selected = null;
+    redraw();
+  };
+  const neutral = document.createElement('button');
+  neutral.textContent = 'Own face';
+  neutral.title = 'The model\'s own pictures, as it looks with no face set on';
+  neutral.onclick = () => { stopFacePlay(doc); for (const part of Object.keys(faces.on)) wearFace(doc, part, null); redraw(); };
+  top.append(choose, neutral);
+  box.append(top);
+
+  // The files: every picture into the project to edit in an image editor (taken again as they change), a zip of them,
+  // and the folder they are in. Pictures dropped on the card go back in by their names.
+  const after = () => { doc.faceStamp = (doc.faceStamp || 0) + 1; doc.faces = undefined; projectChanged(); drawInspector(); };
+  const files = document.createElement('div');
+  files.className = 'faces-files material-actions';
+  const exportPack = document.createElement('button');
+  exportPack.textContent = 'Export to project';
+  exportPack.title = `Every picture of ${state.pack} written to assets/faces/${state.pack}/ (eye-0.png, mouth-6.png...) and used by the stand-in: `
+    + 'edit them in any image editor and Crystal and the game take the changes. Shift-click: every pack.';
+  exportPack.onclick = async (event) => {
+    const result = await api('/api/model/face-export', { name: doc.name, pack: event.shiftKey ? '*' : state.pack }).catch(e => ({ ok: false, error: e.message }));
+    if (!result.ok) { alert(result.error); return; }
+    say(`${result.written} picture(s) written, ${result.kept} kept as they were` + (result.standsIn ? '' : ' - give the model a stand-in and export again to use them'), 'good');
+    doc.faceFolder = result.folder;
+    after();
+  };
+  const zip = document.createElement('a');
+  zip.textContent = 'Download .zip';
+  zip.title = 'The pictures as <pack>/<part>-<number>.png - edit them and drop them back on this card';
+  zip.href = wsUrl(`/api/model/face-zip?name=${encodeURIComponent(doc.name)}&pack=${encodeURIComponent(state.pack)}`);
+  zip.download = `${state.pack}.zip`;
+  const folder = document.createElement('button');
+  folder.textContent = 'Open folder';
+  folder.title = 'The project\'s assets/faces folder in Explorer';
+  folder.onclick = async () => {
+    const result = await api('/api/project/reveal', { path: doc.faceFolder || null }).catch(e => ({ ok: false, error: e.message }));
+    if (!result.ok) say(result.error, 'bad');
+  };
+  files.append(exportPack, zip, folder);
+  box.append(files);
+
+  // Drop PNGs anywhere on the card: each goes to the number its name says (eye-3.png, j101_001-mouth-7.png).
+  box.ondragover = (event) => { if (faces.standsIn) { event.preventDefault(); box.classList.add('dropping'); } };
+  box.ondragleave = () => box.classList.remove('dropping');
+  box.ondrop = async (event) => {
+    event.preventDefault();
+    box.classList.remove('dropping');
+    const dropped = [...(event.dataTransfer.files || [])].filter(f => /\.png$/i.test(f.name));
+    let done = 0;
+    const skipped = [];
+    for (const file of dropped) {
+      const target = faceTargetOf(file.name, faces, state.pack);
+      if (!target) { skipped.push(file.name); continue; }
+      try { await replaceFace(doc, target.pack, target.part, target.n, file); done++; } catch (error) { skipped.push(file.name + ' (' + error.message + ')'); }
+    }
+    say(`${done} expression picture(s) replaced` + (skipped.length ? `; not matched: ${skipped.join(', ')} - name them like eye-3.png` : ''), skipped.length ? 'bad' : 'good');
+    if (done) after();
+  };
+
+  // Every part's numbers as thumbnails: the one worn outlined, the mod's own marked.
+  for (const part of pack.parts) {
+    const row = document.createElement('div');
+    row.className = 'faces-part';
+    const label = document.createElement('div');
+    label.className = 'faces-label';
+    const b = document.createElement('b');
+    b.textContent = part.name;
+    const on = document.createElement('span');
+    on.textContent = faces.on[part.name] ? `on ${faces.on[part.name]}` : 'no material of this name';
+    on.title = faces.on[part.name]
+      ? `The scene's ${part.name} picture is drawn on the material "${faces.on[part.name]}"`
+      : `No material is named ${part.name}: name one so in the file, or map it in the definition's "faceParts"`;
+    label.append(b, on);
+    // A stand-in glTF: which of its materials wears this part, when none is named after it (or another should).
+    if (own && faces.standsIn) {
+      const pick = document.createElement('select');
+      pick.title = `The material that wears the scene's ${part.name} pictures`;
+      const materials = [...new Set((doc.data.groups || []).map(g => g.material).filter(Boolean))];
+      for (const [value, text] of [['', 'by name'], ...materials.map(m => [m, m])]) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value ? `on ${text}` : (faces.on[part.name] ? `on ${faces.on[part.name]} (by name)` : 'pick a material…');
+        pick.append(option);
+      }
+      pick.value = (faces.faceParts && faces.faceParts[part.name]) || '';
+      pick.onchange = async () => {
+        const result = await api('/api/model/face-replace', { name: doc.name, facePart: part.name, material: pick.value || null }).catch(e => ({ ok: false, error: e.message }));
+        if (!result.ok) { alert(result.error); return; }
+        after();
+      };
+      on.replaceWith(pick);
+    }
+    const strip = document.createElement('div');
+    strip.className = 'faces-strip';
+    // A pack's numbers each hold some parts' pictures (j101_001: 0-5 eyes, 6-8 mouths) - a part lists the ones it has.
+    for (const entry of part.numbers) {
+      if (!entry.game && !entry.replaced) continue;
+      const cell = document.createElement('button');
+      cell.className = 'face' + (state.shown[part.name] === entry.n ? ' worn' : '')
+        + (state.selected && state.selected.part === part.name && state.selected.n === entry.n ? ' selected' : '')
+        + (entry.replaced ? ' mine' : '') + (entry.game || entry.replaced ? '' : ' empty');
+      cell.title = `${state.pack} ${part.name} ${entry.n}` + (entry.replaced ? ` - yours (${entry.replaced})` : entry.game ? ` - the game's, ${entry.game.width} × ${entry.game.height}` : ' - none in this set');
+      if (entry.game || entry.replaced) {
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.src = facePictureUrl(doc, state.pack, part.name, entry.n);
+        cell.append(img);
+      }
+      const number = document.createElement('i');
+      number.textContent = entry.n;
+      cell.append(number);
+      // One PNG dropped on a picture replaces that picture, whatever the file is called.
+      cell.ondragover = (event) => { if (faces.standsIn) { event.preventDefault(); event.stopPropagation(); cell.classList.add('dropping'); } };
+      cell.ondragleave = () => cell.classList.remove('dropping');
+      cell.ondrop = async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        cell.classList.remove('dropping');
+        const file = [...(event.dataTransfer.files || [])].find(f => /\.png$/i.test(f.name));
+        if (!file) return;
+        try { await replaceFace(doc, state.pack, part.name, entry.n, file); } catch (error) { alert(error.message); return; }
+        state.selected = { part: part.name, n: entry.n };
+        state.shown[part.name] = entry.n;
+        after();
+      };
+      cell.onclick = () => {
+        stopFacePlay(doc);
+        state.selected = { part: part.name, n: entry.n };
+        wearFace(doc, part.name, entry.n);
+        redraw();
+      };
+      strip.append(cell);
+    }
+    row.append(label, strip);
+    box.append(row);
+  }
+
+  // Playback: a row of numbers flipped through at a pace, on one part or every part - a blink is "0 1 2 1 0".
+  const play = document.createElement('div');
+  play.className = 'faces-play';
+  const toggle = document.createElement('button');
+  toggle.textContent = state.timer ? '■ Stop' : '▶ Play';
+  const which = document.createElement('select');
+  for (const [value, text] of [['', 'every part'], ...pack.parts.map(p => [p.name, p.name])]) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = text;
+    which.append(option);
+  }
+  which.value = state.part;
+  which.onchange = () => { state.part = which.value; redraw(); };
+  const sequence = document.createElement('input');
+  sequence.type = 'text';
+  const has = (part, n) => { const e = (pack.parts.find(p => p.name === part) || { numbers: [] }).numbers[n]; return Boolean(e && (e.game || e.replaced)); };
+  const numbersOf = (parts) => Array.from({ length: pack.count }, (_, i) => i).filter(n => parts.some(part => has(part, n)));
+  sequence.placeholder = numbersOf(pack.parts.filter(p => !state.part || p.name === state.part).map(p => p.name)).join(' ');
+  sequence.value = state.sequence;
+  sequence.title = 'The numbers to flip through, in order (empty: every number). A blink: 0 1 2 1 0';
+  sequence.oninput = () => { state.sequence = sequence.value; };
+  const fps = document.createElement('input');
+  fps.type = 'number';
+  fps.min = 1;
+  fps.max = 30;
+  fps.value = state.fps;
+  fps.title = 'Pictures a second';
+  fps.oninput = () => { state.fps = Math.max(1, Math.min(30, Number(fps.value) || 6)); };
+  const perSecond = document.createElement('span');
+  perSecond.textContent = '/s';
+  toggle.onclick = async () => {
+    if (state.timer) { stopFacePlay(doc); redraw(); return; }
+    const parts = pack.parts.filter(p => !state.part || p.name === state.part).map(p => p.name).filter(p => faces.on[p]);
+    const numbers = (state.sequence.trim() ? state.sequence.trim().split(/[\s,]+/).map(Number) : numbersOf(parts))
+      .filter(n => Number.isInteger(n) && n >= 0 && n < pack.count);
+    if (!numbers.length || !parts.length || !doc.viewer) return;
+    if (doc.viewer.preload) await doc.viewer.preload(parts.flatMap(part => numbers.filter(n => has(part, n)).map(n => facePictureUrl(doc, state.pack, part, n))));
+    let at = 0;
+    // Each number goes on the parts it holds a picture for, as ChangeFaceEye / ChangeFaceMouth would put it.
+    const step = () => {
+      if (activeDoc !== doc) { stopFacePlay(doc); return; }
+      const n = numbers[at % numbers.length];
+      for (const part of parts) if (has(part, n)) wearFace(doc, part, n);
+      at++;
+    };
+    step();
+    state.timer = setInterval(step, 1000 / state.fps);
+    redraw();
+  };
+  play.append(toggle, which, sequence, fps, perSecond);
+  box.append(play);
+
+  // The picked picture: replace it with a PNG of yours, the game's back, or save it to paint over.
+  const pickedEntry = state.selected ? (pack.parts.find(p => p.name === state.selected.part) || { numbers: [] }).numbers[state.selected.n] : null;
+  if (pickedEntry) {
+    const { part, n } = state.selected;
+    const picked = document.createElement('div');
+    picked.className = 'faces-picked material-actions';
+    const what = document.createElement('b');
+    what.textContent = `${part} ${n}`;
+    picked.append(what);
+    if (faces.standsIn) {
+      const replace = document.createElement('button');
+      replace.textContent = 'Replace…';
+      replace.title = `A PNG of yours for ${state.pack} ${part} ${n}, written to assets/faces/${state.pack}/${part}-${n}.png`;
+      replace.onclick = () => {
+        const chooser = document.createElement('input');
+        chooser.type = 'file';
+        chooser.accept = 'image/png';
+        chooser.onchange = async () => {
+          const file = chooser.files && chooser.files[0];
+          if (!file) return;
+          try { await replaceFace(doc, state.pack, part, n, file); } catch (error) { alert(error.message); return; }
+          state.shown[part] = n;
+          after();
+        };
+        chooser.click();
+      };
+      picked.append(replace);
+      if (pickedEntry.replaced) {
+        const reset = document.createElement('button');
+        reset.textContent = 'Reset';
+        reset.title = 'The game\'s picture back';
+        reset.onclick = async () => {
+          const result = await api('/api/model/face-replace', { name: doc.name, pack: state.pack, part, n, clear: true })
+            .catch(e => ({ ok: false, error: e.message }));
+          if (!result.ok) { alert(result.error); return; }
+          after();
+        };
+        picked.append(reset);
+      }
+    }
+    if (pickedEntry.replaced) {
+      const where = document.createElement('span');
+      where.className = 'muted';
+      where.textContent = pickedEntry.replaced;
+      where.title = 'Edit this file in an image editor: Crystal takes it again when you come back, the game within a second';
+      picked.append(where);
+    }
+    const save = document.createElement('a');
+    save.textContent = pickedEntry.game ? 'Save game PNG' : 'Save PNG';
+    save.title = 'This picture as a file, to paint over and Replace with';
+    save.href = facePictureUrl(doc, state.pack, part, n, Boolean(pickedEntry.game));
+    save.download = `${state.pack}-${part}-${n}.png`;
+    picked.append(save);
+    box.append(picked);
+    if (own && !faceShownInGame(doc, part, pickedEntry)) {
+      const note = document.createElement('p');
+      note.className = 'muted';
+      const group = (doc.data.groups || []).find(g => g.material === faces.on[part]);
+      note.textContent = !faces.gameFaces
+        ? 'The game\'s faces are off for this stand-in: this number keeps the material\'s own picture until you replace it.'
+        : `The game's picture is ${pickedEntry.game ? pickedEntry.game.width + ' × ' + pickedEntry.game.height : 'missing'}, the material's ${group ? group.pictureWidth + ' × ' + group.pictureHeight : 'unknown'}: `
+          + 'a different layout, so the client keeps the material\'s own picture here until you replace it.';
+      box.append(note);
+    }
+  }
+
+  if (faces.standsIn && own) {
+    const line = document.createElement('label');
+    line.className = 'material-filter';
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.checked = faces.gameFaces;
+    check.onchange = async () => {
+      const result = await api('/api/model/face-replace', { name: doc.name, gameFaces: check.checked }).catch(e => ({ ok: false, error: e.message }));
+      if (!result.ok) { alert(result.error); return; }
+      doc.faces = undefined;
+      projectChanged();
+      drawInspector();
+    };
+    line.append(check, document.createTextNode(' Faces you have not replaced show the game\'s'));
+    box.append(line);
+  } else if (!faces.standsIn) {
+    const hint = document.createElement('p');
+    hint.className = 'muted';
+    hint.textContent = `To replace these, give ${faces.model} a stand-in glTF (open the .glb, Use in OpenFF) and replace them there - your pictures go to assets/faces/ and the definition.`;
+    box.append(hint);
+  } else if (!own) {
+    const hint = document.createElement('p');
+    hint.className = 'muted';
+    hint.textContent = `${faces.model} has a stand-in (${faces.definition}): replacing here changes what it wears in OpenFF.`;
+    box.append(hint);
+  }
+  return box;
+}
+
+/// A stand-in glTF's material: Replace… takes a PNG of the mod's own in place of the file's picture (written to assets/
+/// and named in defs/models/<model>.json "textures" - the file itself is untouched), Reset gives the file's back, Save PNG
+/// hands out the picture as it is to paint over in an image editor.
+function materialActions(doc, name, group) {
+  const actions = document.createElement('span');
+  actions.className = 'material-actions';
+  const button = (label, title, run) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.title = title;
+    b.onclick = (event) => { event.stopPropagation(); run(); };
+    actions.append(b);
+    return b;
+  };
+  const reload = () => openDoc('model', doc.name, { reload: true });
+  if (doc.data.standsIn) {
+    button('Replace…', 'A PNG of your own in place of this material\'s picture (the .glb is not changed)', () => {
+      const chooser = document.createElement('input');
+      chooser.type = 'file';
+      chooser.accept = 'image/png';
+      chooser.onchange = async () => {
+        const file = chooser.files && chooser.files[0];
+        if (!file) return;
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        const result = await api('/api/model/material-texture', {
+          asset: doc.name, material: name, index: group.materialIndex, name: file.name, bytes: btoa(binary)
+        }).catch(e => ({ ok: false, error: e.message }));
+        if (!result.ok) { alert(result.error); return; }
+        projectChanged();
+        reload();
+      };
+      chooser.click();
+    });
+    if (group.replaced) {
+      button('Reset', 'The file\'s own picture back', async () => {
+        const result = await api('/api/model/material-texture', { asset: doc.name, material: name, index: group.materialIndex, clear: true })
+          .catch(e => ({ ok: false, error: e.message }));
+        if (!result.ok) { alert(result.error); return; }
+        projectChanged();
+        reload();
+      });
+    }
+  }
+  if (group.texture) {
+    const save = document.createElement('a');
+    save.textContent = 'Save PNG';
+    save.title = 'This picture as a file, to paint over and Replace with';
+    save.href = wsUrl(`/api/model/texture?name=${encodeURIComponent(doc.name)}&texture=${encodeURIComponent(group.texture)}`);
+    save.download = `${(doc.name.split('/').pop() || 'model').replace(/\.(glb|gltf)$/i, '')}-${name || 'material'}.png`;
+    save.onclick = (event) => event.stopPropagation();
+    actions.append(save);
+  }
+  return actions;
+}
+
+/// How the client filters a stand-in glTF's pictures: as the file's samplers say, crisp (nearest - pixel art) or smoothed.
+function filterChooser(doc) {
+  const line = document.createElement('label');
+  line.className = 'material-filter';
+  line.append(document.createTextNode('Pictures drawn '));
+  const select = document.createElement('select');
+  for (const [value, label] of [['', 'as the file says'], ['nearest', 'crisp (nearest)'], ['linear', 'smoothed (linear)']]) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    select.append(option);
+  }
+  select.value = doc.data.definitionFilter || '';
+  select.onchange = async () => {
+    const result = await api('/api/model/filter', { asset: doc.name, filter: select.value || null })
+      .catch(e => ({ ok: false, error: e.message }));
+    if (!result.ok) { alert(result.error); return; }
+    projectChanged();
+    openDoc('model', doc.name, { reload: true });
+  };
+  line.append(select);
+  return line;
 }
 
 function factsFor(doc) {

@@ -294,6 +294,16 @@ size - in the model's place (`CharacterMeshes`); the game-format remake stays as
 viewer's preview and the Steam version, and the model-size limit is a note rather than a
 refusal there. Modding.md has the mechanics and the limits.
 
+A glTF that stands in for a game model is previewed as the client draws it, with the
+game's lit colour and the file's own filter. Under **Materials**, each picture has
+**Replace…**, **Reset** and **Save PNG**, and **Pictures drawn** sets crisp or smoothed. The
+glTF itself is not changed: the swaps go to `defs/models/<name>.json`. Under
+**Expressions** (on a character's game model and on its stand-in) are the model's face
+packs, the eye and mouth pictures FF3's scenes flip through. Click a picture to wear it,
+press **Play** to run a sequence (`0 1 2 1 0`) at a speed you pick, and use **Replace…** to
+give a number a PNG of yours (`assets/faces/<pack>/<part>-<number>.png`). Modding.md, *A
+stand-in's pictures and expressions*.
+
 ### Models
 
 The display-list walk used to end a shape at the first GX command it had no use for.

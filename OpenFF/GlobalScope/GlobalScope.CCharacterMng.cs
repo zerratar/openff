@@ -84,6 +84,11 @@ internal static partial class GlobalScope
 
 			public sbyte chainTexDataIdx;
 
+			/// <summary>The face pack (expression set, "j101_001") bound with setChainTexture, and the picture each of its parts (eye, mouth) shows - what a mod's stand-in model draws its expressions from.</summary>
+			public string facePack;
+
+			public Dictionary<string, uint> faceShown = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
+
 			public string name;
 
 			public PRI_SCENE priScn;
@@ -1608,6 +1613,8 @@ internal static partial class GlobalScope
 						return false;
 					}
 					Character[ctrl].chainTexDataIdx = (sbyte)b;
+					Character[ctrl].facePack = System.IO.Path.GetFileNameWithoutExtension(texname);
+					Character[ctrl].faceShown.Clear();
 					return true;
 				}
 			}
@@ -1620,7 +1627,19 @@ internal static partial class GlobalScope
 			{
 				chainTextureDataMng[Character[ctrl].chainTexDataIdx].unloadTexturePack();
 				Character[ctrl].chainTexDataIdx = -1;
+				Character[ctrl].facePack = null;
+				Character[ctrl].faceShown.Clear();
 			}
+		}
+
+		/// <summary>The face pack a character wears and the picture its part shows (-1: none bound, the model's own).</summary>
+		public string getFacePack(int ctrl) => isValidCharacter(ctrl) && Character[ctrl].chainTexDataIdx != -1 ? Character[ctrl].facePack : null;
+
+		public int getFaceShown(int ctrl, string part)
+		{
+			if (getFacePack(ctrl) == null) return -1;
+			if (Character[ctrl].faceShown.TryGetValue(part, out uint index) || Character[ctrl].faceShown.TryGetValue("*", out index)) return (int)index;
+			return -1;
 		}
 
 		public void bindChainTexel(int ctrl, uint dataIdx, string nodename)
@@ -1629,7 +1648,11 @@ internal static partial class GlobalScope
 			{
 				uint chainTexDataIdx = (uint)Character[ctrl].chainTexDataIdx;
 				ds.sys3d.CModelSet modelSet = Character[ctrl].modelSet;
-				chainTextureDataMng[chainTexDataIdx].replaceTexel(modelSet, dataIdx, nodename);
+				if (chainTextureDataMng[chainTexDataIdx].replaceTexel(modelSet, dataIdx, nodename))
+				{
+					if (nodename == null) Character[ctrl].faceShown.Clear();
+					Character[ctrl].faceShown[nodename ?? "*"] = dataIdx;
+				}
 			}
 		}
 
@@ -1783,6 +1806,8 @@ internal static partial class GlobalScope
 			Character[ctrl].texelDataIdx = -1;
 			Character[ctrl].plttDataIdx = -1;
 			Character[ctrl].chainTexDataIdx = -1;
+			Character[ctrl].facePack = null;
+			Character[ctrl].faceShown.Clear();
 			Character[ctrl].loadFlag = (uint)LOAD_FLAG_MASK;
 			Character[ctrl].name = "";
 		}

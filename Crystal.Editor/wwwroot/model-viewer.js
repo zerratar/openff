@@ -108,6 +108,10 @@ function makeModelViewer(canvas, status, options = {}) {
 
   let bundle = null;
   let textures = new Map();
+  // Pictures shown in place of a material's own (an expression being previewed): material or texture name -> texture,
+  // and every picture fetched for them so far, by URL, so flipping through numbers does not fetch again.
+  const overrides = new Map();
+  let overrideCache = new Map();
   let showHidden = false;
 
   // A skinned glTF driven by a game model's motion (/api/model/rig-pose): the rig's node
@@ -281,7 +285,10 @@ function makeModelViewer(canvas, status, options = {}) {
 
       // In weights mode the heat map is the colour, plain: the texture would tint it.
       const heated = model === bundle && heatShown();
-      const texture = !heated && group.texture ? pictures.get(group.texture) : null;
+      const swapped = model === bundle && overrides.size
+        ? (overrides.get(String(group.material || '').toLowerCase()) || overrides.get(String(group.texture || '').toLowerCase()))
+        : null;
+      const texture = heated ? null : (swapped || (group.texture ? pictures.get(group.texture) : null));
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, texture || blank);
       if (texture) applyWrap(gl, group);
@@ -1185,6 +1192,8 @@ function makeModelViewer(canvas, status, options = {}) {
     async show(model, packageName) {
       bundle = model;
       textures = new Map();
+      overrides.clear();
+      overrideCache = new Map();
 
       if (!model || !model.buffer || !model.buffer.length) {
         draw();
@@ -1351,6 +1360,31 @@ function makeModelViewer(canvas, status, options = {}) {
     },
 
     setShowHidden(on) { showHidden = on; draw(); },
+
+    /// A picture (by URL) worn in place of a material's own - by the material's name, or the game texture's - or
+    /// the material's own back (url null). Resolves once it shows.
+    setOverride(key, url) {
+      const name = String(key || '').toLowerCase();
+      if (!url) { overrides.delete(name); draw(); return Promise.resolve(); }
+      const known = overrideCache.get(url);
+      if (known) { overrides.set(name, known); draw(); return Promise.resolve(); }
+      return new Promise(done => {
+        const image = new Image();
+        image.onload = () => { const texture = upload(gl, image); overrideCache.set(url, texture); overrides.set(name, texture); draw(); done(); };
+        image.onerror = () => done();
+        image.src = url;
+      });
+    },
+    /// Fetches pictures ahead (an expression's numbers) so a playback flips without waiting.
+    preload(urls) {
+      return Promise.all((urls || []).filter(u => u && !overrideCache.has(u)).map(url => new Promise(done => {
+        const image = new Image();
+        image.onload = () => { overrideCache.set(url, upload(gl, image)); done(); };
+        image.onerror = () => done();
+        image.src = url;
+      })));
+    },
+    clearOverrides() { overrides.clear(); draw(); },
 
     /// Shows a motion: `next` is the /api/model/pose answer, or null for the bind pose.
     setPose(next) {

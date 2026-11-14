@@ -56,6 +56,12 @@ namespace OpenFF.Client
 			public string Path;
 			public GltfModel Mesh;
 			public bool Failed;
+			/// <summary>Per primitive: the definition's picture in place of the file's (null: the file's), and the filter drawn with.</summary>
+			public Texture2D[] Textures;
+			public TextureFilter[] Filters;
+			/// <summary>The replacement pictures' files and when each was written, to take a changed one again.</summary>
+			public Dictionary<string, DateTime> TextureStamps = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+			public long CheckedAt;
 			/// <summary>Per model resource this look was bound to: the joint -> node map and the frame's buffers.</summary>
 			public Dictionary<GlobalScope.NNSG3dResMdl, Binding> Bindings = new Dictionary<GlobalScope.NNSG3dResMdl, Binding>();
 		}
@@ -265,6 +271,156 @@ namespace OpenFF.Client
 				look.Failed = true;
 				Log.Write(LogChannel.General, "models: " + Path.GetFileName(look.Path) + ": " + ex.Message);
 			}
+		}
+
+		// ---- the definition's own pictures ---------------------------------------------------------------
+
+		/// <summary>The definition's pictures and filter on the look's primitives ("textures", "filter"), taken again when a
+		/// picture's file changes (checked once a second) - a repaint in an image editor shows in the running game.</summary>
+		private static void CheckTextures(Look look, GraphicsDevice device)
+		{
+			ModModel definition = look.Definition;
+			if (definition == null || look.Mesh == null) return;
+			if (definition.Textures.Count == 0 && definition.Filter == null) return;
+			long now = Environment.TickCount64;
+			if (look.Filters != null && now - look.CheckedAt < 1000) return;
+			look.CheckedAt = now;
+			bool changed = look.Filters == null;
+			foreach (KeyValuePair<string, DateTime> stamp in look.TextureStamps)
+			{
+				DateTime at = File.Exists(stamp.Key) ? File.GetLastWriteTimeUtc(stamp.Key) : DateTime.MinValue;
+				if (at != stamp.Value) { changed = true; break; }
+			}
+			if (!changed) return;
+			GltfFile file = look.Mesh.File;
+			int count = look.Mesh.Primitives.Count;
+			Texture2D[] textures = new Texture2D[count];
+			TextureFilter[] filters = new TextureFilter[count];
+			Dictionary<string, Texture2D> loaded = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+			look.TextureStamps.Clear();
+			for (int i = 0; i < count; i++)
+			{
+				GltfMesh mesh = file != null && i < file.Meshes.Count ? file.Meshes[i] : null;
+				GltfMaterial material = mesh != null && mesh.Material >= 0 && mesh.Material < file.Materials.Count ? file.Materials[mesh.Material] : null;
+				filters[i] = definition.Filter == "nearest" ? TextureFilter.Point : definition.Filter == "linear" ? TextureFilter.Linear : look.Mesh.Primitives[i].Filter;
+				string path = definition.TexturePath(material?.Name, mesh?.Material ?? -1);
+				if (path == null) continue;
+				look.TextureStamps[path] = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
+				if (!loaded.TryGetValue(path, out Texture2D picture))
+				{
+					picture = null;
+					try
+					{
+						using (FileStream stream = File.OpenRead(path)) picture = Texture2D.FromStream(device, stream);
+						Log.Write(LogChannel.General, "models: " + look.Model + "'s " + (material?.Name ?? "#" + mesh?.Material) + " wears " + Path.GetFileName(path) + " (" + picture.Width + "x" + picture.Height + ")");
+					}
+					catch (Exception ex) { Log.Write(LogChannel.General, "models: " + look.Model + ": " + Path.GetFileName(path) + " - " + ex.Message + "; the file's own picture stays"); }
+					loaded[path] = picture;
+				}
+				textures[i] = picture;
+				// A picture of the mod's own with no filter asked for: pixel art (256 or less a side) crisp, a bigger one smoothed.
+				if (picture != null && definition.Filter == null && material?.Nearest != true) filters[i] = Math.Max(picture.Width, picture.Height) <= 256 ? TextureFilter.Point : TextureFilter.Linear;
+			}
+			if (look.Textures != null) foreach (Texture2D old in look.Textures) if (old != null && Array.IndexOf(textures, old) < 0) old.Dispose();
+			look.Textures = textures;
+			look.Filters = filters;
+		}
+
+		// ---- expressions ---------------------------------------------------------------------------------
+		// A scene's face pack (SetUpCharacter_FaceData j101_001) and the number it shows of each part (ChangeFaceEye 3)
+		// reach the stand-in through its material of the part's name: the mod's picture for that pack, part and number
+		// ("faces"), else the game's own from the pack when the material's picture is the game's size.
+
+		private static readonly ModModel NoDefinition = new ModModel();
+		private static readonly Dictionary<string, FacePack> _facePacks = new Dictionary<string, FacePack>(StringComparer.OrdinalIgnoreCase);
+		private static readonly Dictionary<string, Texture2D> _gameFaces = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+		private static readonly Dictionary<string, (DateTime Stamp, long CheckedAt, Texture2D Picture)> _modFaces = new Dictionary<string, (DateTime, long, Texture2D)>(StringComparer.OrdinalIgnoreCase);
+
+		private static Texture2D Face(Look look, int ctrl, GltfMaterial material, Texture2D own, GraphicsDevice device, ref TextureFilter filter)
+		{
+			if (material == null) return null;
+			string pack = GlobalScope.characterMng.getFacePack(ctrl);
+			if (pack == null) return null;
+			FacePack faces = FacePackOf(pack);
+			if (faces == null) return null;
+			ModModel definition = look.Definition ?? NoDefinition;
+			string part = definition.FacePartOf(material.Name, faces.Parts);
+			if (part == null) return null;
+			int number = GlobalScope.characterMng.getFaceShown(ctrl, part);
+			if (number < 0) return null;
+			string path = definition.FacePath(pack, part, number);
+			if (path != null && ModFace(path, device) is Texture2D mine)
+			{
+				Log.First(LogChannel.General, "models-face-" + look.Model + "-" + pack + "-" + part + "-" + number, 1, () => "models: " + look.Model + "'s " + material.Name + " shows " + pack + " " + part + " " + number + " - " + Path.GetFileName(path));
+				if (definition.Filter == null && material.Nearest != true) filter = Math.Max(mine.Width, mine.Height) <= 256 ? TextureFilter.Point : TextureFilter.Linear;
+				return mine;
+			}
+			if (!definition.GameFaces) return null;
+			Texture2D game = GameFace(pack, faces, part, number, device);
+			if (game == null || own == null || own.Width != game.Width || own.Height != game.Height) return null;
+			Log.First(LogChannel.General, "models-face-" + look.Model + "-" + pack + "-" + part + "-" + number, 1, () => "models: " + look.Model + "'s " + material.Name + " shows " + pack + " " + part + " " + number + " - the game's");
+			if (definition.Filter == null) filter = TextureFilter.Point;
+			return game;
+		}
+
+		private static FacePack FacePackOf(string pack)
+		{
+			if (_facePacks.TryGetValue(pack, out FacePack faces)) return faces;
+			try
+			{
+				GlobalScope.ds.CFile file = new GlobalScope.ds.CFile();
+				string name = pack + ".face";
+				uint size = file.getSize(name);
+				if (size > 0)
+				{
+					byte[] data = new byte[size];
+					if (file.load(data, name)) faces = FacePack.Read(data);
+				}
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "models: " + pack + ".face - " + ex.Message); }
+			_facePacks[pack] = faces;
+			return faces;
+		}
+
+		private static Texture2D GameFace(string pack, FacePack faces, string part, int number, GraphicsDevice device)
+		{
+			string key = ModModel.FaceKey(pack, part, number);
+			if (_gameFaces.TryGetValue(key, out Texture2D picture)) return picture;
+			if (faces.Picture(number, part) is (int Width, int Height, byte[] Rgba) decoded) picture = ToTexture(device, decoded.Width, decoded.Height, decoded.Rgba);
+			_gameFaces[key] = picture;
+			return picture;
+		}
+
+		/// <summary>A mod's face picture, taken again when its file changes (checked once a second).</summary>
+		private static Texture2D ModFace(string path, GraphicsDevice device)
+		{
+			long now = Environment.TickCount64;
+			if (_modFaces.TryGetValue(path, out var known) && now - known.CheckedAt < 1000) return known.Picture;
+			DateTime stamp = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
+			if (known.Picture != null && stamp == known.Stamp) { _modFaces[path] = (stamp, now, known.Picture); return known.Picture; }
+			Texture2D picture = null;
+			if (stamp != DateTime.MinValue)
+			{
+				try { using (FileStream stream = File.OpenRead(path)) picture = Texture2D.FromStream(device, stream); }
+				catch (Exception ex) { Log.Write(LogChannel.General, "models: " + Path.GetFileName(path) + " - " + ex.Message); }
+			}
+			known.Picture?.Dispose();
+			_modFaces[path] = (stamp, now, picture);
+			return picture;
+		}
+
+		private static Texture2D ToTexture(GraphicsDevice device, int width, int height, byte[] rgba)
+		{
+			byte[] pixels = (byte[])rgba.Clone();
+			for (int i = 0; i < pixels.Length; i += 4)
+			{
+				int a = pixels[i + 3];
+				if (a == 255) continue;
+				pixels[i] = (byte)(pixels[i] * a / 255); pixels[i + 1] = (byte)(pixels[i + 1] * a / 255); pixels[i + 2] = (byte)(pixels[i + 2] * a / 255);
+			}
+			Texture2D texture = new Texture2D(device, width, height);
+			texture.SetData(pixels);
+			return texture;
 		}
 
 		// ---- binding a file to a model ------------------------------------------------------------------
@@ -539,6 +695,8 @@ namespace OpenFF.Client
 				GraphicsDevice device = GlobalScope.m_Graphics.GetGraphicsDeviceManager().GraphicsDevice;
 				Matrix projection = GlobalScope.m_Graphics.getBasicEffect().Projection;
 				GlobalScope.NNSG3dResMat materials = GlobalScope.NNS_G3dGetMat(ro.ModelRes);
+				CheckTextures(look, device);
+				int ctrl = GlobalScope.characterMng.findByRenderObject(ro);
 				for (int i = 0; i < file.Meshes.Count && i < look.Mesh.Primitives.Count; i++)
 				{
 					GltfMesh mesh = file.Meshes[i];
@@ -549,8 +707,11 @@ namespace OpenFF.Client
 					GltfMaterial material = mesh.Material >= 0 && mesh.Material < file.Materials.Count ? file.Materials[mesh.Material] : null;
 					Color tint = GameColour(materials, i, material);
 					VertexPositionColorTexture[] vertices = Skin(binding, i, mesh, primitive, root, placement, tint, alphaRate / 100f);
-					NativeRenderer.Draw(device, 4u, vertices, 0, vertices.Length, Matrix.Identity, projection, primitive.Texture,
-						primitive.Filter, TextureAddressMode.Wrap, TextureAddressMode.Wrap,
+					Texture2D texture = look.Textures != null && i < look.Textures.Length && look.Textures[i] != null ? look.Textures[i] : primitive.Texture;
+					TextureFilter filter = look.Filters != null && i < look.Filters.Length ? look.Filters[i] : primitive.Filter;
+					if (ctrl >= 0 && Face(look, ctrl, material, texture, device, ref filter) is Texture2D face) texture = face;
+					NativeRenderer.Draw(device, 4u, vertices, 0, vertices.Length, Matrix.Identity, projection, texture,
+						filter, TextureAddressMode.Wrap, TextureAddressMode.Wrap,
 						alphaTest: !translucent, alphaReference: 0.5f, alphaFunction: CompareFunction.Greater,
 						depthTest: true, depthWrite: !translucent, depthFunction: CompareFunction.LessEqual,
 						cull: false, cullMode: CullMode.None, destinationBlend: Blend.InverseSourceAlpha);

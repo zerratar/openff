@@ -1056,6 +1056,58 @@ at a time. A definition is such a list; the client rebuilds the pack with it as 
   a new summon's outcome without one shows the summon's name.
 - A summon of a glTF of the mod's: `SET_MODEL` names a model of the mod's own (300 and on, below).
 
+### A stand-in's pictures and expressions
+
+A stand-in's pictures can be swapped without re-exporting the glTF. In Crystal, open the
+glTF: each material under **Materials** has **Replace…** (a PNG of yours in its place),
+**Reset** and **Save PNG** (the picture as it is, to paint over), and **Pictures drawn**
+picks crisp (nearest, pixel art) or smoothed (linear) for the whole file. The definition records it:
+
+```json
+{ "model": "j101", "gltf": "assets/werewolf.glb",
+  "textures": { "eye": "assets/eye-green.png" }, "filter": "nearest" }
+```
+
+`textures` maps a material (its name in the file, or `"#2"` by its place) to a picture.
+`filter` is `nearest` or `linear`. Without it, the file's sampler decides. A picture of the
+mod's own that is 256 or less a side is drawn crisp. A changed PNG is taken again within a
+second, so you can paint with the game running.
+
+**Expressions.** FF3's scenes give a character a face pack (`SetUpCharacter_FaceData` with
+`j101_001` loads the game's `j101_001.face`), then flip its eye and mouth through the pack's
+numbered pictures (`ChangeFaceEye 3`, `ChangeFaceMouth 7`) for blinks, surprise and smiles.
+j101 has eight packs. In each, every number holds an eye or a mouth picture; j101_001 has
+eyes at 0-5 and mouths at 6-8. A stand-in follows along through its materials named after
+the parts (`eye`, `Eyes`, `eye.001`), or the ones `faceParts` names. For each number it
+shows your picture if `faces` has one. Otherwise it shows the game's own picture from the
+pack, but only when the material's picture is the game's size, which means the file was
+painted over the game's sheet. `"gameFaces": false` keeps the file's own picture instead:
+
+```json
+{ "model": "j101", "gltf": "assets/werewolf.glb",
+  "faces": { "j101_001": { "eye": { "0": "assets/faces/j101_001/eye-0.png", "3": "assets/faces/j101_001/eye-3.png" },
+                           "mouth": { "7": "assets/faces/j101_001/mouth-7.png" } } },
+  "faceParts": { "eye": "Eyes" } }
+```
+
+You don't have to write this by hand. Crystal's **Expressions** card, under the materials
+of the stand-in (or of the game model it replaces), lists the model's packs with every
+picture. Click one to see it on the model. **Play** flips through a row of numbers at a
+speed you pick, on one part or both: `0 1 2 1 0` is a blink. **Replace…** writes your PNG to
+`assets/faces/<pack>/<part>-<number>.png` and names it in the definition. **Save game PNG**
+gives you the game's picture to paint over.
+
+To work on many pictures at once, use **Export to project** (shift-click exports every
+pack). It writes each picture to `assets/faces/<pack>/` as `eye-0.png`, `mouth-6.png` and so
+on, and has the stand-in use them. Edit them in any image editor: Crystal takes them again
+when you switch back to it, and a running game within a second. **Download .zip** gives the
+same files to edit elsewhere. To bring pictures back, drop PNGs on the card; each goes to
+the number its name says (`eye-3.png`, or `j101_001-mouth-7.png` for another pack). A PNG
+dropped on a single picture replaces that one, whatever the file is called. If the glTF has
+no material named after a part, choose the material that should wear it beside the part's
+name. That writes `faceParts`. In the game, the log shows each picture the
+first time it is worn: `models: j101's eye shows j101_001 eye 3 - eye-3.png`, or `- the game's`.
+
 ### A model of the mod's own: `defs/models/f300.json` with a `base`
 
 A definition that names a model the game does not have, and the game model whose skeleton and

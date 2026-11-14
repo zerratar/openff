@@ -2369,6 +2369,121 @@ namespace Crystal.Editor
 					GetModelTexture(context);
 					return;
 
+				case "/api/model/material-texture":
+				{
+					// A stand-in glTF's material given a picture of the mod's own, or its own back: { asset, material, index,
+					// name, bytes (base64 PNG) } writes assets/<name> and names it in the definition's "textures";
+					// { asset, material, index, clear: true } takes it away. The file itself is not touched.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string asset = body?["asset"]?.GetValue<string>() ?? throw new ArgumentException("no file named");
+						OpenFF.Data.ModModel definition = GltfBundle.Definition(_project, asset)
+							?? throw new ArgumentException(Path.GetFileName(asset) + " stands in for no game model yet - pick the model it replaces first (Use in OpenFF)");
+						string material = body?["material"]?.GetValue<string>();
+						int index = body?["index"]?.GetValue<int>() ?? -1;
+						string key = !string.IsNullOrEmpty(material) ? material : "#" + index;
+						definition.Textures.Remove(key);
+						definition.Textures.Remove("#" + index);
+						string written = null;
+						if (!(body?["clear"]?.GetValue<bool>() ?? false))
+						{
+							byte[] bytes = System.Convert.FromBase64String(body?["bytes"]?.GetValue<string>() ?? "");
+							(int w, int h) = GltfBundle.PngSize(bytes);
+							if (w == 0) throw new ArgumentException("not a PNG");
+							string fileName = Path.GetFileName(body?["name"]?.GetValue<string>() ?? "");
+							if (string.IsNullOrWhiteSpace(fileName) || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+								fileName = Path.GetFileNameWithoutExtension(asset) + "-" + key.Replace("#", "m") + ".png";
+							if (!fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) fileName += ".png";
+							string folder = Path.Combine(_project.Directory, GltfBundle.Folder);
+							Directory.CreateDirectory(folder);
+							File.WriteAllBytes(Path.Combine(folder, fileName), bytes);
+							written = GltfBundle.Folder + "/" + fileName;
+							definition.Textures[key] = written;
+						}
+						File.WriteAllText(definition.Source, definition.ToJson());
+						SendJson(context, new { ok = true, asset, material = key, picture = written, definition = "defs/models/" + definition.Model + ".json" });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/model/faces":
+					// A model's expressions: its face packs (j101_001.face...), each number's eye and mouth, and the mod's own where it has them.
+					try { SendJson(context, Faces.List(_workspace, _project, Query(context, "name"))); }
+					catch (Exception ex) { SendJson(context, new { error = ex.Message }); }
+					return;
+
+				case "/api/model/face-picture":
+					// One expression picture as a PNG (?name=&pack=&part=&n=, &game=1 for the game's even when the mod has its own).
+					try
+					{
+						int.TryParse(Query(context, "n"), out int number);
+						Send(context, 200, "image/png", Faces.Picture(_workspace, _project, Query(context, "name"), Query(context, "pack"), Query(context, "part"), number, Query(context, "game") == "1"));
+					}
+					catch (Exception ex) { Send(context, 404, "text/plain", Encoding.UTF8.GetBytes(ex.Message)); }
+					return;
+
+				case "/api/model/face-export":
+				{
+					// { name, pack } (pack "*" or none: every pack of the model) - its pictures written to assets/faces/<pack>/ and named in the definition.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try { SendJson(context, Faces.Export(_workspace, _project, body?["name"]?.GetValue<string>(), body?["pack"]?.GetValue<string>())); }
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/model/face-zip":
+					// ?name=&pack= (or pack=* for every pack): the pictures as <pack>/<part>-<number>.png in a zip.
+					try
+					{
+						string pack = Query(context, "pack");
+						context.Response.AddHeader("Content-Disposition", "attachment; filename=\"" + (string.IsNullOrEmpty(pack) || pack == "*" ? "faces" : pack) + ".zip\"");
+						Send(context, 200, "application/zip", Faces.Zip(_workspace, _project, Query(context, "name"), pack));
+					}
+					catch (Exception ex) { Send(context, 404, "text/plain", Encoding.UTF8.GetBytes(ex.Message)); }
+					return;
+
+				case "/api/model/face-replace":
+				{
+					// { name, pack, part, n, bytes (base64 PNG) } - the mod's own picture for that number; { ..., clear: true } the game's back;
+					// { name, gameFaces: bool } whether numbers the mod has no picture for show the game's on the stand-in.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string name = body?["name"]?.GetValue<string>() ?? throw new ArgumentException("no model named");
+						if (body?["gameFaces"] is JsonNode gameFaces) { SendJson(context, Faces.SetGameFaces(_project, name, gameFaces.GetValue<bool>())); return; }
+						if (body?["facePart"]?.GetValue<string>() is string facePart) { SendJson(context, Faces.SetFacePart(_project, name, facePart, body?["material"]?.GetValue<string>())); return; }
+						bool clear = body?["clear"]?.GetValue<bool>() ?? false;
+						byte[] bytes = clear ? null : System.Convert.FromBase64String(body?["bytes"]?.GetValue<string>() ?? "");
+						SendJson(context, Faces.Replace(_project, name, body?["pack"]?.GetValue<string>(), body?["part"]?.GetValue<string>(), body?["n"]?.GetValue<int>() ?? -1, bytes));
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/model/filter":
+				{
+					// A stand-in glTF's pictures drawn "nearest" (crisp texels), "linear" (smoothed) or as the file's samplers say (null).
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string asset = body?["asset"]?.GetValue<string>() ?? throw new ArgumentException("no file named");
+						OpenFF.Data.ModModel definition = GltfBundle.Definition(_project, asset)
+							?? throw new ArgumentException(Path.GetFileName(asset) + " stands in for no game model yet");
+						string filter = body?["filter"]?.GetValue<string>();
+						definition.Filter = filter == "nearest" || filter == "linear" ? filter : null;
+						File.WriteAllText(definition.Source, definition.ToJson());
+						SendJson(context, new { ok = true, filter = definition.Filter });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/model/animation":
 					// A battle map's own animation (bNN.namp beside bNN.nmdp): its texture scrolls and alphas a frame (Namp.cs).
 					SendJson(context, Namp.Read(_workspace, Query(context, "name")));

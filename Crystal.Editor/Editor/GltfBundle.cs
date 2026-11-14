@@ -66,14 +66,10 @@ namespace Crystal.Editor
 			// any light left out (CharacterMeshes); a scene object takes its vertex colours when it has them (a game model's
 			// export carries the DS's), else a light from above (GltfModel.Vertices). Both at once had made a character
 			// exported from the game a fifth darker for its vertex colours and darker again on every side facing away.
-			bool standsIn = false;
-			try
-			{
-				string asset = name.Replace('\\', '/');
-				foreach (OpenFF.Data.ModModel d in OpenFF.Data.ModModels.Load(new[] { project.Directory }))
-					if (!string.IsNullOrEmpty(d.Gltf) && string.Equals(d.Gltf.Replace('\\', '/'), asset, StringComparison.OrdinalIgnoreCase)) standsIn = true;
-			}
-			catch (Exception) { }
+			OpenFF.Data.ModModel definition = Definition(project, name);
+			bool standsIn = definition != null;
+			bundle.StandsIn = definition?.Model;
+			bundle.DefinitionFilter = definition?.Filter;
 			int vertexBase = 0;
 			foreach (GltfMesh mesh in file.Meshes)
 			{
@@ -82,11 +78,21 @@ namespace Crystal.Editor
 				{
 					Shape = mesh.Node, Node = mesh.Node, Material = material.Name ?? ("material " + mesh.Material),
 					Texture = material.Image >= 0 ? "image" + material.Image : null,
+					MaterialIndex = mesh.Material,
 					Start = bundle.Indices.Count, Count = mesh.Indices.Length,
 					Colour = (Byte(material.BaseColour[0]) << 16) | (Byte(material.BaseColour[1]) << 8) | Byte(material.BaseColour[2]),
 					Alpha = material.BaseColour[3], Translucent = material.Blend,
 					WrapS = "repeat", WrapT = "repeat", Matrices = new List<float[]> { new float[] { 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 } }, Slots = new List<int>(), Piece = bundle.Groups.Count
 				};
+				// The definition's own picture in place of the file's, and the filter the client draws it with.
+				string replacement = definition?.TexturePath(material.Name, mesh.Material);
+				string relative = replacement != null ? Path.GetRelativePath(project.Directory, replacement).Replace(Path.DirectorySeparatorChar, '/') : null;
+				// Its key carries the file's write time: a picture replaced under the same name is a new address, not the
+				// browser's cached one.
+				if (relative != null && File.Exists(replacement)) { group.Texture = "file:" + relative + "@" + File.GetLastWriteTimeUtc(replacement).Ticks; group.Replaced = true; }
+				byte[] picture = group.Replaced ? File.ReadAllBytes(replacement) : material.Image >= 0 && material.Image < file.Images.Count ? file.Images[material.Image].Bytes : null;
+				(group.PictureWidth, group.PictureHeight) = PngSize(picture);
+				group.Filter = definition?.Filter ?? (material.Nearest || (group.Replaced && Math.Max(group.PictureWidth, group.PictureHeight) <= 256) ? "nearest" : "linear");
 				for (int v = 0; v < mesh.VertexCount; v++)
 				{
 					float shade = 1f;
@@ -184,9 +190,41 @@ namespace Crystal.Editor
 			return skin;
 		}
 
-		/// <summary>A picture of the model, by the group's texture name (image0…), as its bytes and mime type.</summary>
+		/// <summary>The definition that has this file stand in for a game model (defs/models), or null.</summary>
+		public static OpenFF.Data.ModModel Definition(Project project, string name)
+		{
+			if (project == null || string.IsNullOrEmpty(name)) return null;
+			try
+			{
+				string asset = name.Replace('\\', '/');
+				foreach (OpenFF.Data.ModModel d in OpenFF.Data.ModModels.Load(new[] { project.Directory }))
+					if (!string.IsNullOrEmpty(d.Gltf) && string.Equals(d.Gltf.Replace('\\', '/'), asset, StringComparison.OrdinalIgnoreCase)) return d;
+			}
+			catch (Exception) { }
+			return null;
+		}
+
+		/// <summary>A PNG's width and height from its header; (0, 0) for anything else.</summary>
+		public static (int, int) PngSize(byte[] png)
+		{
+			if (png == null || png.Length < 24 || png[0] != 0x89 || png[1] != (byte)'P') return (0, 0);
+			int Big(int at) => (png[at] << 24) | (png[at + 1] << 16) | (png[at + 2] << 8) | png[at + 3];
+			return (Big(16), Big(20));
+		}
+
+		/// <summary>A picture of the model, by the group's texture name (image0…, or file:assets/x.png for the definition's
+		/// own), as its bytes and mime type.</summary>
 		public static (byte[] bytes, string mime) Texture(Project project, string name, string texture)
 		{
+			if (texture != null && texture.StartsWith("file:", StringComparison.Ordinal))
+			{
+				string named = texture.Substring(5);
+				int at = named.LastIndexOf('@');
+				if (at > 0) named = named.Substring(0, at);
+				string own = Resolve(project, named);
+				if (own == null) throw new FileNotFoundException("no picture " + named + " in the project");
+				return (File.ReadAllBytes(own), own.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? "image/png" : "image/jpeg");
+			}
 			string path = Resolve(project, name);
 			if (path == null) throw new FileNotFoundException("no file " + name);
 			GltfFile file = GltfFile.Load(path);

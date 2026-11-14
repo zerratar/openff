@@ -29,6 +29,24 @@
 // files and the character is drawn as the glTF - the base itself, wherever else it is used, keeps its own look.
 //
 //   { "model": "f300", "base": "f202", "gltf": "assets/wyrm.glb", "clips": { "101": "Idle", "201": "Breath" } }
+//
+// The file's pictures can be swapped without touching it: "textures" gives a material (by its name in the file, or
+// "#2" by its place) a picture of the mod's own, and "filter" draws every picture "nearest" (crisp texels, pixel art)
+// or "linear" (smoothed) whatever the file's samplers say.
+//
+//   { "model": "j101", "gltf": "assets/werewolf.glb", "textures": { "eye": "assets/eye-shocked.png" }, "filter": "nearest" }
+//
+// Expressions: a scene puts a face pack on a character (SetUpCharacter_FaceData "j101_001" - the game's
+// j101_001.face, a numbered set of eye and mouth pictures) and shows one of its pictures at a time
+// (ChangeFaceEye 3: a blink, a wide-eyed start). "faces" gives a picture of the mod's own for a pack's part and
+// number; the material of the part's name (or "faceParts"' choice) wears it while the scene shows that number. A
+// number the mod has no picture for shows the game's own, decoded from the pack, when the material's picture is the
+// game's size (the file was painted over the game's sheet) - "gameFaces": false keeps the file's picture instead.
+//
+//   { "model": "j101", "gltf": "assets/werewolf.glb",
+//     "faces": { "j101_001": { "eye": { "0": "assets/faces/j101_001/eye-0.png", "3": "assets/faces/j101_001/eye-3.png" },
+//                              "mouth": { "1": "assets/faces/j101_001/mouth-1.png" } } },
+//     "faceParts": { "eye": "Eyes" } }
 
 using System;
 using System.Collections.Generic;
@@ -69,6 +87,62 @@ namespace OpenFF.Data
 		/// </summary>
 		public Dictionary<string, ModClip> Clips = new Dictionary<string, ModClip>(StringComparer.OrdinalIgnoreCase);
 
+		/// <summary>Pictures in place of the file's own: a material's name in the file (or "#index") -> a picture relative to
+		/// the mod's root (assets/eye-shocked.png).</summary>
+		public Dictionary<string, string> Textures = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>"nearest" or "linear" for every picture of the file, in place of its samplers'; null keeps the file's.</summary>
+		public string Filter;
+
+		/// <summary>Expression pictures: "pack/part/number" (j101_001/eye/3) -> a picture relative to the mod's root.</summary>
+		public Dictionary<string, string> Faces = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>A face part (eye, mouth) -> the material of the file that wears it, when not the material of its name.</summary>
+		public Dictionary<string, string> FaceParts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>Whether a face picture the mod has none for shows the game's own (on a material of the game's size).</summary>
+		public bool GameFaces = true;
+
+		public static string FaceKey(string pack, string part, int number) => (pack ?? "").ToLowerInvariant() + "/" + (part ?? "").ToLowerInvariant() + "/" + number;
+
+		/// <summary>The face part (eye, mouth) a material wears: faceParts' choice, else the part the material is named after
+		/// ("eye", "Eyes", "eye.001"); null for a material that is no part of the face.</summary>
+		public string FacePartOf(string material, IEnumerable<string> parts)
+		{
+			if (string.IsNullOrEmpty(material)) return null;
+			foreach (KeyValuePair<string, string> pair in FaceParts) if (string.Equals(pair.Value, material, StringComparison.OrdinalIgnoreCase)) return pair.Key;
+			string stem = material.ToLowerInvariant();
+			int cut = stem.IndexOfAny(new[] { '.', '_', '-', ' ' });
+			if (cut > 0) stem = stem.Substring(0, cut);
+			foreach (string part in parts)
+			{
+				if (FaceParts.ContainsKey(part)) continue;
+				string p = part.ToLowerInvariant();
+				if (stem == p || stem == p + "s") return part;
+			}
+			return null;
+		}
+
+		/// <summary>The mod's picture for a pack's part and number, as a full path; null when it has none.</summary>
+		public string FacePath(string pack, string part, int number) =>
+			Faces.TryGetValue(FaceKey(pack, part, number), out string path) ? Resolve(path) : null;
+
+		private string Resolve(string path)
+		{
+			if (string.IsNullOrWhiteSpace(path)) return null;
+			if (Path.IsPathRooted(path)) return path;
+			string root = Root;
+			return root == null ? null : Path.Combine(root, path.Replace('/', Path.DirectorySeparatorChar));
+		}
+
+		/// <summary>The picture a material is to wear in place of the file's own, as a full path; null for the file's.</summary>
+		public string TexturePath(string material, int index)
+		{
+			if (Textures.Count == 0) return null;
+			if (!(material != null && Textures.TryGetValue(material, out string path)) && !Textures.TryGetValue("#" + index, out path)) return null;
+			return Resolve(path);
+		}
+
 		/// <summary>The mod's root: the definition lives in <root>/defs/models.</summary>
 		public string Root
 		{
@@ -105,8 +179,42 @@ namespace OpenFF.Data
 				Rotation = Triple(node["rotation"]),
 				Offset = Triple(node["offset"]),
 				Fitted = node["fitted"]?.GetValue<bool>() ?? false,
+				Filter = node["filter"]?.GetValue<string>() is string f && (f == "nearest" || f == "linear") ? f : null,
+				GameFaces = node["gameFaces"]?.GetValue<bool>() ?? true,
 				Source = source
 			};
+			if (node["textures"] is JsonObject textures)
+			{
+				foreach (KeyValuePair<string, JsonNode> pair in textures)
+				{
+					string to = pair.Value?.GetValue<string>();
+					if (!string.IsNullOrWhiteSpace(pair.Key) && !string.IsNullOrWhiteSpace(to)) model.Textures[pair.Key] = to.Replace('\\', '/');
+				}
+			}
+			if (node["faces"] is JsonObject faces)
+			{
+				foreach (KeyValuePair<string, JsonNode> pack in faces)
+				{
+					if (pack.Value is not JsonObject parts) continue;
+					foreach (KeyValuePair<string, JsonNode> part in parts)
+					{
+						if (part.Value is not JsonObject numbers) continue;
+						foreach (KeyValuePair<string, JsonNode> number in numbers)
+						{
+							string to = number.Value?.GetValue<string>();
+							if (int.TryParse(number.Key, out int n) && n >= 0 && !string.IsNullOrWhiteSpace(to)) model.Faces[FaceKey(pack.Key, part.Key, n)] = to.Replace('\\', '/');
+						}
+					}
+				}
+			}
+			if (node["faceParts"] is JsonObject faceParts)
+			{
+				foreach (KeyValuePair<string, JsonNode> pair in faceParts)
+				{
+					string to = pair.Value?.GetValue<string>();
+					if (!string.IsNullOrWhiteSpace(pair.Key) && !string.IsNullOrWhiteSpace(to)) model.FaceParts[pair.Key] = to;
+				}
+			}
 			if (node["bones"] is JsonObject bones)
 			{
 				foreach (KeyValuePair<string, JsonNode> pair in bones)
@@ -145,6 +253,33 @@ namespace OpenFF.Data
 			if (Rotation != null) node["rotation"] = new JsonArray(Rotation[0], Rotation[1], Rotation[2]);
 			if (Offset != null) node["offset"] = new JsonArray(Offset[0], Offset[1], Offset[2]);
 			if (Fitted) node["fitted"] = true;
+			if (Filter != null) node["filter"] = Filter;
+			if (Textures.Count > 0)
+			{
+				JsonObject textures = new JsonObject();
+				foreach (KeyValuePair<string, string> pair in Textures) textures[pair.Key] = pair.Value;
+				node["textures"] = textures;
+			}
+			if (Faces.Count > 0)
+			{
+				JsonObject faces = new JsonObject();
+				foreach (KeyValuePair<string, string> pair in Faces.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase))
+				{
+					string[] key = pair.Key.Split('/');
+					if (key.Length != 3) continue;
+					if (faces[key[0]] is not JsonObject pack) faces[key[0]] = pack = new JsonObject();
+					if (pack[key[1]] is not JsonObject part) pack[key[1]] = part = new JsonObject();
+					part[key[2]] = pair.Value;
+				}
+				node["faces"] = faces;
+			}
+			if (FaceParts.Count > 0)
+			{
+				JsonObject faceParts = new JsonObject();
+				foreach (KeyValuePair<string, string> pair in FaceParts) faceParts[pair.Key] = pair.Value;
+				node["faceParts"] = faceParts;
+			}
+			if (!GameFaces) node["gameFaces"] = false;
 			if (Bones.Count > 0)
 			{
 				JsonObject bones = new JsonObject();

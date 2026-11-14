@@ -28,14 +28,14 @@
 //   bit 29      whether palette entry 0 is transparent
 
 using System;
-using OpenFF.Content;
+
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace Crystal
+namespace OpenFF.Graphics
 {
 	internal sealed class Tex0Texture
 	{
