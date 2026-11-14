@@ -164,11 +164,14 @@ game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rule
 | Name entry | Namingway's rename of the leader, Whyt's name and the ability's (five characters, the keyboard as Steam's), kept in the save; the message codes that show them. |
 | The ending | The staff roll (ending_page_file.epf's 70 pages over the ending's scenes), the last scene under it and The End held for a button (bootProgram), Namingway's last words, the cleared game's save and the title (ending_after). Checked in OpenFF only - no Steam save near the end to set it beside. |
 
-## The Steam shell - 0%
+## The Steam shell
 
-FF4's Windows shell (`FF4.exe`: the launcher's screens, achievements, its own settings)
-is documented in FF4-Internals from the Babil Decompilation Project's work and not
-started here.
+Achievements are in: OpenFF uses FF4.exe's own rules (`achievement_param.bbd`, AchievementCheckFuncs' 18
+checks at its nine moments) and connects to the player's Steam client as app 312750. That only happens on
+a Steam install with Steam running, and settings.json `"achievements": false` turns it off. Docs/Command-Line.md
+has the details. Checked as a dry run against a real account (the gil achievements on entering a map); a
+real unlock has not been watched on Steam yet. The launcher's screens and FF4.exe's own settings are
+documented in FF4-Internals and not started.
 
 ## In one line
 

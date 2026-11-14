@@ -154,6 +154,7 @@ namespace OpenFF.Client
 			// The game's time, this step counted - read every step whatever else happens, so that the clock
 			// counts each step at the speed it ran (GameClock).
 			double now = GameClock.Seconds;
+			Game.Guard("achievements", Achievements.Tick);
 			if (!_attached)
 			{
 				return;
@@ -261,6 +262,7 @@ namespace OpenFF.Client
 				// The mods' scene files for this map: objects with behaviours from the editor.
 				OpenFF.Game.Guard("scenes " + stage, () => OpenFF.SceneLoader.ApplyAll(stage));
 				OpenFF.Game.Events.Publish(new OpenFF.Events.MapEntered { Scene = legacy.Info });
+				if (GameProfile.IsFf4) Ff4Achievements.Request(Ff4Achievements.Walk);   // WSMove::wsInitialize
 				OpenFF.Game.Services.SceneLoadedInternal(legacy.Info);
 			}
 		}

@@ -280,6 +280,7 @@ namespace OpenFF.Client
 
 		private static void Board(Vehicle v)
 		{
+			Ff4Achievements.Request(Ff4Achievements.Vehicle);   // WSVehicleMove::wsInitialize
 			_inReach = null;
 			_arrived = false;
 			_ride = v;

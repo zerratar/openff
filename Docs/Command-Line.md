@@ -13,6 +13,8 @@ choice in `%LocalAppData%\OpenFF\launch.json`. These switches change that for on
 | `--party=4:10 --gil=500 --load=<slot>` | FF4 test starts: members by type and level, gil, a saved slot |
 | `--drive=<file>` | Play a scripted key drive from inside the game (see [Drives](Drives/)) |
 | `--nomods` | Load no mod code |
+| `--no-achievements` | Leave Steam alone for this run: no achievements, and Steam doesn't show you in the game (`"achievements": false` in settings.json turns them off for good) |
+| `--achievements-dry` | Read Steam's achievements and log what would be earned, sending nothing; for testing a mod or a change without touching your Steam account |
 
 ## Display
 
@@ -53,3 +55,25 @@ map ends with one log line listing the script commands it skipped.
 `crystal.exe` alone opens Crystal in the browser. With a command (`extract`, `script`,
 `tables`, `msd`, `pak`, `xbn`, `mdl`, `tex`, `cells`, `hich`, `mcl`, `lz` ...) it converts the
 games' files on the command line instead; `crystal help` prints the list. See [Editor.md](Editor.md).
+
+## Steam achievements
+
+When the game's files are a Steam install (`steam_api.dll` beside `FF4.exe` or `FF3_Win32.exe`; a GOG copy
+has none) and Steam is running, OpenFF connects to your Steam client as that game. Steam then shows you
+playing it, counts the playtime, and takes its achievements as the game earns them. OpenFF uses the Steam
+client already on your machine (`steamclient64.dll` in Steam's folder) and ships nothing of Valve's.
+
+FF4's achievements follow the game's own rules from `achievement_param.bbd` beside `FF4.exe`: the same
+checks (flags, items, augments, summons, levels, gil, the Bestiary, bosses, places) at the same moments
+(a scene starting or ending, New Game, entering a map, boarding a vehicle, winning a fight, learning an
+augment, a shop). FF3's 18 achievements aren't wired up yet, because FF3 decides them in its executable's
+code rather than in a table.
+
+Mods don't turn achievements off. The log says what happened, for example
+`achievements: on - Steam counts this as app 312750, 74 rule(s)`,
+`achievements: Steam's record in - 12 of 58 earned` and
+`achievements: com.square_enix.ff4_achievement042 earned`, or why they are off
+(`not a Steam install`, `Steam is not running`, `--no-achievements`).
+
+Earning achievements from a client other than the game's own is between you and Steam: Valve and
+Square Enix haven't approved OpenFF. Turn them off with `"achievements": false` if you'd rather not.

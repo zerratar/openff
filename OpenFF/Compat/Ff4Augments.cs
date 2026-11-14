@@ -60,6 +60,9 @@ namespace OpenFF.Client
 		public static bool IsPassive(int ability) => Passives.Contains(ability);
 
 		/// <summary>The ability an augment item teaches, 0 for an item that is not one.</summary>
+		/// <summary>Every augment item (DecantItemTbl), for the achievements' count.</summary>
+		public static IEnumerable<int> AllItems => Items.Keys;
+
 		public static int AbilityOf(int itemId) => Items.TryGetValue(itemId, out int ability) ? ability : 0;
 
 		/// <summary>The slots as laid out, laid out by the class's default first if they are not yet.</summary>
@@ -158,6 +161,7 @@ namespace OpenFF.Client
 			int twin = c.Id switch { 0 => 1, 1 => 0, 4 => 5, 5 => 4, _ => -1 };
 			if (twin >= 0 && Ff4Party.Party.Get(twin) is Character other) Learn(other, ability);
 			Log.Write(LogChannel.General, "augments: " + c.Name + " learns " + name + " (decant level " + c.DecantLevel + ")");
+			Ff4Achievements.Request(Ff4Achievements.Augment);
 			return c.Name + " learned " + name + ".";
 		}
 

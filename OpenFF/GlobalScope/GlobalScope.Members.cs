@@ -15454,6 +15454,7 @@ internal static partial class GlobalScope
 						internal static void ff3Command_EventStart(ScriptEngine engine)
 						{
 							engine.getWord();
+							if (OpenFF.Client.GameProfile.IsFf4) OpenFF.Client.Ff4Achievements.Request(OpenFF.Client.Ff4Achievements.SceneStart);
 							_ = 1;
 							CCastCommandTransit.getInstance().cast_BaseSystem().State();
 							int playCharacterIndex = wld.CWorldOutSideData.getInstance().PlayerData().getPlayCharacterIndex();
@@ -15489,6 +15490,7 @@ internal static partial class GlobalScope
 						internal static void ff3Command_EventEnd(ScriptEngine engine)
 						{
 							engine.getWord();
+							if (OpenFF.Client.GameProfile.IsFf4) OpenFF.Client.Ff4Achievements.Request(OpenFF.Client.Ff4Achievements.SceneEnd);
 							int playCharacterIndex = wld.CWorldOutSideData.getInstance().PlayerData().getPlayCharacterIndex();
 							if (CCastCommandTransit.getInstance().cast_PlayerMng().Player(playCharacterIndex)
 								.CharaKind() == chr.CHARACTER_KIND.CHARACTER_KIND_PLAYER_HUMAN)

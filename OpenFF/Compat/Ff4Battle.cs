@@ -195,6 +195,7 @@ namespace OpenFF.Client
 		/// <summary>An encounter group from the tables (FF4's monster_party_table.bbd), with its placements.</summary>
 		public bool StartParty(int partyId, bool inScene = false, int battleMap = -1)
 		{
+			Ff4Achievements.LastParty = partyId;
 			MonsterParty party = Ff4Party.Tables?.MonsterParty(partyId);
 			if (party == null || party.Slots.Count == 0)
 			{
@@ -2226,6 +2227,7 @@ namespace OpenFF.Client
 			}
 			if (!Ff4BattleStage.Active) foreach (Fighter f in _party) { if (f.Alive) Play(f, 2007); }   // on the stage VictoryPose has posed them
 			LastResult = 0;
+			Ff4Achievements.Request(Ff4Achievements.BattleWon);   // BattleEnding::execute
 			Log.Write(LogChannel.General, "battle: won - " + _expWon + " exp, " + _gilWon + " gil. " + string.Join(" ", lines));
 		}
 

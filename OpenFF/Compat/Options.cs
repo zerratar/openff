@@ -67,6 +67,8 @@ namespace OpenFF.Client
 			("msaa", "FF3_MSAA", "off|2|4|8", "Anti-aliasing samples for this run (settings.json: msaa)"),
 			("gltf-mips", "FF3_GLTF_MIPS", "off|auto|full|plain|raw", "A mod's glTF textures: off (default) draws level 0 alone, up to 2048 a side; auto a mip chain where the UVs leave room; full one regardless; raw the picture untouched"),
 			("novsync", "FF3_NOVSYNC", "", "Do not wait for the monitor this run"),
+			("no-achievements", "OPENFF_NO_ACHIEVEMENTS", "", "Leave Steam alone this run: no achievements, not shown in the game"),
+			("achievements-dry", "OPENFF_ACHIEVEMENTS_DRY", "", "Read Steam's achievements and log what would be earned, sending nothing (for testing)"),
 			("load", "FF3_LOAD", "<slot>", "FF4: start from a save slot (1-3) instead of the new game"),
 			("party", "FF3_PARTY", "<type[:level],...>", "FF4: extra party members for a test start (4:10 is the child Rydia at level 10)"),
 			("drive", "FF3_DRIVE", "<file>", "Play a scripted key drive from a file - wait/press/until/quit lines (headless tests; Docs/Drives)"),

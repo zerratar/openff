@@ -206,6 +206,7 @@ namespace OpenFF.Client
 			party.AddItem(itemId, count);
 			EngineHooks.ItemGained(itemId, count);
 			Notice(Text(_row.LineIds[3], "Thank you!"));
+			Ff4Achievements.Request(Ff4Achievements.Shop);
 			Log.Write(LogChannel.File, "shop: bought " + count + " x " + item.Name + " for " + price + " (" + party.Gil + " gil left)");
 			_count = 1;
 			return true;
@@ -223,6 +224,7 @@ namespace OpenFF.Client
 			party.RemoveItem(itemId, count);
 			party.Gil += price;
 			Notice(Text(_row.LineIds[3], "Thank you!"));
+			Ff4Achievements.Request(Ff4Achievements.Shop);
 			Log.Write(LogChannel.File, "shop: sold " + count + " x " + item.Name + " for " + price + " (" + party.Gil + " gil)");
 			_count = 1;
 			if (party.CountItem(itemId) == 0)

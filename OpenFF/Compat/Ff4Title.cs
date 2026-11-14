@@ -362,6 +362,7 @@ namespace OpenFF.Client
 
 			private void StartNewGame()
 			{
+				Ff4Achievements.Request(Ff4Achievements.NewGame);   // the title's NEW GAME (reqUpdate 4)
 				// A new game starts from nothing: the save file the engine read at boot (its last slot, a test's party
 				// in it) is not this game's. FF4's initForNewgame: Cecil alone, no flags.
 				Ff4Saves.Pending = null;
