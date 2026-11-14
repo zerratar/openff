@@ -113,8 +113,8 @@ const ICONS = {
   // A doorway with a way out of it.
   exit: '<path d="M9.6 2.2H3.4v11.6h6.2"/><path d="M7.4 8h6.4M11.4 5.6 13.8 8l-2.4 2.4"/>',
 
-  // A triangle of a mesh.
-  part: '<path d="M8 2.4 14 12.9H2z"/><path d="M8 2.4v10.5M5 7.6h6"/>',
+  // A piece of a mesh: a small cube. (A lone triangle in the model's orange read as a warning sign.)
+  part: '<path d="M8 2.2 13.4 5v6L8 13.8 2.6 11V5z"/><path d="M2.6 5 8 7.8 13.4 5M8 7.8v6"/>',
 
   // ----------------------------------------------------------------- fallback
 
