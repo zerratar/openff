@@ -108,6 +108,7 @@ recreated from the mobile release, with native rendering, text and sound around 
 | Keyboard and mouse | 100% |
 | Game pad | 80% |
 | OpenFF's own menus and settings | 60% |
+| Steam achievements | 95% |
 
 **Final Fantasy IV: in progress.** Written from FF4's own code (the Android build and the Steam
 executable) and checked frame by frame against the Steam game.
@@ -123,7 +124,7 @@ executable) and checked frame by frame against the Steam game.
 | Menus | 80% | Some screens |
 | Party data: growth, magic, equipment, items | 60% | |
 | Shops, inns, saves, encounters | 75% | Encounter details |
-| Steam extras (achievements) | 0% | |
+| Steam achievements | 95% | A real unlock still to be watched on Steam |
 
 Details for every part: [FF4 status](Docs/FF4-Status.md). What has been read out of FF4's
 code: [FF4 internals](Docs/FF4-Internals.md).
