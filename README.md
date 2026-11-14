@@ -43,7 +43,7 @@ What OpenFF adds on top of the originals:
 - Fast-forward (hold Tab).
 - Game pad support with rebindable buttons.
 - Mods, including OpenFF's own extras such as Gambits.
-- Steam achievements (FF4) and Steam showing you in the game, when you play from your Steam copy
+- Steam achievements (FF3 and FF4) and Steam showing you in the game, when you play from your Steam copy
   with Steam running. Mods don't turn them off; `"achievements": false` in settings.json does.
 
 Command-line switches (start on any map, window size, logs): [Command line](Docs/Command-Line.md).

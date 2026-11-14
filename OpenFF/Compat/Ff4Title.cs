@@ -367,6 +367,7 @@ namespace OpenFF.Client
 				// in it) is not this game's. FF4's initForNewgame: Cecil alone, no flags.
 				Ff4Saves.Pending = null;
 				Ff4Saves.PlayFrames = 0;
+				Ff4Saves.ClearCount = 0;
 				Ff4NaviMap.NewGame();
 				Ff4Bestiary.NewGame();
 				Ff4Names.NewGame();

@@ -53,7 +53,7 @@ namespace OpenFF.Client
 		public static int EarnedCount()
 		{
 			HashSet<string> names = new HashSet<string>();
-			foreach (Rule r in _rules) if (Achievements.IsEarned(r.Name)) names.Add(r.Name);
+			foreach (Rule r in _rules) if (SteamStats.Achieved(r.Name) == true) names.Add(r.Name);
 			return names.Count;
 		}
 
@@ -154,8 +154,8 @@ namespace OpenFF.Client
 					return true;
 				case 2:   // hardModeBeat
 					return Won(p[0]) && Ff4Settings.Current.Hard;
-				case 3:   // beatCount: the game's clear count - OpenFF knows "cleared before" by flag 0:998, which New Game+ keeps
-					return Won(p[0]) && (Flag(0, 998) ? 1 : 0) == p[1];
+				case 3:   // beatCount: this fight's party won with the game cleared that many times
+					return Won(p[0]) && Ff4Saves.ClearCount == p[1];
 				case 4:   // getItem
 					foreach (int k in List(p))
 					{

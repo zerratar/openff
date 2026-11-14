@@ -155,6 +155,10 @@ internal static partial class GlobalScope
 
         public static void AwardAchievement(int iId)
         {
+            // PORT: Steam's FF3 has the same eighteen in the same order (KILL_ZIN = FF3_ACHIEVEMENT_1 ... ALL_JOB = 18). Told
+            // before the award flag is looked at: that flag also holds what earlier runs earned (achievements.txt), which
+            // Steam may not have; Achievements keeps it to once a run and Steam's own record does the rest.
+            OpenFF.Client.Achievements.Unlock(SteamName(iId));
             if (m_abAwardFlag[iId])
             {
                 return;
@@ -178,6 +182,19 @@ internal static partial class GlobalScope
             }
             catch (Exception)
             {
+            }
+        }
+
+        /// <summary>Steam's name for one of the eighteen (FF3_ACHIEVEMENT_1 for KILL_ZIN).</summary>
+        public static string SteamName(int iId) => "FF3_ACHIEVEMENT_" + (iId + 1);
+
+        /// <summary>Steam's names of the ones OpenFF has awarded before (the earned keys achievements.txt keeps).</summary>
+        public static IEnumerable<string> SteamNamesOf(IEnumerable<string> keys)
+        {
+            foreach (string key in keys)
+            {
+                int i = Array.IndexOf(ACHIEVEMENT_KEY_TABLE, key);
+                if (i >= 0) yield return SteamName(i);
             }
         }
 

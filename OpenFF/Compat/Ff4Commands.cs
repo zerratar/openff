@@ -222,12 +222,12 @@ namespace OpenFF.Client
 		/// setInsideMapJump: this map has an exit - a trigger box here, a destination and an
 		/// arrival there. Declared when executed, so a branch declares it only when taken.
 		/// </summary>
-		/// <summary>clearCountJump(count, label): FF4 counts finished playthroughs; this is a first one.</summary>
+		/// <summary>clearCountJump(count, label): jumps when the game has been cleared exactly `count` times (gameClearCount).</summary>
 		private static void ClearCountJump(GlobalScope.ScriptEngine engine)
 		{
 			int count = engine.getByte();
 			uint label = engine.getDword();
-			if (count == 0)
+			if (count == Ff4Saves.ClearCount)
 			{
 				engine.jump(label);
 			}

@@ -3,8 +3,9 @@
 // turned them off (settings.json "achievements": false, or --no-achievements for a run). Mods do not turn them off.
 // While they are on, Steam counts the run as the game (SteamStats): the player shows in it and the playtime runs.
 //
-// What earns each is the game's own rule - FF4's from achievement_param.bbd beside FF4.exe (Ff4Achievements). FF3's
-// eighteen are not read yet: FF3_Win32.exe decides them in its code, with no table to read.
+// What earns each is the game's own rule - FF4's from achievement_param.bbd beside FF4.exe (Ff4Achievements); FF3's
+// eighteen where its code awards them (UserInfo.AwardAchievement: the bosses' flags, the gil, the treasure and monster
+// counts, the jobs...), Steam's FF3_ACHIEVEMENT_1..18 in the same order.
 
 using System;
 using System.Collections.Generic;
@@ -64,18 +65,31 @@ namespace OpenFF.Client
 				return;
 			}
 			Active = true;
-			_dry = Options.Get("achievements-dry") != null;
+			// A test drive (--drive) plays with cheats - flags, gil, parties set outright - so it never sends anything.
+			_dry = Options.Get("achievements-dry") != null || Options.Get("drive") != null;
 			_requestedAt = Environment.TickCount64;
 			if (GameProfile.IsFf4) Ff4Achievements.Load(install);
-			Log.Write(LogChannel.General, "achievements: on - Steam counts this as app " + app + (GameProfile.IsFf4 ? ", " + Ff4Achievements.Count + " rule(s)" : ", FF3's rules are not read yet"));
+			else
+			{
+				// FF3's earned before in OpenFF (its own record, achievements.txt), sent on: Steam takes the ones it lacks.
+				try
+				{
+					var gamer = Microsoft.Xna.Framework.GamerServices.Gamer.SignedInGamers[Microsoft.Xna.Framework.PlayerIndex.One];
+					if (gamer != null) foreach (string name in GlobalScope.UserInfo.SteamNamesOf(gamer.EarnedKeys())) Unlock(name);
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "achievements: OpenFF's own FF3 record - " + ex.Message); }
+			}
+			Log.Write(LogChannel.General, "achievements: on - Steam counts this as app " + app + (GameProfile.IsFf4 ? ", " + Ff4Achievements.Count + " rule(s)" : ", FF3's eighteen as its code awards them"));
 		}
 
 		/// <summary>Earns an achievement by its Steam name (once; sent when Steam's stats are in).</summary>
 		public static void Unlock(string name)
 		{
-			if (!Active || string.IsNullOrEmpty(name) || _earned.Contains(name)) return;
+			// Before the first step has connected, kept until it has (a save's load awarding something on the way in).
+			if (_started && !Active || string.IsNullOrEmpty(name) || _earned.Contains(name)) return;
 			_earned.Add(name);
 			_toUnlock.Enqueue(name);
+			Log.Write(LogChannel.File, "achievements: " + name + " reached in the game");
 		}
 
 		/// <summary>Whether an achievement is earned, as far as this run knows (Steam's record once its stats are in).</summary>
@@ -91,7 +105,7 @@ namespace OpenFF.Client
 		public static void Tick()
 		{
 			if (!_started) Start();
-			if (!Active) return;
+			if (!Active) { _toUnlock.Clear(); return; }
 			long now = Environment.TickCount64;
 			if (now >= _nextPump)
 			{
@@ -103,7 +117,10 @@ namespace OpenFF.Client
 			if (!_toldReady)
 			{
 				_toldReady = true;
-				if (GameProfile.IsFf4) Log.Write(LogChannel.General, "achievements: Steam's record in - " + Ff4Achievements.EarnedCount() + " of " + Ff4Achievements.NameCount + " earned" + (_dry ? " (dry run: nothing will be sent)" : ""));
+				int earned = 0, total = GameProfile.IsFf4 ? Ff4Achievements.NameCount : 18;
+				if (GameProfile.IsFf4) earned = Ff4Achievements.EarnedCount();
+				else for (int i = 1; i <= 18; i++) if (SteamStats.Achieved("FF3_ACHIEVEMENT_" + i) == true) earned++;
+				Log.Write(LogChannel.General, "achievements: Steam's record in - " + earned + " of " + total + " earned" + (_dry ? " (dry run: nothing will be sent)" : ""));
 			}
 			while (_toUnlock.Count > 0)
 			{

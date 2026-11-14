@@ -169,7 +169,7 @@ game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rule
 Achievements are in: OpenFF uses FF4.exe's own rules (`achievement_param.bbd`, AchievementCheckFuncs' 18
 checks at its nine moments) and connects to the player's Steam client as app 312750. That only happens on
 a Steam install with Steam running, and settings.json `"achievements": false` turns it off. Docs/Command-Line.md
-has the details. Checked as a dry run against a real account (the gil achievements on entering a map); a
+has the details. The clear count is kept in the save (the ending's save counts the clear, New Game+ keeps it), which `clearCountJump` and the two Zeromus achievements read. Checked as a dry run against a real account (the gil achievements on entering a map); a
 real unlock has not been watched on Steam yet. The launcher's screens and FF4.exe's own settings are
 documented in FF4-Internals and not started.
 

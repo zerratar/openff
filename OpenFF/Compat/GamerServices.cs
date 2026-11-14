@@ -275,11 +275,18 @@ namespace Microsoft.Xna.Framework.GamerServices
 			SignedIn?.Invoke(null, new SignedInEventArgs(gamer));
 		}
 
+		/// <summary>The keys earned in OpenFF so far (achievements.txt) - sent on to Steam when it is on.</summary>
+		public List<string> EarnedKeys()
+		{
+			lock (_sync) return new List<string>(_earned);
+		}
+
 		public IAsyncResult BeginAwardAchievement(string achievementKey, AsyncCallback callback, object state)
 		{
+			// A test drive's awards (its flags and gil set outright) are not kept as earned.
 			lock (_sync)
 			{
-				if (_earned.Add(achievementKey))
+				if (OpenFF.Client.Options.Get("drive") == null && _earned.Add(achievementKey))
 				{
 					Save();
 				}

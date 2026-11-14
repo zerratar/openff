@@ -66,8 +66,14 @@ client already on your machine (`steamclient64.dll` in Steam's folder) and ships
 FF4's achievements follow the game's own rules from `achievement_param.bbd` beside `FF4.exe`: the same
 checks (flags, items, augments, summons, levels, gil, the Bestiary, bosses, places) at the same moments
 (a scene starting or ending, New Game, entering a map, boarding a vehicle, winning a fight, learning an
-augment, a shop). FF3's 18 achievements aren't wired up yet, because FF3 decides them in its executable's
-code rather than in a table.
+augment, a shop). FF4's clear count is kept in the save, as the game keeps it: the ending's save counts the
+clear, and New Game+ carries the count. FF3's 18 are awarded where FF3's own code awards them (the bosses,
+gil, treasure, the Bestiary, the Ultima Weapon, the Iron Giant, the jobs). They also include any OpenFF
+earned before it talked to Steam: those are kept in `%LocalAppData%\FF3chievements.txt` and sent on
+when it connects.
+
+A run with `--drive` (a test drive, which sets flags, gil and parties outright) never sends anything and
+doesn't add to that file.
 
 Mods don't turn achievements off. The log says what happened, for example
 `achievements: on - Steam counts this as app 312750, 74 rule(s)`,
