@@ -1,7 +1,7 @@
 // The menu's side of Sight (MSSMagic::stMSSMPrcMagicSelect, MSSSightro): Enter on Sight (4023) in Magic, when the caster
 // can and there is something to see here, spends its MP, plays its sound (SE 0xA4 of bank 3) and opens the Sight screen
 // (Ff4NaviMapSight.cs draws its map); Up / Down light another row and show it at once (SE 3), Back returns to Magic (SE 2).
-// Elsewhere in Magic a spell is not cast from the menu yet.
+// Any other spell is cast by Ff4MenuMagic.
 
 using System;
 
@@ -15,7 +15,7 @@ namespace OpenFF.Client
 		/// <summary>Enter on a spell in Magic: Sight opens its screen; false when the spell was not taken.</summary>
 		private bool CastFromMagic(int spellId)
 		{
-			if (spellId != SpellSight) return false;
+			if (spellId != SpellSight) return StartSpell(spellId);   // Ff4MenuMagic
 			OpenFF.Data.SpellDefinition spell = Ff4Party.Tables?.Spell(spellId);
 			Ff4NaviMap navi = Ff4NaviMap.Instance;
 			if (spell == null || !spell.UsableInMenu || Member.Mp < spell.MpCost || navi == null || !navi.SightUsable())

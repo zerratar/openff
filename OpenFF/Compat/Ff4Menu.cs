@@ -30,7 +30,7 @@ namespace OpenFF.Client
 	internal sealed partial class Ff4Menu : GameService
 	{
 		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Gambits, Party, Settings, Save, Load, Quicksave, Difficulty, Sight, Shop }
-		private enum Mode { Browse, PickMember, EquipSlot, EquipItem, ItemTarget, SwapMember }
+		private enum Mode { Browse, PickMember, EquipSlot, EquipItem, ItemTarget, SwapMember, SpellTarget }
 
 		private sealed class Command
 		{
@@ -299,6 +299,7 @@ namespace OpenFF.Client
 
 		private void UpdateMemberScreen(InputState input, int? listCount)
 		{
+			if (_screen == Screen.Magic && _mode == Mode.SpellTarget) { UpdateSpellTarget(input); return; }
 			if (input.Pressed(Pad.B)) { Back(); return; }
 			if (_screen == Screen.Magic)
 			{
@@ -847,8 +848,10 @@ namespace OpenFF.Client
 			GameTables tables = Ff4Party.Tables;
 			h.Root = h.Picking = h.Bubble = h.Question = false;
 			h.Full = true;
-			h.Inventory = _screen == Screen.Inventory;
-			h.Magic = _screen == Screen.Magic;
+			// A spell's places are the Inventory's using screen (Steam's MgctoChr clears Magic down to the list's window).
+			bool spellTarget = _screen == Screen.Magic && _mode == Mode.SpellTarget;
+			h.Inventory = _screen == Screen.Inventory || spellTarget;
+			h.Magic = _screen == Screen.Magic && !spellTarget;
 			h.Status = _screen == Screen.Status;
 			h.Equipment = _screen == Screen.Equipment;
 			h.Abilities = _screen == Screen.Abilities;
@@ -913,6 +916,7 @@ namespace OpenFF.Client
 				if (h.Using) h.ItemScroll.Shown = false;   // the party's places take the list's window, with no bar
 				h.UseCount = h.Using ? Ff4Party.Party.CountItem(_usingItem).ToString() : "";
 				FillMembers(h.Target, _mode == Mode.ItemTarget ? _pick : -1, false);
+				if (spellTarget) FillSpellTarget(h);
 			}
 			if (h.Magic)
 			{
@@ -931,7 +935,7 @@ namespace OpenFF.Client
 					row.Count = "";
 					row.Icon = tables?.AbilityIcon(spells[i]) ?? -1;
 					row.Lit = i == _cursor;
-					row.Dim = spell != null && (spell.MpCost > c.Mp || !spell.UsableInMenu);   // Steam greys what the menu cannot cast (Hold, Libra) and what costs too much
+					row.Dim = spell != null && (MenuMpCost(c, spell) > c.Mp || !spell.UsableInMenu);   // Steam greys what the menu cannot cast (Hold, Libra) and what costs too much
 				}
 				Ff4MenuHud.Scroll(h.SpellScroll, (spells.Count + 2) / 3, 5, _scroll / 3, 526.5f, true);
 				SpellDefinition at = _cursor < spells.Count ? tables?.Spell(spells[_cursor]) : null;
