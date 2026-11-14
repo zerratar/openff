@@ -7,6 +7,29 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## 0.3.7 - FF4 to the end; your own characters' faces (2026-11-14)
+
+Final Fantasy IV now runs every script command its story uses. That covers the vehicles (the hovercraft, the Enterprise and its hook, the Falcon, the Lunar Whale and the chocobos), the trip between the worlds, the Underworld and the Moon, Steam's shops, inns, field map, Sight, save points, Bestiary, Event Theatre and Music Box, and the ending with New Game+. For modders, a character you replace with a glTF model of your own now looks as it does in Blender: crisp pixel art, the game's brightness, and its pictures and facial expressions editable in Crystal.
+
+**Added**
+- Crystal, a stand-in character's look: each material's picture can be replaced with a PNG, reset, or saved to paint over, without re-exporting the glTF. **Pictures drawn** picks crisp (pixel art) or smoothed.
+- Crystal, expressions: every face pack of a character, the eye and mouth pictures FF3's scenes switch between for blinks, surprise and smiles. Click a picture to see it on the model, and Play runs a sequence such as a blink. To replace one, drop a PNG on it. **Export to project** writes every picture as a file to edit in any image editor, picked up as you save. **Download .zip** gives the same files to edit elsewhere, and dropping them back puts each in by its name.
+- OpenFF: a stand-in follows the scenes' expressions. It shows your picture for an expression where you added one. Where you didn't, a model made from the game's eye and mouth sheets shows the game's own expressions, while a face drawn differently keeps its own picture. Changed pictures are picked up while the game runs.
+- FF4: the vehicles as Steam has them, boarded with Enter and the "!" balloon: the hovercraft, the Enterprise's hook, the Falcon, the Lunar Whale's inside, the black chocobo's flight home, and the holes between the worlds. The Underworld and the Moon are textured, and the world map is no longer mirrored.
+- FF4: Steam's shop and inn screens, the field map (M) with its explored percentage, Sight, chests with item icons, save points and the first save point's hint, LOAD GAME and Save, and the difficulty choice on New Game.
+- FF4: the Fat Chocobo's Bestiary, Event Theatre and Music Box, the name entry, and the ending's staff roll and New Game+.
+- FF4: the scenes' 2D programs, fog, toon tables, grey fades, bound objects, the circling camera and the script-made exits. All 369 script commands the story uses now run.
+- FF4 battle: the last fights' events (prayers, Twincast, Golbez joining), Odin's and Asura's own actions, Reverse, and the developer room's members.
+- Docs: a shorter README, Docs/Command-Line.md and Docs/Controls.md.
+
+**Fixes**
+- A mod's glTF character no longer comes out blurry or smeared: pixel art is drawn crisp, as the file's own filter asks, and its edge pixels are no longer cleaned up.
+- Crystal shows models as bright as the game draws them; they were about a fifth too dark.
+- FF3: FF4's "!" balloon no longer shows over Luneth.
+- FF4: recoloured characters (Baron's shopkeepers and others) are textured; doors put the party where Steam does; FF4's world map is named for its world in saves.
+- Sounds keep their pan and their own volume.
+- The field no longer slows down while key hints are on screen.
+
 ## 0.3.6 - FF4's battle and menus (2026-10-10)
 
 Final Fantasy IV's battles now run by the game's own rules, checked frame by frame against the Steam release: the active time, the queue of turns, every party command, the monsters' AI and counters, the battle events, statuses, summons, bosses and the win. Its field menu is rebuilt screen by screen as Steam's, as layouts a mod can restyle; the story scenes, the message window and the opening movie are Steam's too. FF3 gets fixes from players' reports: the Yes / No hand at inns and job changes, item icons over names, and Starlit Menu's portrait.
