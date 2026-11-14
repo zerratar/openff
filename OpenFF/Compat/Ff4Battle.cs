@@ -850,6 +850,14 @@ namespace OpenFF.Client
 			bool busy = _executing != null || _cues.Count > 0 || _eventKind != EventKind.None;
 			if (!busy && _eventParty != null && _eventParty.NormalEvent >= 0 && !StartEvent(EventKind.Normal, _eventParty.NormalEvent)) busy = true;
 			if (_closing) return;
+			// dieState runs every frame of the behaviour manager, not only as a turn ends: one who fell with nothing under
+			// way (Doom's count out, a status put on from outside) goes now, and the last foe down ends the fight -
+			// after the normal event's poll, which may yet bring foes in.
+			if (!busy && (_dying.Count > 0 || _foes.TrueForAll(OutOfFight) || _party.TrueForAll(OutOfFight)))
+			{
+				FinishTurn(turnOver: false);
+				if (_closing || _phase != Phase.Fight) return;
+			}
 			if (!busy && _queue.Count > 0 && !_eventMode)
 			{
 				if (_eventParty != null && _eventParty.BeforeEvent >= 0)
@@ -2032,8 +2040,10 @@ namespace OpenFF.Client
 			FinishTurn();
 		}
 
-		/// <summary>The rest of a turn's end, after its event: the fallen go, then the battle may be over.</summary>
-		private void FinishTurn()
+		/// <summary>The rest of a turn's end, after its event: the fallen go, then the battle may be over. Without
+		/// <paramref name="turnOver"/> (a fighter fell between turns: Doom run out, a status put on from outside) no counter or
+		/// reaction follows.</summary>
+		private void FinishTurn(bool turnOver = true)
 		{
 			if (_closing) return;
 			int dying = 0;
@@ -2056,7 +2066,7 @@ namespace OpenFF.Client
 				_queue.Clear();
 				Lose();
 			}
-			else
+			else if (turnOver)
 			{
 				CheckCounters();
 				CheckMemberReactions(_attacker, _lastAbility);
