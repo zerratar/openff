@@ -1368,8 +1368,9 @@ namespace OpenFF.Client
 			if (foe.PlayerType >= 0) Play(foe, 2003, false, 3);   // BattlePlayer::setConditionMotion: a member's KO, then the fade
 			if (foe.Npc != null && Ff4BattleStage.Active) _dying.Add(foe);   // it goes once the turn is over (TurnEnd)
 			else if (foe.Npc != null) { foe.Npc.Alpha = 8; foe.Npc.Hidden = true; }
-			_expWon += foe.Monster.Experience;
-			_gilWon += foe.Monster.Gil;
+			// BattleMonsterParty's sums: a record's EXP or gil under 1 counts 0 (the story's foes hold -1), each total kept to 9,999,999.
+			_expWon = (int)Math.Min(9999999L, (long)_expWon + Math.Max(0, foe.Monster.Experience));
+			_gilWon = (int)Math.Min(9999999L, (long)_gilWon + Math.Max(0, foe.Monster.Gil));
 			Ff4Bestiary.Killed(foe.Monster.Id);   // MonsterManiaManager::kill
 		}
 

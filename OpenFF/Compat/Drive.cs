@@ -461,6 +461,13 @@ namespace OpenFF.Client
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: job failed: " + ex.Message); }
 					break;
 				}
+				case "endbattle":
+				{
+					// endbattle: every foe of the fight felled, those an event keeps standing too - a sweep's way past a scripted fight.
+					int felled = Ff4Battle.Instance?.FellAllFoes() ?? -1;
+					Log.Write(LogChannel.General, "drive: endbattle - " + (felled < 0 ? "no battle" : felled + " foe(s) felled"));
+					break;
+				}
 				case "status":
 				{
 					// FF4: a battle condition put on (or, already on, taken off) a fighter - "status party 0 8" poisons the

@@ -338,6 +338,20 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>A condition put on, or taken off, a fighter from outside (a test drive): committed as an action's would be.</summary>
+		/// <summary>A test's way out of a fight: every foe felled, an event's NotDeath too (the story's unbeatable foes).</summary>
+		public int FellAllFoes()
+		{
+			int n = 0;
+			foreach (Fighter f in _foes)
+			{
+				if (!f.Alive) continue;
+				f.NotDeath = false;
+				ConditionOn(f, CKO);
+				n++;
+			}
+			return n;
+		}
+
 		public bool ToggleCondition(bool foe, int index, int condition)
 		{
 			List<Fighter> side = foe ? _foes : _party;
