@@ -111,6 +111,8 @@ namespace OpenFF.Client
 			{ "stonePartySetting", Ff4PartyCommands.StonePartySetting },      // (what): 100 / 99 allow / forbid, 1 / 0 stone / colours
 			{ "setUpPochka", Ff4PartyCommands.SetUpPochka },                  // (cast): a check only
 			{ "setTelepo", Ff4PartyCommands.SetTelepo },                      // (map, x, y, z, facing)
+			{ "addDesionList", Ff4Warp.AddDesionList },                       // (map, x, y, z, facing): a floor for Warp to go back to
+			{ "clearDesionList", Ff4Warp.ClearDesionList },                   // (?, ?, ?): Warp's floors forgotten
 			{ "setTresureBattleMapID", Ff4PartyCommands.SetTresureBattleMapID }, // (stage, ?, ?)
 			{ "newTBoxIcon", Ff4NaviMap.NewTBoxIcon },                        // (x, y, z, flag group, flag index, ?)
 			{ "setChacterOffset", SetCharacterOffset },                       // (cast, x, y, z): a draw offset for a cast's model
@@ -206,7 +208,6 @@ namespace OpenFF.Client
 		/// <summary>Commands that only dress the game - door swings, footstep dust, BGM ducking, the jump history - skipped without a word in the log.</summary>
 		public static readonly HashSet<string> Cosmetic = new HashSet<string>(StringComparer.Ordinal)
 		{
-			"addDesionList", "clearDesionList",                          // the map-jump history
 			"setMapjumpBGMOperation",
 			"setRelationMapjumpToDoorAttr", "setDoor", "setRelationOfMapjumpobjAndFlag",   // door swings on exits
 			"createEffectTaskWalk", "createEffectTaskRun", "createEffectTaskWait",        // footstep dust

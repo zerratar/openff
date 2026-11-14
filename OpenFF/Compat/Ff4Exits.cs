@@ -77,7 +77,7 @@ namespace OpenFF.Client
 			exit.Armed = leader == null || !Inside(exit, leader);
 			_exits.Add(exit);
 			Log.Write(LogChannel.General, "exits: " + (_stage ?? "?") + " declares " + exit.Trigger + " -> " + exit.Destination
-				+ " (" + _exits.Count + " now)");
+				+ " at " + exit.ArrivalX + " " + exit.ArrivalY + " " + exit.ArrivalZ + " facing " + exit.Facing + " (" + _exits.Count + " now)");
 		}
 
 		private static bool Inside(Exit exit, GlobalScope.VecFx32 leader)
@@ -121,6 +121,7 @@ namespace OpenFF.Client
 				if (Ff4Vehicles.ResolveMap(ref destination, ref pos) && destination.Length == 3) destination = JumpPart.WithChip(destination, pos);
 				jump.setUp(destination, 0, pos, rot, _Flag: true);
 				world.setMapJump(b: true);
+				Ff4Warp.ExitTaken(destination, pos.x, pos.y, pos.z, exit.Facing);
 				return;
 			}
 		}

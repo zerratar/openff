@@ -60,6 +60,7 @@ namespace OpenFF.Client
 			// FF3's menu part cannot read FF4's party; the engine draws a status menu for FF4 (Ff4Menu).
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4NaviMap());
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Chests());
+			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Warp());
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Extras());
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Menu());
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Ride());

@@ -8,8 +8,8 @@
 //     / 2) x the power - all of them, each by (90 - 5 x the members standing)% when more than one stands; nothing for the
 //     fallen or stone, nor for anyone already full.
 // Nothing taken: the error sound (SE 0, 0) and no MP spent. Taken: the cost off the caster (half with MP Efficiency, as in
-// battle), the spell's sound (+10 bank, +12 id). Not done yet: the effect over the places (efp 0x3B6) and the field model a
-// Toad, Mini or Pig turns into.
+// battle), the spell's sound (+10 bank, +12 id). Warp and Teleport take no target (Ff4Warp). Not done yet: the effect over
+// the places (efp 0x3B6) and the field model a Toad, Mini or Pig turns into.
 
 using System;
 using OpenFF.Data;
@@ -28,10 +28,15 @@ namespace OpenFF.Client
 		/// <summary>pl::Player::isUseMagic for the menu: usable here, affordable, standing and allowed under its statuses.</summary>
 		private static bool CanCastHere(Character c, SpellDefinition spell)
 		{
-			if (spell == null || !spell.UsableInMenu || !c.Alive || c.Mp < MenuMpCost(c, spell)) return false;
+			if (spell == null || !MenuOffers(spell) || !c.Alive || c.Mp < MenuMpCost(c, spell)) return false;
 			if (c.Conditions == 0 || Ff4Party.Tables == null || !Ff4Party.Tables.AbilityUsableUnder.TryGetValue(spell.Id, out ulong allowed)) return true;
 			return (c.Conditions & ~allowed & ((1UL << 39) - 1)) == 0;
 		}
+
+		/// <summary>WSCMenu::checkItem for a spell: the record's menu bit, unless the map's script barred it (restrictionItemUse) -
+		/// or it is Warp with no floor behind (world_state_move bars it as the menu opens).</summary>
+		private static bool MenuOffers(SpellDefinition spell) =>
+			spell.UsableInMenu && !Ff4Warp.Restricted(spell.Id) && (spell.Id != Ff4Warp.SpellWarp || Ff4Warp.CanWarp);
 
 		private static int Flags(SpellDefinition spell) => spell.Raw != null && spell.Raw.Length >= 0x18 ? BitConverter.ToUInt16(spell.Raw, 0x16) : 0;
 
@@ -45,6 +50,16 @@ namespace OpenFF.Client
 				return true;
 			}
 			Game.Audio.PlaySe(0, 1);
+			if (spellId == Ff4Warp.SpellWarp || spellId == Ff4Warp.SpellTeleport)
+			{
+				// No target: the record's cost taken (not halved), the menu shut, the field's direction sends the party away.
+				if (Ff4Warp.Destination(spellId) == null) { Game.Audio.PlaySe(0, 0); return true; }
+				Member.Mp = Math.Max(0, Member.Mp - Math.Min(spell.MpCost, Member.MaxMp));
+				Log.Write(LogChannel.File, "menu: " + Member.Name + " casts " + (Ff4Party.Tables.AbilityTitle(spellId) ?? spell.Name));
+				Close();
+				Ff4Warp.Start(spellId);
+				return true;
+			}
 			_usingSpell = spellId;
 			_spellAll = spell.HitsAll;
 			_pick = 0;

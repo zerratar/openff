@@ -18,7 +18,7 @@ namespace OpenFF.Client
 			if (spellId != SpellSight) return StartSpell(spellId);   // Ff4MenuMagic
 			OpenFF.Data.SpellDefinition spell = Ff4Party.Tables?.Spell(spellId);
 			Ff4NaviMap navi = Ff4NaviMap.Instance;
-			if (spell == null || !spell.UsableInMenu || Member.Mp < spell.MpCost || navi == null || !navi.SightUsable())
+			if (spell == null || !MenuOffers(spell) || Member.Mp < spell.MpCost || navi == null || !navi.SightUsable())
 			{
 				Game.Audio.PlaySe(0, 0);
 				return true;

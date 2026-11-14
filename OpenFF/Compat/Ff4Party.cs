@@ -558,15 +558,18 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>A spell to the member's books (the menu's and the battle's lists read Spells), anything else to the abilities.</summary>
 		public bool LearnSpell(int id, int spellId)
 		{
 			Character c = P.Get(id);
-			if (c == null || c.Abilities.Contains(spellId)) return false;
-			c.Abilities.Add(spellId);
+			if (c == null) return false;
+			List<int> to = P.Tables?.Spell(spellId) != null ? c.Spells : c.Abilities;
+			if (to.Contains(spellId)) return false;
+			to.Add(spellId);
 			return true;
 		}
 
-		public bool ForgetSpell(int id, int spellId) => P.Get(id)?.Abilities.Remove(spellId) ?? false;
+		public bool ForgetSpell(int id, int spellId) => P.Get(id) is Character c && (c.Spells.Remove(spellId) | c.Abilities.Remove(spellId));
 
 		public void Inflict(int id, Condition conditions)
 		{

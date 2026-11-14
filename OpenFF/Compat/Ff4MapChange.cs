@@ -28,6 +28,7 @@ namespace OpenFF.Client
 		/// <summary>A field or town is left by a map jump (CStateFieldEnd / CStateTownEnd), in place of closing the shutter.</summary>
 		public static void Leave()
 		{
+			Ff4Warp.Jumping();
 			if (_conte) return;
 			GlobalScope.dgs.CFade.Main().fadeOut(15, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
 			GlobalScope.dgs.CFade.Sub().fadeOut(15, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
@@ -47,6 +48,7 @@ namespace OpenFF.Client
 			_enterFade = _partFade != 0 ? -1 : 15;
 			_partFade = 0;
 			GlobalScope.wld.AreaChange.getInstance().setOpenStrong();
+			Ff4Warp.Entered();
 		}
 
 		/// <summary>The start state's update, the map's scripts having run once: whether the entry is over.</summary>

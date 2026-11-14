@@ -58,6 +58,9 @@ namespace OpenFF.Client
 
 		public bool IsOpen => _open;
 
+		/// <summary>When the menu last ran open: an Esc that closes it is its own, not the pause menu's (PauseMenu).</summary>
+		internal static long OpenSeen = long.MinValue / 2;
+
 		// ---- the Steam arrangement, in the port's 800 x 480 ----
 		private const float PlaneX = 14f, PlaneW = 464f, PlaneRow = 94f, PlaneRowH = 90f;
 		private const float ColX = 488f, ColW = 272f, ColRow = 68f, ColRowH = 64f, ColVisible = 6;
@@ -168,13 +171,14 @@ namespace OpenFF.Client
 			if (!_open)
 			{
 				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !EventBusy() && !Game.Battle.InBattle && !Ff4Battle.Active
-					&& !(Ff4Shop.Instance?.IsOpen ?? false) && !(Ff4NaviMap.Instance?.IsOpen ?? false) && !Ff4Chests.Busy && !Ff4Extras.Busy && !Ff4Ride.Busy && !EncounterZoom.Playing && !BlurRotate.Playing
+					&& !(Ff4Shop.Instance?.IsOpen ?? false) && !(Ff4NaviMap.Instance?.IsOpen ?? false) && !Ff4Chests.Busy && !Ff4Warp.Busy && !Ff4Extras.Busy && !Ff4Ride.Busy && !EncounterZoom.Playing && !BlurRotate.Playing
 					&& (input.KeyPressed("Tab") || input.Pressed(Pad.X)))
 				{
 					Open();
 				}
 				return;
 			}
+			OpenSeen = Environment.TickCount64;
 			if (Ff4Saves.NoticeFrames > 0) Ff4Saves.NoticeFrames--;
 			if ((_screen == Screen.Load || _screen == Screen.Difficulty) && Ff4MenuHud.Available)
 			{
@@ -634,6 +638,7 @@ namespace OpenFF.Client
 			ItemDefinition item = Ff4Party.Tables?.Item(itemId);
 			if (item?.Raw == null || item.Raw.Length < 0x14) return false;
 			int flags = BitConverter.ToUInt16(item.Raw, 0x12);
+			if (Ff4Warp.Restricted(itemId)) return false;   // restrictionItemUse
 			return ((flags & 8) != 0 && SaveAllowed) || (flags & 4) != 0;
 		}
 
@@ -935,7 +940,7 @@ namespace OpenFF.Client
 					row.Count = "";
 					row.Icon = tables?.AbilityIcon(spells[i]) ?? -1;
 					row.Lit = i == _cursor;
-					row.Dim = spell != null && (MenuMpCost(c, spell) > c.Mp || !spell.UsableInMenu);   // Steam greys what the menu cannot cast (Hold, Libra) and what costs too much
+					row.Dim = spell != null && (MenuMpCost(c, spell) > c.Mp || !MenuOffers(spell));   // Steam greys what the menu cannot cast (Hold, Libra; Teleport in a town) and what costs too much
 				}
 				Ff4MenuHud.Scroll(h.SpellScroll, (spells.Count + 2) / 3, 5, _scroll / 3, 526.5f, true);
 				SpellDefinition at = _cursor < spells.Count ? tables?.Spell(spells[_cursor]) : null;
