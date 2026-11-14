@@ -357,6 +357,15 @@ namespace OpenFF.Data
 					MagicEvasion = ChainPack.S16(r, 0x68),
 					Gil = ChainPack.S32(r, 0x88),
 					Experience = ChainPack.S32(r, 0x8C),
+					Mp = ChainPack.S16(r, 0x10),
+					AttackElements = ChainPack.U16(r, 0x26),
+					Races = ChainPack.U16(r, 0x48),
+					Absorbs = ChainPack.U16(r, 0x54),
+					Resists = ChainPack.U16(r, 0x56),
+					StatusImmune = r.Length >= 0x60 ? BitConverter.ToUInt64(r, 0x58) : 0,
+					RaceResists = ChainPack.U16(r, 0x60),
+					Weak = ChainPack.U16(r, 0x64),
+					CastMotion = r.Length >= 0x96 ? ChainPack.S16(r, 0x94) : -1,
 					Raw = r,
 				};
 				for (int d = 0; d < 4; d++)

@@ -47,7 +47,7 @@ namespace OpenFF.Client
 		/// <summary>The statuses it is safe from: a monster's record +0x58, a member's armour (+0x24 of each piece).</summary>
 		private static ulong ImmuneTo(Fighter f)
 		{
-			if (f.IsMonster) return f.Monster?.Raw != null && f.Monster.Raw.Length >= 0x60 ? BitConverter.ToUInt64(f.Monster.Raw, 0x58) : 0;
+			if (f.IsMonster) return f.Monster?.StatusImmune ?? 0;
 			ulong mask = 0;
 			if (f.Member == null) return 0;
 			foreach (int id in f.Member.Equipment)

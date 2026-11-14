@@ -122,7 +122,7 @@ executable) and checked frame by frame against the Steam game.
 | The Fat Chocobo's extras, name entry | 85% | |
 | Cutscenes | 80% | Sky and shadow details |
 | Menus | 80% | Some screens |
-| Party data: growth, magic, equipment, items | 75% | Monster records in part |
+| Party data: growth, magic, equipment, items, monsters | 90% | |
 | Shops, inns, saves, encounters | 75% | Encounter details |
 | Steam achievements | 95% | A real unlock still to be watched on Steam |
 

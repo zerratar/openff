@@ -42,6 +42,28 @@ namespace Crystal.Editor
 			}
 		}
 
+		/// <summary>FF4's element bits in a monster's masks as names - the eight Steam's battle icons show for them (Ff4Ui.ElementBits:
+		/// battle_icon cells 24..31) - the rest as hex.</summary>
+		private static string Elements(int bits)
+		{
+			(int Bit, string Name)[] known = { (0x20, "fire"), (0x10, "ice"), (0x08, "lightning"), (0x40, "water"), (0x80, "earth"), (0x200, "air"), (0x100, "holy"), (0x400, "dark") };
+			List<string> names = new List<string>();
+			int rest = bits & 0xFFF;
+			foreach ((int bit, string n) in known) if ((bits & bit) != 0) { names.Add(n); rest &= ~bit; }
+			if (rest != 0) names.Add("0x" + rest.ToString("X"));
+			return string.Join(", ", names);
+		}
+
+		private static string Bits(int bits) => bits == 0 ? "" : "0x" + bits.ToString("X4");
+
+		/// <summary>The ys::Condition ids set in a mask.</summary>
+		private static string Statuses(ulong mask)
+		{
+			List<string> ids = new List<string>();
+			for (int i = 0; i < 64; i++) if ((mask >> i & 1) != 0) ids.Add(i.ToString());
+			return string.Join(" ", ids);
+		}
+
 		public static object Page(Workspace workspace, string name)
 		{
 			GameTables t = Tables(workspace);
@@ -93,13 +115,18 @@ namespace Crystal.Editor
 					note = "item_parameter.pak, named from the item text file; the raw records with every field are under Tables.";
 					break;
 				case "Monsters":
+					bool ff4 = t.Game == "ff4";
 					columns.AddRange(new[] { "id", "name", "level", "hp", "attack", "hit", "defence", "evade", "m.def", "str", "agi", "vit", "int", "spi", "exp", "gil", "family", "model", "size", "drops" });
+					if (ff4) columns.AddRange(new[] { "mp", "m.eva", "weak", "resists", "absorbs", "blow", "races", "race resists", "immune" });
 					foreach (MonsterDefinition m in t.Monsters)
 					{
-						rows.Add(new object[] { m.Id, m.Name, m.Level, m.MaxHp, m.Attack, m.Hit, m.Defence, m.Evade, m.MagicDefence, m.Stats.Strength, m.Stats.Agility, m.Stats.Vitality, m.Stats.Intellect, m.Stats.Spirit, m.Experience, m.Gil, m.Family, m.ModelId, m.Size,
-							m.Drops.Count > 0 ? string.Join(", ", m.Drops.Select(d => (t.Item(d.ItemId)?.Name ?? d.ItemId.ToString()) + " " + (d.Chance * 100 / 4096) + "%")) : (m.DropTable != 0 ? "table " + m.DropTable + " (" + m.DropProbability + ")" : "") });
+						List<object> row = new List<object> { m.Id, m.Name, m.Level, m.MaxHp, m.Attack, m.Hit, m.Defence, m.Evade, m.MagicDefence, m.Stats.Strength, m.Stats.Agility, m.Stats.Vitality, m.Stats.Intellect, m.Stats.Spirit, m.Experience, m.Gil, m.Family, m.ModelId, m.Size,
+							m.Drops.Count > 0 ? string.Join(", ", m.Drops.Select(d => (t.Item(d.ItemId)?.Name ?? d.ItemId.ToString()) + " " + (d.Chance * 100 / 4096) + "%")) : (m.DropTable != 0 ? "table " + m.DropTable + " (" + m.DropProbability + ")" : "") };
+						if (ff4) row.AddRange(new object[] { m.Mp, m.MagicEvasion, Elements(m.Weak), Elements(m.Resists) + ((m.Resists & 0x1000) != 0 ? " (strongly)" : ""), Elements(m.Absorbs), Elements(m.AttackElements),
+							Bits(m.Races), Bits(m.RaceResists), Statuses(m.StatusImmune) });
+						rows.Add(row.ToArray());
 					}
-					note = t.Game == "ff4" ? "monster.chaindata (152 bytes): attack at 0x20, defence block from 0x4C (tentative), drops from 0x6C, exp/gil at 0x88/0x8C." : "monster.chaindata (100 bytes): drop block at 0x54, gil at 0x58, exp at 0x5C.";
+					note = ff4 ? "monster.chaindata (152 bytes): MP at 0x10, stats at 0x12, attack at 0x20 (its elements at 0x26), races at 0x48, defence from 0x4C, absorbs / resists at 0x54 / 0x56, immune statuses at 0x58, race resists at 0x60, weaknesses at 0x64, magic defence / evasion at 0x66 / 0x68, drops from 0x6C, exp/gil at 0x88/0x8C, the cast motion at 0x94." : "monster.chaindata (100 bytes): drop block at 0x54, gil at 0x58, exp at 0x5C.";
 					break;
 				case "Encounter groups":
 					columns.AddRange(new[] { "id", "flags", "monsters", "placements" });

@@ -323,13 +323,21 @@ group @10, rank @12, element @22, inflicts @24, grants @26/@28, u8 target @32` (
 ### Monsters (`monster.chaindata`)
 
 Chain 0: 252 records of 152 bytes - FF3's head (nameId, textId, familyId, modelId, monsterId
-@8, level, size, maxHp s32 @0xC), five attribute bytes @0x12 (strength, vitality, agility -
-bodyAndBonus's 0..2 - intellect, spirit), the ATB rate's range (fx32 @0x18, @0x1C), its
-ys::PhysicsAttackParameter @0x20 (attack s32, hit s16 @+4, the back rows' multipliers fx32 @+8
-and +0xC: the Floating Eye's 8, 105, 1.0, 0.75), defence @0x4C, evade @0x50, magic defence
-@0x68 (tentative), four drop pairs (item, chance of 4096) from 0x6C, gil s32 @0x88, experience
-@0x8C (Steam's result window: two Floating Eyes, 14 gil and 300 EXP). Names only in
-`babil_battle.msd`. Client: `Ff4Tables.ReadMonsters`.
+@8, level, size, maxHp s32 @0xC), MP s16 @0x10 (`BattleMonster::maximumMP` and `presentMP`
+both read it: a monster's MP is never spent), five attribute bytes @0x12 (strength, vitality,
+agility - bodyAndBonus's 0..2 - intellect, spirit), the ATB rate's range (fx32 @0x18, @0x1C),
+its ys::PhysicsAttackParameter @0x20 (attack s32, hit s16 @+4, the blow's elements u16 @0x26,
+the back rows' multipliers fx32 @+8 and +0xC: the Floating Eye's 8, 105, 1.0, 0.75), its races
+u16 @0x48 (`BattleMonster::family`: what killer weapons are deadly to - 0x100 undead), defence
+@0x4C, evade @0x50, what it absorbs @0x54 and resists @0x56 (bit 0x1000: quartered, not halved),
+the statuses it is immune to u64 @0x58 (a ys::Condition bit each), the races it resists @0x60,
+its weaknesses @0x64 (in its magic defence, 0x1000 doubled), magic defence @0x66 and evasion
+@0x68, four drop pairs (item, chance of 4096) from 0x6C, gil s32 @0x88, experience @0x8C
+(Steam's result window: two Floating Eyes, 14 gil and 300 EXP), the motion it casts with s16
+@0x94. Element bits as Steam's battle icons show them: 0x20 fire, 0x10 ice, 0x08 lightning,
+0x40 water, 0x80 earth, 0x200 air, 0x100 holy, 0x400 dark (Bomb: weak to ice, absorbs fire;
+Zombie: weak to fire and holy, resists ice and lightning). Names only in `babil_battle.msd`.
+Client: `Ff4Tables.ReadMonsters` (`MonsterDefinition`); Crystal's Monsters page lists them.
 
 Chain 2: 28 bytes a monster by id, its plain attack as ys::Effects (`MonsterManager::normalAttack`):
 the effect's frame s32 @0, pack s16 @6, the sound's frame s32 @0xC, bank s16 @0x12, number s16

@@ -360,6 +360,19 @@ namespace OpenFF.Data
 		public int MagicDefence;
 		/// <summary>FF4: the magic evasion (record +0x68).</summary>
 		public int MagicEvasion;
+		/// <summary>FF4: its MP (+0x10, BattleMonster::maximumMP / presentMP - never spent: a monster's spells cost it nothing).</summary>
+		public int Mp;
+		/// <summary>FF4: its blow's elements (+0x26, in its physical attack), what it absorbs (+0x54), resists (+0x56) and is weak
+		/// to (+0x64, in its magic defence) - element bits as Steam's battle icons show them (0x20 fire, 0x10 ice, 0x08 lightning,
+		/// 0x40 water, 0x80 earth, 0x200 air, 0x100 holy, 0x400 dark); the resists' 0x1000 makes them quarter and its weaknesses double.</summary>
+		public int AttackElements, Absorbs, Resists, Weak;
+		/// <summary>FF4: its races (+0x48, BattleMonster::family: what a killer weapon is deadly to - 0x100 undead) and the races it
+		/// resists (+0x60).</summary>
+		public int Races, RaceResists;
+		/// <summary>FF4: the statuses it cannot be given (+0x58, a ys::Condition bit each).</summary>
+		public ulong StatusImmune;
+		/// <summary>FF4: the motion it casts with (+0x94), -1 for its plain attack's.</summary>
+		public int CastMotion = -1;
 		/// <summary>FF4: the model's size in battle (monster.chaindata chain 4 +0x44, 1 most often) and the chant effect's (+0x50).</summary>
 		public float Scale = 1f, ChantScale = 1f;
 		public int Experience;

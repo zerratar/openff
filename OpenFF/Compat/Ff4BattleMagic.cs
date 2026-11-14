@@ -227,7 +227,7 @@ namespace OpenFF.Client
 				}
 				else
 				{
-					int motion = ability ? show?.Motion ?? -1 : caster.Monster?.Raw != null && caster.Monster.Raw.Length >= 0x96 ? (short)BitConverter.ToInt16(caster.Monster.Raw, 0x94) : -1;
+					int motion = ability ? show?.Motion ?? -1 : caster.Monster?.CastMotion ?? -1;
 					if (motion > 0) { caster.Npc?.PlayMotion(motion, false, ability ? 10 : 2); caster.Acted = true; }
 				}
 			}

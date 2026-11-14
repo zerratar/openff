@@ -88,7 +88,7 @@ namespace OpenFF.Client
 			public int Attack, Defence, Agility;
 			public int Level, Intellect, Spirit, Vitality, MagicDefence;
 			public int Strength, HitChance, Evade;
-			public int Mp => Member?.Mp ?? 0;
+			public int Mp => Member?.Mp ?? Monster?.Mp ?? 0;   // a monster's is its record's (presentMP), never spent
 			public float Gauge;               // 0..1 (FF4's ATP over its 100)
 			public float AtbRate = 1f;        // a monster's, rolled at the start (BattleMonster::atbRate); 1 for the party
 			public bool Queued;               // its action is decided and waits its turn (ATG state 2 or 3, the gauge held full)
@@ -1504,11 +1504,10 @@ namespace OpenFF.Client
 		/// </summary>
 		private static Affinity AffinityOf(Fighter f)
 		{
-			if (f.IsMonster && f.Monster?.Raw != null && f.Monster.Raw.Length >= 0x66)
+			if (f.IsMonster && f.Monster != null)
 			{
-				byte[] r = f.Monster.Raw;
-				int U(int at) => BitConverter.ToUInt16(r, at);
-				return new Affinity(U(0x26), U(0x48), U(0x54), f.ResistOverride >= 0 ? f.ResistOverride : U(0x56), U(0x60), f.WeakOverride >= 0 ? f.WeakOverride : U(0x64), U(0x48));
+				MonsterDefinition m = f.Monster;
+				return new Affinity(m.AttackElements, m.Races, m.Absorbs, f.ResistOverride >= 0 ? f.ResistOverride : m.Resists, m.RaceResists, f.WeakOverride >= 0 ? f.WeakOverride : m.Weak, m.Races);
 			}
 			if (f.Member == null) return default;
 			GameTables tables = Ff4Party.Tables;
