@@ -110,6 +110,22 @@ namespace Crystal
 		public List<Mdl0Run> Runs = new List<Mdl0Run>();
 	}
 
+	internal static class Mdl0Light
+	{
+		/// <summary>A channel of the colour the game draws a material in (bit 0, 5 or 10 of the records' 15-bit colours),
+		/// under the field's white light (31): a lit material (polyAttr bit 0) takes light x diffuse / 4 + light x ambient / 4
+		/// + emission x 8, clamped; an unlit one with an emission that; the rest its diffuse - as the client draws a
+		/// character beside the game's own (CharacterMeshes.GameColour). The diffuse alone made every lit character - all of
+		/// FF3's (diffuse 25, ambient 31) - look a fifth darker here than in the game.</summary>
+		public static byte Shown(uint diffAmb, uint specEmi, uint polyAttr, int shift)
+		{
+			int diffuse = (int)((diffAmb >> shift) & 0x1F), ambient = (int)((diffAmb >> (16 + shift)) & 0x1F), emission = (int)((specEmi >> (16 + shift)) & 0x1F);
+			if ((polyAttr & 1) != 0) return (byte)Math.Min(255, 31 * diffuse / 4 + 31 * ambient / 4 + emission * 8);
+			if ((specEmi & 0xFFFF0000u) != 0) return (byte)(emission * 8);
+			return (byte)(diffuse << 3);
+		}
+	}
+
 	internal sealed class Mdl0Material
 	{
 		public string Name;
@@ -117,6 +133,10 @@ namespace Crystal
 		public string Palette;
 		public byte R, G, B;
 		public int Alpha;                        // 0-31, 31 being opaque
+		// The material's light terms as the record has them (diffuse / ambient, specular / emission, polygon attributes):
+		// a lit material (polyAttr bit 0) is drawn light x diffuse / 4 + light x ambient / 4 + emission x 8, not its diffuse.
+		public uint DiffAmb, SpecEmi, PolyAttr;
+		public bool Lit => (PolyAttr & 1) != 0;
 		public int Width;
 		public int Height;
 		public bool RepeatS, RepeatT, FlipS, FlipT;
@@ -402,6 +422,7 @@ namespace Crystal
 			{
 				int p = at + (int)U32(materials[i].Entry, 0);
 				uint diffAmb = U32(data, p + 4);
+				uint specEmi = U32(data, p + 8);
 				uint polyAttr = U32(data, p + 12);
 				uint texImageParam = U32(data, p + 20);
 				ushort flag = U16(data, p + 30);
@@ -437,10 +458,13 @@ namespace Crystal
 					Name = materials[i].Name,
 					Texture = texture[i],
 					Palette = palette[i],
-					R = (byte)((diffAmb & 0x1F) << 3),
-					G = (byte)(((diffAmb >> 5) & 0x1F) << 3),
-					B = (byte)(((diffAmb >> 10) & 0x1F) << 3),
+					R = Mdl0Light.Shown(diffAmb, specEmi, polyAttr, 0),
+					G = Mdl0Light.Shown(diffAmb, specEmi, polyAttr, 5),
+					B = Mdl0Light.Shown(diffAmb, specEmi, polyAttr, 10),
 					Alpha = (int)((polyAttr >> 16) & 0x1F),
+					DiffAmb = diffAmb,
+					SpecEmi = specEmi,
+					PolyAttr = polyAttr,
 					Width = U16(data, p + 32),
 					Height = U16(data, p + 34),
 					RepeatS = (texImageParam & 0x10000) != 0,

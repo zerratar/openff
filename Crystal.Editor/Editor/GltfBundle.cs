@@ -61,6 +61,19 @@ namespace Crystal.Editor
 			GltfFile file = GltfFile.Load(path);
 			ModelBundle bundle = new ModelBundle { Name = name, Buffer = new List<float>(), Indices = new List<int>(), Groups = new List<ModelGroup>(), Nodes = file.Meshes.Select(m => m.Node).Distinct().ToList(), Notes = file.Notes };
 			float[] light = Normalise(new[] { 0.4f, 1f, 0.6f });
+			// Shaded as the client draws it. A file standing in for a game model (defs/models: a character) is drawn in the
+			// game model's own lit colour - white for FF3's characters - times the file's base colour, its vertex colours and
+			// any light left out (CharacterMeshes); a scene object takes its vertex colours when it has them (a game model's
+			// export carries the DS's), else a light from above (GltfModel.Vertices). Both at once had made a character
+			// exported from the game a fifth darker for its vertex colours and darker again on every side facing away.
+			bool standsIn = false;
+			try
+			{
+				string asset = name.Replace('\\', '/');
+				foreach (OpenFF.Data.ModModel d in OpenFF.Data.ModModels.Load(new[] { project.Directory }))
+					if (!string.IsNullOrEmpty(d.Gltf) && string.Equals(d.Gltf.Replace('\\', '/'), asset, StringComparison.OrdinalIgnoreCase)) standsIn = true;
+			}
+			catch (Exception) { }
 			int vertexBase = 0;
 			foreach (GltfMesh mesh in file.Meshes)
 			{
@@ -77,13 +90,13 @@ namespace Crystal.Editor
 				for (int v = 0; v < mesh.VertexCount; v++)
 				{
 					float shade = 1f;
-					if (mesh.Normals != null)
+					if (!standsIn && mesh.Colours == null && mesh.Normals != null)
 					{
 						float dot = mesh.Normals[v * 3] * light[0] + mesh.Normals[v * 3 + 1] * light[1] + mesh.Normals[v * 3 + 2] * light[2];
 						shade = 0.55f + 0.45f * Math.Max(0f, dot);
 					}
 					float r = material.BaseColour[0], g = material.BaseColour[1], b = material.BaseColour[2];
-					if (mesh.Colours != null) { r *= mesh.Colours[v * 4]; g *= mesh.Colours[v * 4 + 1]; b *= mesh.Colours[v * 4 + 2]; }
+					if (!standsIn && mesh.Colours != null) { r *= mesh.Colours[v * 4]; g *= mesh.Colours[v * 4 + 1]; b *= mesh.Colours[v * 4 + 2]; }
 					bundle.Buffer.Add(mesh.Positions[v * 3]); bundle.Buffer.Add(mesh.Positions[v * 3 + 1]); bundle.Buffer.Add(mesh.Positions[v * 3 + 2]);
 					bundle.Buffer.Add(mesh.Uvs != null ? mesh.Uvs[v * 2] : 0f); bundle.Buffer.Add(mesh.Uvs != null ? mesh.Uvs[v * 2 + 1] : 0f);
 					bundle.Buffer.Add(Math.Min(1f, r * shade)); bundle.Buffer.Add(Math.Min(1f, g * shade)); bundle.Buffer.Add(Math.Min(1f, b * shade));
