@@ -69,7 +69,7 @@ checks (flags, items, augments, summons, levels, gil, the Bestiary, bosses, plac
 augment, a shop). FF4's clear count is kept in the save, as the game keeps it: the ending's save counts the
 clear, and New Game+ carries the count. FF3's 18 are awarded where FF3's own code awards them (the bosses,
 gil, treasure, the Bestiary, the Ultima Weapon, the Iron Giant, the jobs). They also include any OpenFF
-earned before it talked to Steam: those are kept in `%LocalAppData%\FF3chievements.txt` and sent on
+earned before it talked to Steam: those are kept in `%LocalAppData%\FF3\achievements.txt` and sent on
 when it connects.
 
 A run with `--drive` (a test drive, which sets flags, gil and parties outright) never sends anything and
