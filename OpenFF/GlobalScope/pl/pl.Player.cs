@@ -212,17 +212,17 @@ internal static partial class GlobalScope
 			{
 				int job = jobManager().nowJob();
 				byte b = PlayerParty.instance().jobGrowUpType()[0].growUpType(job, 5);
-				if (b == 0)
+				for (int j = 0; j < 8; j++)
 				{
-					for (int i = 0; i < 8; i++)
+					// PORT: a mod's job definition may give the job its own charges ("charges": a job with none may have some).
+					int? own = OpenFF.Client.ProgressionLayer.ChargesOverride(this, lv, j);
+					if (own.HasValue) { mp(j).setLimit(own.Value); mp(j).addNow(0); continue; }
+					if (b == 0)
 					{
-						mp(i).setLimit(0);
-						mp(i).setNow(0);
+						mp(j).setLimit(0);
+						mp(j).setNow(0);
 					}
-				}
-				else
-				{
-					for (int j = 0; j < 8; j++)
+					else
 					{
 						mp(j).setLimit(PlayerParty.instance().growUpMp(b - 1)[0].mp(lv, j));
 						mp(j).addNow(0);

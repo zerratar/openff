@@ -1547,6 +1547,17 @@ own commands, the third made a free slot; the inspector edits the rest:
   with `"carries": true` is FF5's rule for *Equip* abilities and spell lists: while it is
   set, the hero has its ladder job's positive modifiers where they beat the held job's (a
   Knight with the White Mage's `white-magic` set gets the White Mage's magic).
+- `charges` - the job's magic charges (FF3's MP: how many spells of each magic level 1..8 it
+  casts before a rest) in place of the game's table, **for every hero holding the job, on any
+  progression** - FF3's own job system too; a file with just `id`, `job` and `charges` does
+  only that. `"charges": 99` is 99 of every magic level at every hero level; eight numbers
+  are one a magic level (`[9, 9, 9, 5, 5, 5, 1, 1]`); a table by hero level holds each row
+  from its level until the next (`{ "1": [4, 2, 0, 0, 0, 0, 0, 0], "30": [9, 9, 9, 9, 6, 6, 3,
+  0], "60": 99 }`). 0..99 each; left out, the game's. A job with no magic in the game may be
+  given charges, but what it can cast is still its spell permissions (`grants`). The limits
+  apply as a new game starts, a save loads, a hero levels or changes job; the log says
+  "jobs: Onion Knight's magic charges are the mod's (...)". Crystal's job inspector has a
+  *Magic charges* card (rows by hero level, *99 at every level*).
 
 **Jobs of the mod's own.** FF5 has jobs FF3 has not - Samurai, Berserker, Time Mage, Mime.
 A ladder that says `"base"` instead of `"job"` *is* such a job: a new job standing on one of

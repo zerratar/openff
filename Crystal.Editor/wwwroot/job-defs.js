@@ -64,6 +64,7 @@ function jobLadderPanel(data, onSaved) {
     own: !!def.own, base: def.base === null || def.base === undefined ? '' : String(def.base), look: def.look === null || def.look === undefined ? '' : String(def.look),
     commands: (def.commands || []).slice(), innate: (def.innate || []).slice(), inherits: !!def.inherits,
     stats: Object.fromEntries((def.stats || []).map(s => [s.word, s.value | 0])),
+    charges: (def.charges || []).map(c => ({ from: c.from | 0, values: (c.values || []).slice(0, 8) })),
     abilities: (def.abilities || []).map(a => ({ abp: a.abp, ability: a.ability || '', name: a.name || '', passive: !!a.passive, command: !!a.command, grants: (a.grants || []).slice(), carries: !!a.carries }))
   };
   let timer = null;
@@ -79,6 +80,7 @@ function jobLadderPanel(data, onSaved) {
         if (model.inherits) body.inherits = true;
         const stats = Object.fromEntries(Object.entries(model.stats).filter(([, v]) => v));
         if (Object.keys(stats).length) body.stats = stats;
+        if (model.charges.length) body.charges = Object.fromEntries(model.charges.map(c => [String(c.from), c.values]));
         body.abilities = model.abilities.map(a => {
           const o = { abp: a.abp, ability: a.ability };
           if (a.name) o.name = a.name;
@@ -195,6 +197,64 @@ function jobLadderPanel(data, onSaved) {
     n.oninput = () => { model.stats[word] = parseInt(n.value, 10) || 0; save(); };
     row(statsCard, label, n, tip);
   }
+
+  // ---- magic charges
+  const chargesCard = card('Magic charges');
+  const chargesNote = document.createElement('p');
+  chargesNote.className = 'sub';
+  chargesNote.textContent = "FF3's MP: how many spells of each magic level (1 to 8) the job casts before a rest. None here keeps the game's table for the job. A row holds from its hero level until the next row's; 0..99 each. A job with no magic in the game may be given charges too - what it can cast is still its spell list.";
+  chargesCard.append(chargesNote);
+  const drawCharges = () => {
+    chargesCard.querySelectorAll('.behaviour-field, .wide-button, .charges-buttons, .charges-grid').forEach(e => e.remove());
+    model.charges.sort((a, b) => a.from - b.from);
+    model.charges.forEach((c, i) => {
+      const from = document.createElement('input');
+      from.type = 'number'; from.min = 1; from.max = 99; from.value = c.from;
+      from.onchange = () => { c.from = Math.min(99, Math.max(1, parseInt(from.value, 10) || 1)); save(); drawCharges(); };
+      const head = row(chargesCard, 'From hero level', from, "This row holds from this hero level until the next row's");
+      const x = document.createElement('button');
+      x.className = 'mini';
+      x.textContent = '×';
+      x.title = 'Take this row out';
+      x.onclick = () => { model.charges.splice(i, 1); save(); drawCharges(); };
+      head.append(x);
+      // The eight magic levels, four to a line, each named.
+      const grid = document.createElement('div');
+      grid.className = 'charges-grid';
+      grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:4px 8px;margin:2px 0 10px;';
+      for (let m = 0; m < 8; m++) {
+        const cell = document.createElement('div');
+        cell.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:12px;width:100%;min-width:0;';
+        cell.title = 'Charges of magic level ' + (m + 1);
+        const n = document.createElement('input');
+        n.type = 'number'; n.min = 0; n.max = 99; n.value = c.values[m] | 0;
+        n.style.cssText = 'flex:1 1 auto;width:auto;min-width:0;padding:4px 3px;';
+        n.oninput = () => { c.values[m] = Math.min(99, Math.max(0, parseInt(n.value, 10) || 0)); save(); };
+        cell.append('L' + (m + 1), n);
+        grid.append(cell);
+      }
+      chargesCard.append(grid);
+    });
+    const buttons = document.createElement('div');
+    buttons.className = 'charges-buttons';
+    const add = document.createElement('button');
+    add.className = 'wide-button';
+    add.textContent = '+ row';
+    add.onclick = () => {
+      const last = model.charges[model.charges.length - 1];
+      model.charges.push({ from: last ? Math.min(99, last.from + 10) : 1, values: last ? last.values.slice() : [0, 0, 0, 0, 0, 0, 0, 0] });
+      save();
+      drawCharges();
+    };
+    const all = document.createElement('button');
+    all.className = 'wide-button';
+    all.textContent = '99 at every level';
+    all.title = 'One row: 99 charges of every magic level from level 1';
+    all.onclick = () => { model.charges = [{ from: 1, values: [99, 99, 99, 99, 99, 99, 99, 99] }]; save(); drawCharges(); };
+    buttons.append(add, all);
+    chargesCard.append(buttons);
+  };
+  drawCharges();
 
   // ---- innate passives
   const innateCard = card('Innate passives');

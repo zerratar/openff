@@ -34,6 +34,7 @@ namespace Crystal.Editor
 				name = j.Name, inherits = j.Inherits,
 				commands = j.Commands, innate = j.Innate,
 				stats = ModJob.StatWords.Select((w, i) => new { word = w, value = j.Stats[i] }).ToList(),
+				charges = j.Charges?.Select(kv => new { from = kv.Key, values = kv.Value }).ToList(),
 				layout = layout.Select(c => c < 0 ? "*" : (Ff3Abilities.ById(c)?.Word ?? c.ToString())).ToList(),
 				layoutNames = layout.Select(c => c < 0 ? "free slot" : (Ff3Abilities.ById(c)?.Name ?? c.ToString())).ToList(),
 				freeSlots = j.FreeSlots,

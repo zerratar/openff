@@ -96,6 +96,7 @@ namespace OpenFF.Client
 			List<ModCharacter> characters;
 			try { characters = Characters; } catch (Exception) { return; }
 			ProgressionLayer.Reset();
+			ProgressionLayer.ApplyCharges();   // the jobs' own charges, before anyone has levelled or changed job
 			if (characters.Count == 0) return;
 			foreach (ModCharacter c in characters)
 			{

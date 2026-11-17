@@ -628,6 +628,37 @@ namespace OpenFF.Client
 		/// <summary>An ability id from a sidecar written before 0.1.4, when the client's HP boosts sat at 90..92 (64..99 are the mods' commands now).</summary>
 		private static int MigrateId(int id) => id >= 90 && id <= 92 ? id - 40 : id;
 
+		/// <summary>The charge limit a mod's job definition gives the hero's job at a level index (0..98) and magic level, or null.</summary>
+		public static int? ChargesOverride(GlobalScope.pl.Player player, int levelIndex, int magicLevel)
+		{
+			try
+			{
+				if (!GameProfile.Ff3Party || player == null) return null;
+				ModJob job = LadderOf(HeldJob(player));
+				int? own = job?.ChargesAt(levelIndex + 1, magicLevel);
+				if (own.HasValue && magicLevel == 7)
+					Log.First(LogChannel.General, "charges-" + job.Id, 1, () => "jobs: " + JobName(HeldJob(player)) + "'s magic charges are the mod's (" + job.Id + ") - at level " + (levelIndex + 1) + ": " + string.Join("/", Enumerable.Range(0, 8).Select(m => job.ChargesAt(levelIndex + 1, m))));
+				return own;
+			}
+			catch (Exception) { return null; }
+		}
+
+		/// <summary>Every hero whose job the mods give charges of their own: the limits as they say now (a new party, or a save
+		/// from before the mod, still has the game's).</summary>
+		public static void ApplyCharges()
+		{
+			if (!GameProfile.Ff3Party) return;
+			for (byte i = 0; i < 4; i++)
+			{
+				try
+				{
+					GlobalScope.pl.Player player = GlobalScope.pl.PlayerParty.instance().player(i);
+					if (player != null && LadderOf(HeldJob(player))?.Charges != null) player.setMp((byte)Math.Max(0, player.level().get() - 1));
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "jobs: charges: " + ex.Message); }
+			}
+		}
+
 		/// <summary>setMp put the tables' limits back: nothing of the boost is on them now.</summary>
 		public static void OnMpReset(GlobalScope.pl.Player player)
 		{
@@ -931,8 +962,11 @@ namespace OpenFF.Client
 				{
 					GlobalScope.pl.Player player = GlobalScope.pl.PlayerParty.instance().player(i);
 					if (player != null && player.isEnable()) Refresh(player);
+					// A job the mods give charges of their own: its limits as they say now (a save from before the mod still had the game's).
+
 				}
 				_learnPending = true;   // a class hero's list may have grown since the save
+				ApplyCharges();
 			}
 			catch (Exception) { }
 		}

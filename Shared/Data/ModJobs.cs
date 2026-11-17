@@ -207,7 +207,43 @@ namespace OpenFF.Data
 		public bool Inherits;
 		/// <summary>FF5's stat modifiers of the job, added to the held job's stats: strength, agility, vitality, intellect, mind (Stats order); FF5's "stamina" reads as vitality, "magic" as intellect and mind both.</summary>
 		public int[] Stats = new int[5];
+		/// <summary>
+		/// The job's magic charges in place of the game's table (FF3 keeps MP as uses per magic level 1..8): from each hero level
+		/// given, the eight limits, until the next level given; null keeps the game's. "charges": 99 is 99 at every magic level
+		/// and hero level, [8 numbers] one a magic level, { "1": [...], "30": [...] } the table by hero level. 0..99 each.
+		/// </summary>
+		public SortedDictionary<int, int[]> Charges;
 		public List<ModJobAbility> Abilities = new List<ModJobAbility>();
+
+		/// <summary>The charge limit at a hero level (1..99) and magic level (0..7) the mod gives, or null for the game's.</summary>
+		public int? ChargesAt(int level, int magicLevel)
+		{
+			if (Charges == null || Charges.Count == 0 || magicLevel < 0 || magicLevel > 7) return null;
+			int[] row = null;
+			foreach (KeyValuePair<int, int[]> kv in Charges) { if (kv.Key <= level) row = kv.Value; else break; }
+			return row == null ? (int?)null : Math.Clamp(row[magicLevel], 0, 99);
+		}
+
+		/// <summary>"charges" as JSON reads it: a number, eight numbers, or hero levels to either.</summary>
+		public static SortedDictionary<int, int[]> ParseCharges(JsonNode node)
+		{
+			if (node == null) return null;
+			static int[] Row(JsonNode n)
+			{
+				int[] r = new int[8];
+				if (n is JsonArray a) { for (int i = 0; i < 8; i++) r[i] = i < a.Count && a[i] != null ? Math.Clamp(a[i].GetValue<int>(), 0, 99) : (a.Count > 0 && a[a.Count - 1] != null ? Math.Clamp(a[a.Count - 1].GetValue<int>(), 0, 99) : 0); }
+				else if (n is JsonValue v && v.TryGetValue(out int all)) for (int i = 0; i < 8; i++) r[i] = Math.Clamp(all, 0, 99);
+				return r;
+			}
+			SortedDictionary<int, int[]> table = new SortedDictionary<int, int[]>();
+			if (node is JsonObject o)
+			{
+				foreach (KeyValuePair<string, JsonNode> kv in o)
+					if (int.TryParse(kv.Key, out int lv) && kv.Value != null) table[Math.Clamp(lv, 1, 99)] = Row(kv.Value);
+			}
+			else table[1] = Row(node);
+			return table.Count > 0 ? table : null;
+		}
 		public string Source;
 
 		public static readonly string[] StatWords = { "strength", "agility", "vitality", "intellect", "mind" };
@@ -251,6 +287,7 @@ namespace OpenFF.Data
 				Look = node["look"] is JsonValue lv ? (lv.TryGetValue(out int ln) ? ln.ToString() : lv.GetValue<string>()) : null,
 				Name = node["name"]?.GetValue<string>(),
 				Inherits = node["inherits"]?.GetValue<bool>() ?? false,
+				Charges = ParseCharges(node["charges"]),
 				Source = source
 			};
 			if (node["commands"] is JsonArray commands) foreach (JsonNode c in commands) j.Commands.Add(c?.GetValue<string>() ?? "");
@@ -306,6 +343,18 @@ namespace OpenFF.Data
 				JsonObject stats = new JsonObject();
 				for (int i = 0; i < 5; i++) if (Stats[i] != 0) stats[StatWords[i]] = Stats[i];
 				node["stats"] = stats;
+			}
+			if (Charges != null && Charges.Count > 0)
+			{
+				// One row from level 1 as eight numbers (or one, all alike); more as the table by hero level.
+				static JsonNode Row(int[] r) => r.All(x => x == r[0]) ? JsonValue.Create(r[0]) : new JsonArray(r.Select(x => (JsonNode)JsonValue.Create(x)).ToArray());
+				if (Charges.Count == 1 && Charges.ContainsKey(1)) node["charges"] = Row(Charges[1]);
+				else
+				{
+					JsonObject table = new JsonObject();
+					foreach (KeyValuePair<int, int[]> kv in Charges) table[kv.Key.ToString()] = Row(kv.Value);
+					node["charges"] = table;
+				}
 			}
 			JsonArray abilities = new JsonArray();
 			foreach (ModJobAbility a in Abilities)
