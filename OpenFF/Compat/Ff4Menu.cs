@@ -1193,6 +1193,9 @@ namespace OpenFF.Client
 		internal static string PlaceName()
 		{
 			string map = Game.Field.Map ?? "";
+			// wsmGetSavePointIndex: a cleared game (flag 0x3db) reads the "clear" record wherever it is.
+			if (Ff4Saves.Cleared && SavePointMessage("clear") is uint cleared) return T(cleared);
+			if (map.StartsWith("f", StringComparison.OrdinalIgnoreCase) && FieldAreaMessage() is uint area) return T(area);
 			if (!map.StartsWith("f", StringComparison.OrdinalIgnoreCase) && SavePointMessage(map) is uint message) return T(message);
 			try
 			{
@@ -1205,6 +1208,30 @@ namespace OpenFF.Client
 			}
 			catch (Exception) { }
 			return Game.Field.Map ?? "";
+		}
+
+		/// <summary>world::mss_FA00, compiled into libff4: the overworld's 256 chips (f00_00 .. f00_ff, the chip's number in hex) to
+		/// their area, babil_menu.msd 57000 + it - 0 Overworld, 1 Baron, 2 The Damcyan Desert, 3 Damcyan, 4 Fabul, 5 Mysidia,
+		/// 6 Troia, 7 Eblan, 8 Mist, 9 Agart. The Underworld's (mss_FA01) and the Moon's (mss_FA02) chips are all area 0.</summary>
+		private const string OverworldAreas =
+			"0000000000007700000066660007777700006666000777770000666600007777000066601110000000000008111100000033322811119900003332221110990000000222000050000000022200005500000000000005550000000000000555000444400000000000044444000000000004444000000000000000000000000000";
+
+		/// <summary>MSSGetFieldAreaMessageNo: the area the chip under the party is in, by world - 57000 + the overworld's area,
+		/// 58000 the Underworld, 59000 the Lunar Surface; null when the stage names no chip.</summary>
+		private static uint? FieldAreaMessage()
+		{
+			string chip = null;
+			try { chip = GlobalScope.stageMng?.getChipName(); } catch (Exception) { }
+			if (chip == null || chip.Length < 6) return null;
+			switch (chip[2])
+			{
+				case '0':
+					int n = int.TryParse(chip.Substring(4, 2), System.Globalization.NumberStyles.HexNumber, null, out int at) && at >= 0 && at < 256 ? at : 0;
+					return 57000u + (uint)(OverworldAreas[n] - '0');
+				case '1': return 58000u;
+				case '2': return 59000u;
+				default: return null;
+			}
 		}
 
 		private static List<(string Map, uint Message)> _savePoints;
@@ -1231,6 +1258,7 @@ namespace OpenFF.Client
 				foreach ((string m, uint id) in _savePoints) if (m == name) return id == 0xFFFFFFFF ? null : id;
 				return null;
 			}
+			if (map == "clear") return Find("clear");
 			string prefix = map.Length >= 3 ? map.Substring(0, 3) : map;
 			uint? found = map.StartsWith("d", StringComparison.Ordinal) ? Find(map) ?? Find(prefix) : map.StartsWith("t", StringComparison.Ordinal) ? Find(prefix) : null;
 			return found ?? _savePoints[0].Message;
