@@ -41,6 +41,7 @@ namespace OpenFF.Client
 			}
 			if (!GameProfile.IsFf4) return;
 			Ff4CharacterMoves.Tick();
+			GlobalScope.chr.CCharacterEureka.PlayStockMotions();
 			Ff4CameraMotion.Tick();
 			Ff4EventCamera.Tick();
 			Ff4Cutscene.Tick();

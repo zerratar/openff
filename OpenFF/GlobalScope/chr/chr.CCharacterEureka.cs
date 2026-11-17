@@ -144,7 +144,12 @@ internal static partial class GlobalScope
 			{
 				m_MoveSys.execute();
 				m_TurnSys.execute();
-				autoPlayStockMotion();
+				// PORT (FF4): CharacterObject::moUpdate runs the character's strategies (OSDriver - Ff4CharacterMoves' turns and
+				// walks, ticked after this step) before its StockMotionPlayer, so a turn ending in the frame a stocked motion
+				// starts gives way to it. Played here, the turn's idle came after and looped over Mysidia's elder scene's
+				// gesture, and endMotionCharacterDX waited on it for good.
+				if (OpenFF.Client.GameProfile.IsFf4) { if (!PendingStock.Contains(this)) PendingStock.Add(this); }
+				else autoPlayStockMotion();
 				autoLookTarget();
 				autoScale();
 				autoAlpha();
@@ -564,6 +569,16 @@ internal static partial class GlobalScope
 			public bool isSkyMonsterEncount(mcl.CollisionResult ret)
 			{
 				return ret.material.getAttribute().isEnableFlag(42u);
+			}
+
+			/// <summary>PORT (FF4): the characters whose stocked motions play after this step's strategies.</summary>
+			private static readonly List<CCharacterEureka> PendingStock = new List<CCharacterEureka>();
+
+			/// <summary>PORT (FF4): each character updated this step plays its stocked motions, after Ff4CharacterMoves.Tick.</summary>
+			public static void PlayStockMotions()
+			{
+				for (int i = 0; i < PendingStock.Count; i++) if (PendingStock[i].m_CharaID >= 0) PendingStock[i].autoPlayStockMotion();
+				PendingStock.Clear();
 			}
 
 			public void autoPlayStockMotion()
