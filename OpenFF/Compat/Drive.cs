@@ -161,7 +161,7 @@ namespace OpenFF.Client
 				_storyQuiet = free ? _storyQuiet + 1 : 0;
 				if (Ff4Battle.Active) { if (++_storyBattle == StepsPerSecond * 3) Log.Write(LogChannel.General, "drive: story ends a fight - " + (Ff4Battle.Instance?.FellAllFoes() ?? -1) + " foe(s) felled"); }
 				else _storyBattle = 0;
-				if (_storyQuiet >= StepsPerSecond * 3) { _storyLeft = 0; Log.Write(LogChannel.General, "drive: story idle on " + GlobalScope.stg.CStageMng.CurrentName + WorldState()); }
+				if (_storyQuiet >= StepsPerSecond * 3) { _storyLeft = 0; Log.Write(LogChannel.General, "drive: story idle on " + GlobalScope.stg.CStageMng.CurrentName + WorldState() + (OpenFF.Client.GameProfile.IsFf4 ? " - " + Ff4Party.Party.Describe().Replace("\n", " | ") : "")); }
 				else if (_storyLeft == 0) Log.Write(LogChannel.General, "drive: story timed out on " + GlobalScope.stg.CStageMng.CurrentName + WorldState() + " (scene " + Ff4Cutscene.Active + ", event " + Ff4Menu.EventBusy() + ", message " + OpenFF.Game.Dialogue.IsOpen + ", battle " + Ff4Battle.Active + ")");
 				else
 				{

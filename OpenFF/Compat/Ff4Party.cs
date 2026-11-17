@@ -289,12 +289,10 @@ namespace OpenFF.Client
 			Log.Write(LogChannel.General, "party: restored - " + p.Describe().Replace("\n", " | "));
 		}
 
-		/// <summary>The level a character joins at: the leader's, as FF4 scales joiners to the party (the exact rule is not read yet).</summary>
-		private static int JoinLevel(int type)
-		{
-			Character leader = Party.Leader;
-			return leader != null ? leader.Level : 1;
-		}
+		/// <summary>The level a character stands at before any script raised it (PlayerParty::initForNewgame): every one grows to 1,
+		/// then Dark Knight Cecil, Kain and Rosa (types 0, 2, 6) to 10. The rest are raised by setPlayerLevel / syncCharacterLv as
+		/// they join (Tellah to 20 on Mt Hobs, the twins to 10); Paladin Cecil is not, and starts at 1.</summary>
+		internal static int JoinLevel(int type) => type == 0 || type == 2 || type == 6 ? 10 : 1;
 
 		// ---- the scripts' commands, by name in Ff4Commands ----
 
@@ -450,7 +448,7 @@ namespace OpenFF.Client
 			return m;
 		}
 
-		public bool AddMember(int id) => P.Join(id, P.Leader?.Level ?? 1);
+		public bool AddMember(int id) => Ff4Party.Join(id);
 		public bool RemoveMember(int id) => P.Leave(id);
 
 		public void SetLevel(int id, int level)

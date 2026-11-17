@@ -255,20 +255,17 @@ namespace OpenFF.Client
 
 		// ---- the party ----
 
-		/// <summary>setPlayerLevel(playerType, level): FF4's ids are the party's own (FF3's handler takes 5 off).</summary>
+		/// <summary>setPlayerLevel(playerType, level): the character grows to the level when below it (babilCommand_SetPlayerLevel),
+		/// in FF4's own party.</summary>
 		public static void SetPlayerLevel(GlobalScope.ScriptEngine engine)
 		{
-			uint id = engine.getDword();
-			uint level = engine.getWord();
-			try
-			{
-				GlobalScope.pl.Player player = GlobalScope.pl.PlayerParty.instance().playerForId((byte)id);
-				player?.growParameter((byte)Math.Clamp((int)level, 1, 99));
-			}
-			catch (Exception ex)
-			{
-				Log.Write(LogChannel.General, "script: FF4 setPlayerLevel(" + id + ", " + level + "): " + ex.Message);
-			}
+			int id = (int)engine.getDword();
+			int level = Math.Clamp((int)engine.getWord(), 1, 99);
+			OpenFF.Data.Character c = Ff4Party.Party.Ensure(id, Ff4Party.JoinLevel(id));
+			if (c == null || c.Level >= level) return;
+			OpenFF.Game.Party.SetLevel(id, level);
+			c.Mp = c.MaxMp;                        // growParameter: MP to its maximum
+			if (!c.InParty) c.Hp = c.MaxHp;        // one raised to join comes in whole
 		}
 	}
 }

@@ -172,7 +172,8 @@ namespace OpenFF.Client
 		/// 4 equal), <paramref name="engine"/>'s third character grows to the fourth's level (Player::growParameter).</summary>
 		public static void SyncCharacterLv(GlobalScope.ScriptEngine engine)
 		{
-			Character a = P.Get((int)engine.getDword()), b = P.Get((int)engine.getDword());
+			int aType = (int)engine.getDword(), bType = (int)engine.getDword();
+			Character a = P.Ensure(aType, Ff4Party.JoinLevel(aType)), b = P.Ensure(bType, Ff4Party.JoinLevel(bType));
 			int grownType = (int)engine.getDword(), toType = (int)engine.getDword();
 			uint test = engine.getDword();
 			engine.getDword();
@@ -186,7 +187,7 @@ namespace OpenFF.Client
 				4 => a.Level == b.Level,
 				_ => false,
 			};
-			Character to = P.Get(toType);
+			Character to = P.Ensure(toType, Ff4Party.JoinLevel(toType));
 			if (!holds || to == null) return;
 			OpenFF.Game.Party.SetLevel(grownType, to.Level);
 			Log.Write(LogChannel.File, "party: type " + grownType + " grows to level " + to.Level + " (type " + toType + "'s)");
