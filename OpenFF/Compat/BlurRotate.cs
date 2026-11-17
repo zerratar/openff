@@ -52,7 +52,7 @@ namespace OpenFF.Client
 			_lead = 0;
 			_then = then;
 			try { GlobalScope.MatrixSound.MtxSENDS_Play(0, 10, 127, 128); } catch (Exception) { }
-			try { GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(15, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0); } catch (Exception) { }
+			Ff4Music.EncounterFade();   // WSEncountDirection2: likewise
 		}
 
 		/// <summary>The whirl starts (ce_CallBattle in a scene).</summary>

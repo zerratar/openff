@@ -19,6 +19,8 @@ namespace OpenFF.Client
 		private Npc _castStage;
 		private readonly List<Npc> _summonHidden = new List<Npc>();
 
+		private const int AsuraSummon = 0x5EB;
+
 		/// <summary>A member's summon, when it has a cast scene and the battle stands on its stage: true when it is taken over here.</summary>
 		private bool TrySummon(Fighter caster, SpellDefinition spell, List<Fighter> targets)
 		{
@@ -32,10 +34,24 @@ namespace OpenFF.Client
 				After(19, () => { });
 				return true;
 			}
+			SpellDefinition worked = spell;
+			if (spell.Id == AsuraSummon)
+			{
+				// calcMagicAbility for Asura: one of three at random - 0 Cura (0xFA3) on the target, 1 Raise (0xFAC) with flag
+				// 0/995, 2 Curaga (0xFA6) with flag 0/996 on every member standing; her scene shows the one chosen by the flags.
+				int pick = _random.Next(3);
+				GlobalScope.FlagManager flags = GlobalScope.FlagManager.singleton();
+				flags.reset(0, 995);
+				flags.reset(0, 996);
+				if (pick == 1) flags.set(0, 995);
+				if (pick == 2) { flags.set(0, 996); targets = new List<Fighter>(_party); }
+				worked = Ff4Party.Tables.Spell(pick == 1 ? 0xFAC : pick == 2 ? 0xFA6 : 0xFA3) ?? spell;
+				Note("Asura's choice: " + (worked.Name ?? worked.Id.ToString()));
+			}
 			List<Action> results = new List<Action>();
 			foreach (Fighter t in targets)
 			{
-				Action result = SpellResult(caster, t, spell, targets.Count);
+				Action result = SpellResult(caster, t, worked, targets.Count);
 				if (result != null) results.Add(result);
 			}
 			Note(caster.Name + " summons " + (spell.Name ?? spell.Id.ToString()) + " (scene s" + scene.ToString("00") + "_00)");

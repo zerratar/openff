@@ -161,6 +161,7 @@ internal static partial class GlobalScope
 			{
 				int volume = MtxSound_Clamp(Volume, 0, 255);
 				int fadeinFrame = MtxSound_Clamp(FadeinFrame, 0, 65535);
+				OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "bgm: play " + NbBGM + " volume " + volume + " fade " + fadeinFrame + " slot " + (int)Slot);
 				if (_pImplement != null)
 				{
 					return _pImplement.play(NbBGM, volume, fadeinFrame, Slot);
@@ -171,6 +172,7 @@ internal static partial class GlobalScope
 			public void stop(int FadeoutFrame, enMtxBGMSlot Slot)
 			{
 				int fadeoutFrame = MtxSound_Clamp(FadeoutFrame, 0, 65535);
+				OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "bgm: stop slot " + (int)Slot + " fade " + fadeoutFrame);
 				if (_pImplement != null)
 				{
 					_pImplement.stop(fadeoutFrame, Slot);
@@ -182,6 +184,7 @@ internal static partial class GlobalScope
 				if (_pImplement != null)
 				{
 					_pImplement.pause(Flag, Slot);
+					OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "bgm: " + (Flag ? "pause" : "resume") + " slot " + (int)Slot);
 				}
 			}
 

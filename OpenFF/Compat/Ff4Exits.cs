@@ -38,6 +38,8 @@ namespace OpenFF.Client
 			public int DoorSeBank = -1, DoorSeNumber = -1;
 			/// <summary>setRelationMapjumpToDoorAttr's door: the destination map's material shown open as it is set up.</summary>
 			public string FarDoor;
+			/// <summary>setMapjumpBGMOperation: the slot whose music stops over 15 frames as the exit is taken, -1 none.</summary>
+			public int BgmStopSlot = -1;
 		}
 
 		private static readonly List<Exit> _exits = new List<Exit>();
@@ -60,6 +62,7 @@ namespace OpenFF.Client
 		{
 			_exits.Clear();
 			_stage = stage;
+			Ff4FootEffects.Clear();
 			// The flags of the exit taken, set once the map it left is gone and before the new one's scripts run, as
 			// WSMapJump's initialize does (loadTargetJumpObjectFlag): Baron's 405/406 pick its Exit spell's door, t17_00's
 			// 851-854 which way the party came in.
@@ -90,6 +93,13 @@ namespace OpenFF.Client
 			Exit exit = _exits.Find(e => string.Equals(e.Trigger, trigger, StringComparison.OrdinalIgnoreCase));
 			if (exit == null) Log.Write(LogChannel.General, "exits: " + (_stage ?? "?") + " " + what + " for " + trigger + ", no such exit");
 			return exit;
+		}
+
+		/// <summary>setMapjumpBGMOperation's slot for the exit (-1: the music goes on).</summary>
+		public static void SetBgmStop(string trigger, int slot)
+		{
+			Exit exit = Named(trigger, "music");
+			if (exit != null) exit.BgmStopSlot = slot;
 		}
 
 		/// <summary>setDoor(door, trigger, bank, number, ?): the exit's door on this map and the sound it opens with.</summary>
@@ -201,6 +211,7 @@ namespace OpenFF.Client
 				_pendingFlags.AddRange(exit.Flags);
 				_pendingFarDoor = exit.FarDoor;
 				OpenDoor(exit);
+				Ff4Music.ExitTaken(exit.BgmStopSlot);
 				return;
 			}
 		}

@@ -17,7 +17,19 @@ namespace OpenFF.Client
 	{
 		private SpellDefinition _lastSpell;   // the spell the last action cast, if it was one
 		private readonly Dictionary<Action, int> _counterAbilities = new Dictionary<Action, int>();   // a queued counter's ability, for the before event
-		private bool _isCounter;              // the action under way is a counter (BattleSystem +0x20EC; the events' IsCounter)
+		/// <summary>The action under way is a counter (BattleSystem +0x20EC; the events' IsCounter) - and flag 0/442, which
+		/// calcBattleParameter sets for a counter (behaviour kind 1) and the battle's global script reads for its help line.</summary>
+		private bool _isCounter
+		{
+			get => _counterNow;
+			set
+			{
+				_counterNow = value;
+				try { if (value) GlobalScope.FlagManager.singleton().set(0, 442); else GlobalScope.FlagManager.singleton().reset(0, 442); } catch (System.Exception) { }
+			}
+		}
+
+		private bool _counterNow;
 
 		/// <summary>The command a spell's school is cast with (setMonsterAbility's table: white 6, black 5, summon 13, 18, item 6, enemy 9, ninjutsu 0x53).</summary>
 		private static readonly int[] SchoolCommand = { 6, 5, 13, 18, 6, 9, 0x53, 0 };

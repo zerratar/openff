@@ -112,6 +112,17 @@ namespace OpenFF.Client
 			{ "setCanBoardVehicle", Ff4Ride.SetCanBoardVehicle },               // (vehicle, on) - operands only
 			{ "checkMapName", CheckMapName },                                     // (name, equal, label)
 			{ "gravityCharacter", engine => { engine.getWord(); engine.getDword(); engine.getWord(); } },   // (cast, on, ?) - libff4 reads its operands only
+			{ "setHalfWayBGM_Start", Ff4Music.HalfWayStart },                   // (bgm, volume, frames, slot)
+			{ "setHalfWayBGM_Play", Ff4Music.HalfWayPlay },                     // (volume, frames, slot, ?, ?)
+			{ "setMapjumpBGMOperation", SetMapjumpBgmOperation },                // (trigger, on, slot, ?)
+			{ "setBattleBGM", Ff4Music.SetBattleBgm },                          // (fanfare, stop at the end)
+			{ "bgmContinueForConteEvent", Ff4Music.ContinueForScene },          // (out, ?, ?)
+			{ "soundReset", Ff4Music.SoundReset },                              // (heaps, ?, which, ?)
+			{ "bgmDivideLoadDataTypeSpecific", Ff4Music.Operands(3) },           // (bgm, kind, ?) - an async load; sounds load as played here
+			{ "setShadowScale", SetShadowScale },                                // (cast, x, y, z, ?, ?)
+			{ "createEffectTaskWait", Ff4FootEffects.Command(0) },              // (cast, ground kind, x, y, z, effect, member, frames)
+			{ "createEffectTaskWalk", Ff4FootEffects.Command(2) },
+			{ "createEffectTaskRun", Ff4FootEffects.Command(3) },
 			{ "hpSetting", Ff4PartyCommands.HpSetting },                      // (type, hp, ?)
 			{ "syncCharacterLv", Ff4PartyCommands.SyncCharacterLv },          // (a, b, grown, to, test, ?)
 			{ "evaluateMagneticEquipment", Ff4PartyCommands.EvaluateMagneticEquipment }, // (on)
@@ -218,15 +229,9 @@ namespace OpenFF.Client
 			}
 		}
 
-		/// <summary>Commands that only dress the game - footstep dust, BGM ducking - skipped without a word in the log.</summary>
+		/// <summary>Commands skipped without a word in the log: none now - every command FF4's scripts use has its handler.</summary>
 		public static readonly HashSet<string> Cosmetic = new HashSet<string>(StringComparer.Ordinal)
 		{
-			"setMapjumpBGMOperation",
-			"createEffectTaskWalk", "createEffectTaskRun", "createEffectTaskWait",        // footstep dust
-			"setShadowScale",
-			// Sound bookkeeping FF3's player has no slot for: the battle theme choice, the
-			// division of BGM data, a reset.
-			"setBattleBGM", "bgmContinueForConteEvent", "soundReset", "bgmDivideLoadDataTypeSpecific",
 		};
 
 		/// <summary>
@@ -272,6 +277,29 @@ namespace OpenFF.Client
 			string map = GlobalScope.stg.CStageMng.CurrentName ?? "";
 			bool same = map.StartsWith(name, StringComparison.Ordinal);
 			if (same == equal) engine.jump(label);
+		}
+
+		/// <summary>setMapjumpBGMOperation(trigger, on, slot, ?): the exit takes that slot's music down as it is taken.</summary>
+		private static void SetMapjumpBgmOperation(GlobalScope.ScriptEngine engine)
+		{
+			string trigger = engine.getString();
+			bool on = engine.getDword() != 0;
+			int slot = engine.getWord();
+			engine.getWord();
+			Ff4Exits.SetBgmStop(trigger, on ? slot : -1);
+		}
+
+		/// <summary>setShadowScale(cast, x, y, z, ?, ?): CCharacterMng::setShadowScale on the cast's model, z negated.</summary>
+		private static void SetShadowScale(GlobalScope.ScriptEngine engine)
+		{
+			uint cast = engine.getWord();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = -(int)engine.getDword();
+			engine.getDword();
+			engine.getDword();
+			int num = GlobalScope.CCastCommandTransit.getInstance().changeHichNumber(cast);
+			if (num == -1) return;
+			int ctrl = GlobalScope.CCastCommandTransit.getInstance().cast_PlayerMng().Player(num).getCharacterId();
+			if (ctrl != -1) GlobalScope.characterMng.setShadowScale(ctrl, new GlobalScope.VecFx32(x, y, z));
 		}
 
 		private static void SetRelationOfMapjumpobjAndFlag(GlobalScope.ScriptEngine engine)

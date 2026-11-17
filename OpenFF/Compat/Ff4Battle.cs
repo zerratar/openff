@@ -221,6 +221,7 @@ namespace OpenFF.Client
 			_cameraType = party.CameraType;
 			_startingParty = party;   // its events start with the fight (on a stage, once the stage has come)
 			bool started = Start(ids, inScene, battleMap);
+			if (started) Ff4Music.BattleStarts(party.Bgm);
 			if (started) Log.Write(LogChannel.General, "battle: encounter group " + partyId + ", party root " + _rootId + " (" + string.Join(" ", System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(0, 5), k => Ff4BattleStage.PartySpot(_rootId, k).ToString())) + ")");
 			else _startingParty = null;
 			return started;
@@ -758,6 +759,7 @@ namespace OpenFF.Client
 						{
 							// The key closes the window and the battle fades to black over 16 frames (Steam's frames: the
 							// window gone at once, black 16 frames on), the battle's music stopping over 15 (getPhaseEnd).
+							Ff4Music.BattleEnds(false);
 							GlobalScope.dgs.CFade.Main().fadeOut(WinEndFade, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
 							GlobalScope.dgs.CFade.Sub().fadeOut(WinEndFade, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
 						}
@@ -2187,6 +2189,7 @@ namespace OpenFF.Client
 
 		private void Win()
 		{
+			Ff4Music.BattleWon();
 			_phase = Phase.Victory;
 			_timer = 0;
 			Party party = Ff4Party.Party;
@@ -2369,6 +2372,7 @@ namespace OpenFF.Client
 
 		private void End()
 		{
+			Ff4Music.BattleEnds(false);   // BSCEndBattle, when nothing before ended the battle's music
 			Log.Write(LogChannel.File, "battle: over (step " + LegacyStep.Count + ")");
 			// BattlePart::doUninitialize: OutsideToBattle::initialize clears the restart for the fights after this one.
 			try { GlobalScope.btl.OutsideToBattle.getInstance().offRestart(); } catch (Exception) { }

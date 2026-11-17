@@ -1224,7 +1224,8 @@ internal static partial class GlobalScope
 
 			public void setUpMapSound()
 			{
-				if (setUpMapSound_)
+				// PORT: FF4's music is its map scripts' (setHalfWayBGM_*, Ff4Music); FF3's map sound would start a theme of its own.
+				if (setUpMapSound_ && !OpenFF.Client.GameProfile.IsFf4)
 				{
 					MapSound mapSound = new MapSound();
 					mapSound.setup(this);
@@ -1291,7 +1292,8 @@ internal static partial class GlobalScope
 
 			public void cleanUpMapSound()
 			{
-				if (setUpMapSound_)
+				// PORT: FF4's music is its map scripts' (setHalfWayBGM_*, Ff4Music); FF3's map sound would start a theme of its own.
+				if (setUpMapSound_ && !OpenFF.Client.GameProfile.IsFf4)
 				{
 					MapSound mapSound = new MapSound();
 					mapSound.cleanup(this);

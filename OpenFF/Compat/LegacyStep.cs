@@ -45,6 +45,8 @@ namespace OpenFF.Client
 			Ff4EventCamera.Tick();
 			Ff4Cutscene.Tick();
 			Ff4Ride.Step();
+			Ff4Music.Tick();
+			Ff4FootEffects.Tick();
 		}
 	}
 }

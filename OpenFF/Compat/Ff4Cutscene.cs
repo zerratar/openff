@@ -125,6 +125,13 @@ namespace OpenFF.Client
 			{ "ce_setConteNextPart", SetConteNextPart },     // (map, x, y, z): where the scene chain ends up
 			{ "ce_SetupBGM", ReadDword },                    // (bgm): loads are on demand here
 			{ "ce_PlayBGM", PlayBgm },                       // (bgm)
+			{ "ce_setSound", Ff4Music.SetSound },            // (keep out, keep in, ?, ?)
+			{ "ce_StopBGM_Streaming", Ff4Music.StopStreaming }, // (frames)
+			{ "ce_CleanupBGM", Ff4Music.Operands(0) },       // dssndUnloadBGM: sounds load as played here
+			{ "ce_SetupSE", Ff4Music.Operands(1) },          // (bank): dssndLoadSE, likewise
+			{ "ce_CleanupSE", Ff4Music.Operands(1) },        // (bank): dssndUnloadSE
+			{ "ce_VoiceSkipOn", Ff4Music.Operands(0) },      // libff4's is empty
+			{ "ce_CleanupMap", engine => Guard("stage", () => GlobalScope.stageMng?.delStage()) },   // the scene's stage gone
 			{ "ce_SlotBGMPlay", SlotBgmPlay },               // (slot, bgm)
 			{ "ce_SlotBGMStop", SlotBgmStop },               // (slot, fade frames)
 			{ "ce_StopBGM", StopBgm },                       // (fade frames): every slot
@@ -176,10 +183,6 @@ namespace OpenFF.Client
 		/// </summary>
 		public static readonly HashSet<string> Quiet = new HashSet<string>(StringComparer.Ordinal)
 		{
-			"ce_VoiceSkipOn",                                                    // a voice's own skip (nothing to skip here)
-			"ce_setSound", "ce_CleanupBGM", "ce_StopBGM_Streaming",             // BGM resource bookkeeping
-			"ce_SetupSE", "ce_CleanupSE",                                        // SE bank bookkeeping
-			"ce_CleanupMap",                                                     // the scene's stage unloads with the map here
 		};
 
 		private static GlobalScope.CCharacterMng Characters => GlobalScope.characterMng;
@@ -203,6 +206,7 @@ namespace OpenFF.Client
 				MapLeft();
 			}
 			_active = true;
+			Ff4Music.SceneStarts();   // ContEventPart::initialize: the music unloaded unless the field said to keep it
 			SceneStage = stage;
 			SceneFrame = 0;
 			_asyncLoadedBy = 0;
@@ -228,6 +232,7 @@ namespace OpenFF.Client
 		private static void EndEvent(GlobalScope.ScriptEngine engine)
 		{
 			_active = false;
+			Ff4Music.SceneEnds();   // ContEventPart::unInitialize: likewise
 			_autoRot.Clear();
 			Ff4ScenePrograms.Clear();
 			// EventConteManager's cleanup: the skip state goes with the scene. A skipped scene's own fade-in was passed

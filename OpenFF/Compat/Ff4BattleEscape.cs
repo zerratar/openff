@@ -120,8 +120,8 @@ namespace OpenFF.Client
 			After(40, () =>
 			{
 				_help = null;
-				// BattlePlayerEscape: the music stops over 15 frames; the part fades out over 15 and the field comes.
-				try { GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(15, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0); } catch (Exception) { }
+				// BattlePlayerEscape: the battle's music stops over 15 frames; the part fades out over 15 and the field comes.
+				Ff4Music.BattleEnds(true);
 				GlobalScope.dgs.CFade.Main().fadeOut(15, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
 				GlobalScope.dgs.CFade.Sub().fadeOut(15, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
 				_queue.Clear();
