@@ -271,10 +271,11 @@ namespace OpenFF.Client
 			if (AnswerSaveQuestion()) return;
 			if (_questionQuit)
 			{
-				// Settings' Quit: "Do you wish to quit the game ?" - the title, nothing saved.
+				// Settings' Quit: "Do you wish to quit the game ?" - Steam's FF4.exe closes there and then (nothing saved).
 				Ff4Settings.Current.Save();
 				Close();
-				try { GlobalScope.wld.CBaseSystem.setTitle(true); } catch (Exception ex) { Log.Write(LogChannel.General, "menu: quit, to the title: " + ex.Message); }
+				Log.Write(LogChannel.General, "menu: quit the game");
+				PauseMenu.Instance?.Game.Exit();
 				return;
 			}
 			if (!Ff4Saves.Suspend()) { Notice("Could not quicksave here."); return; }

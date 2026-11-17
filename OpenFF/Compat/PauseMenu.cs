@@ -73,7 +73,14 @@ namespace OpenFF.Client
 		};
 
 		// The main page's rows: Abilities only with a mastery hero in the party.
-		private string[] MainRows() => AbilitiesRow ? new[] { "resume", "abilities", "settings", "qol", "exit" } : new[] { "resume", "settings", "qol", "exit" };
+		private string[] MainRows()
+		{
+			List<string> rows = new List<string> { "resume" };
+			if (SceneSkip.Skippable) rows.Add("skip");   // an FF4 scene that may be skipped: Steam's click, here
+			if (AbilitiesRow) rows.Add("abilities");
+			rows.AddRange(new[] { "settings", "qol", "exit" });
+			return rows.ToArray();
+		}
 
 		private int MainRow(string id) => Math.Max(0, Array.IndexOf(MainRows(), id));
 
@@ -98,7 +105,7 @@ namespace OpenFF.Client
 			KeyboardState keys = Keyboard.GetState();
 			bool esc = Down(keys, Keys.Escape);
 			if (!esc) _escForGameMenu = false;
-			else if ((ModMenus.GameMenuUp || Environment.TickCount64 - Ff4Menu.OpenSeen < 100 || MoviePlayer.Current != null || SceneSkip.Skippable || SceneSkip.PromptOpen) && !IsOpen) _escForGameMenu = true;   // a movie's or a skippable scene's Esc is theirs
+			else if ((ModMenus.GameMenuUp || Environment.TickCount64 - Ff4Menu.OpenSeen < 100 || MoviePlayer.Current != null || SceneSkip.PromptOpen) && !IsOpen) _escForGameMenu = true;   // a movie's, or the skip question's, Esc is theirs
 			if (esc && !_escForGameMenu) return true;
 			// The pad's own Start, as the defaults have it: a rebinding is for the game, not for this menu.
 			bool start = (DesktopInput.PadOnlyBits(defaultPad: true) & 8) != 0;
@@ -207,6 +214,7 @@ namespace OpenFF.Client
 						string[] rows = MainRows();
 						string id = rows[Math.Clamp(_selected, 0, rows.Length - 1)];
 						if (id == "abilities") { Close(); AbilitiesMenu.Open(); return; }
+						if (id == "skip") { Close(); SceneSkip.SkipNow(); return; }
 						if (id == "resume") Close();
 						else if (id == "settings") { _page = Page.Settings; _selected = 0; _note = ""; }
 						else if (id == "qol") { _page = Page.Qol; _selected = 0; _note = QolNote(0); }
@@ -511,7 +519,7 @@ namespace OpenFF.Client
 				{
 					string[] rows = MainRows();
 					string id = rows[Math.Clamp(row, 0, rows.Length - 1)];
-					icon = id == "resume" ? UiTheme.Icon.Resume : id == "abilities" ? UiTheme.Icon.Abilities : id == "settings" ? UiTheme.Icon.Settings : id == "qol" ? UiTheme.Icon.Quality : UiTheme.Icon.Exit;
+					icon = id == "resume" || id == "skip" ? UiTheme.Icon.Resume : id == "abilities" ? UiTheme.Icon.Abilities : id == "settings" ? UiTheme.Icon.Settings : id == "qol" ? UiTheme.Icon.Quality : UiTheme.Icon.Exit;
 					return Kind.None;
 				}
 				case Page.Qol:
@@ -762,6 +770,7 @@ namespace OpenFF.Client
 					string[] rows = MainRows();
 					string id = rows[Math.Clamp(row, 0, rows.Length - 1)];
 					if (id == "abilities") { label = "Abilities"; value = "job ladders, free slots"; return; }
+					if (id == "skip") { label = "Skip scene"; value = "runs through to its end"; return; }
 					label = id == "resume" ? "Resume" : id == "settings" ? "Settings" : id == "qol" ? "Quality of life" : "Exit game";
 					if (id == "qol") value = QolSummary();
 					return;

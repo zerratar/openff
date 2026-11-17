@@ -1,7 +1,7 @@
 // FF4's Settings screen as Steam's (measured off its draws): nine lines, five in view - Music, Sound Effects and Voices
 // (sliders 0..10), Battle Mode (Active / Wait), Battle Speed (Fast 1..6 Slow), Subtitles (On / Off), Window Design (1..6),
 // Help and Quit. Up and down move the hand (round from the last to the first), left and right change the line's value at
-// once; Quit asks "Do you wish to quit the game ?" and goes to the title. Backspace leaves, and the settings are written
+// once (a pair - Battle Mode, Subtitles - turned over by either); Quit asks "Do you wish to quit the game ?" and closes the game. Backspace leaves, and the settings are written
 // (Ff4Settings). Help opens its own screens (Ff4MenuHelp).
 
 using System;
@@ -44,9 +44,9 @@ namespace OpenFF.Client
 					case SettingLine.Music: s.Music = Math.Clamp(s.Music + step, 0, 10); s.Apply(); break;
 					case SettingLine.SoundEffects: s.SoundEffects = Math.Clamp(s.SoundEffects + step, 0, 10); s.Apply(); break;
 					case SettingLine.Voices: s.Voices = Math.Clamp(s.Voices + step, 0, 10); break;
-					case SettingLine.BattleMode: s.BattleMode = Math.Clamp(s.BattleMode + step, 0, 1); break;
+					case SettingLine.BattleMode: s.BattleMode = 1 - s.BattleMode; break;   // Steam's pairs: Left or Right turns them over
 					case SettingLine.BattleSpeed: s.BattleSpeed = Math.Clamp(s.BattleSpeed + step, 1, 6); break;
-					case SettingLine.Subtitles: s.Subtitles = step < 0; break;
+					case SettingLine.Subtitles: s.Subtitles = !s.Subtitles; break;
 					case SettingLine.WindowDesign: s.WindowDesign = Math.Clamp(s.WindowDesign + step, 1, 6); break;
 				}
 				return;

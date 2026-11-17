@@ -77,7 +77,8 @@ namespace OpenFF.Client
 
 			if (!PromptOpen)
 			{
-				if (Skippable && (escEdge || clickEdge || (edge & PadL) != 0))
+				// Steam's: a click (a tap) or L asks; Esc opens OpenFF's menu, whose Skip scene skips at once (PauseMenu).
+				if (Skippable && (clickEdge || (edge & PadL) != 0))
 				{
 					PromptOpen = true;
 					_yes = true;
@@ -115,6 +116,9 @@ namespace OpenFF.Client
 
 		/// <summary>Yes: both screens out to black over 15 frames (state 3) and the scene's voice cut; the run-through
 		/// starts once they are black.</summary>
+		/// <summary>The scene run through now, as Yes to the question does (PauseMenu's Skip scene).</summary>
+		public static void SkipNow() { if (Skippable) Skip(); }
+
 		private static void Skip()
 		{
 			Se(1);
