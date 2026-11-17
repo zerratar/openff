@@ -46,6 +46,9 @@ internal static partial class GlobalScope
 
 			public void setUp(string _MapName, sbyte _CharacterType, VecFx32 _Pos, VecFx32 _Rot, bool _Flag)
 			{
+				// PORT: FF4 names a world map bare ("f00": a scene's return, an exit onto it); its stage is entered by the chip
+				// under the arrival (f00_48), which the stage manager reads from the name.
+				if (OpenFF.Client.GameProfile.IsFf4) _MapName = OpenFF.Client.JumpPart.WithChip(_MapName, _Pos);
 				strcpy(out m_MapName, _MapName);
 				m_Flag = _Flag;
 				m_CharacterType = _CharacterType;

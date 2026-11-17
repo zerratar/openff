@@ -47,15 +47,16 @@ namespace OpenFF.Client
 		// remembered per engine until the answer comes.
 		private static readonly Dictionary<GlobalScope.ScriptEngine, uint[]> _waiting = new Dictionary<GlobalScope.ScriptEngine, uint[]>();
 
-		/// <summary>confirmWait(yesText, noText, jumpIfYes, jumpIfNo).</summary>
+		/// <summary>confirmWait(yes, no, ?, ?): libff4's - held while the window is up, then a jump to the label of the answer
+		/// (the words are the ConfirmWindow's own).</summary>
 		public static void ConfirmWait(GlobalScope.ScriptEngine engine)
 		{
 			uint[] operands = new[] { engine.getDword(), engine.getDword(), engine.getDword(), engine.getDword() };
 			if (!_waiting.ContainsKey(engine))
 			{
 				_waiting[engine] = operands;
-				_yesText = Text(operands[0]) ?? "Yes";
-				_noText = Text(operands[1]) ?? "No";
+				_yesText = Ff4Menu.KeyText(60274, "Yes");
+				_noText = Ff4Menu.KeyText(60275, "No");
 				if (!_open)
 				{
 					// confirmWait without confirm: open it here.
@@ -72,11 +73,21 @@ namespace OpenFF.Client
 			}
 			_waiting.Remove(engine);
 			_open = false;
-			uint target = _result ? operands[2] : operands[3];
-			if (target != 0)
+			engine.jump(_result ? operands[0] : operands[1]);
+		}
+
+		/// <summary>endMessage(?, ?): libff4's - held only while the message is still being written out
+		/// (mwIsCurrentMessageEnd); FF3's waited for the window to close, which a Yes / No over it never lets happen.</summary>
+		public static void EndMessage(GlobalScope.ScriptEngine engine)
+		{
+			engine.getWord();
+			engine.getWord();
+			try
 			{
-				engine.jump(target);
+				GlobalScope.wld.CMessageWindow window = GlobalScope.CCastCommandTransit.getInstance().cast_Field2D().MessageWindow();
+				if (window.isMadeMessage() && !window.isMessageProgressEnded()) engine.suspendRedo();
 			}
+			catch (Exception) { }
 		}
 
 		// ---- a Yes/No asked by another command (the inn) ----

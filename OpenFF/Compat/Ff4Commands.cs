@@ -33,7 +33,8 @@ namespace OpenFF.Client
 			{ "setRelationMapjumpToDoorAttr", engine => { string door = engine.getString(), trigger = engine.getString(); engine.getDword(); Ff4Exits.SetFarDoor(door, trigger); } },   // (door, trigger, ?)
 			{ "setOutsideMapJump", SetOutsideMapJump },               // the same, for leaving by the map's edge
 			{ "confirm", Ff4FieldCommands.Confirm },                          // (a, b): the Yes/No box
-			{ "confirmWait", Ff4FieldCommands.ConfirmWait },                  // (yesText, noText, jumpIfYes, jumpIfNo)
+			{ "confirmWait", Ff4FieldCommands.ConfirmWait },                  // (yes label, no label, ?, ?)
+			{ "endMessage", Ff4FieldCommands.EndMessage },                    // (?, ?): while the message is written out
 			{ "waitByLocale", Ff4FieldCommands.WaitByLocale },                // (japanese frames, other frames)
 			{ "jumpByLocale", Ff4FieldCommands.JumpByLocale },                // (locale, ?, label)
 			{ "setRewardMessage", Ff4FieldCommands.SetRewardMessage },        // (textId, 0, icon, 0, 0, 0)

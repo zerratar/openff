@@ -152,7 +152,7 @@ namespace OpenFF.Client
 				else if (_storyLeft == 0) Log.Write(LogChannel.General, "drive: story timed out on " + GlobalScope.stg.CStageMng.CurrentName + " (scene " + Ff4Cutscene.Active + ", event " + Ff4Menu.EventBusy() + ", message " + OpenFF.Game.Dialogue.IsOpen + ", battle " + Ff4Battle.Active + ")");
 				else
 				{
-					if (!free && !Ff4Battle.Active && ++_storyPress >= StepsPerSecond * 2 / 3) { _storyPress = 0; DesktopInput.Injected.Add(Keys.Enter); _framesLeft = 3; }
+					if (!free && ++_storyPress >= StepsPerSecond * 2 / 3) { _storyPress = 0; DesktopInput.Injected.Add(Keys.Enter); _framesLeft = 3; }
 					return;
 				}
 			}
@@ -324,6 +324,8 @@ namespace OpenFF.Client
 					string[] p = step.Arg.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
 					if (p.Length == 0) { Log.Write(LogChannel.General, "drive: jump wants <stage> [x y z]"); break; }
 					GlobalScope.VecFx32 at = new GlobalScope.VecFx32(0, 0, 4096);
+					// No place given on FF4: where another map's exit puts the party on arriving there.
+					if (p.Length < 4 && GameProfile.IsFf4 && Ff4Exits.ArrivalInto(p[0]) is (int X, int Y, int Z, int Facing) arrival) at = new GlobalScope.VecFx32(arrival.X, arrival.Y, arrival.Z);
 					if (p.Length >= 4 && float.TryParse(p[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float x)
 						&& float.TryParse(p[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float y)
 						&& float.TryParse(p[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float z))
