@@ -111,6 +111,7 @@ namespace OpenFF.Client
 			{ "setVehicleFieldNo", Ff4Ride.SetVehicleFieldNo },                 // (vehicle, world)
 			{ "setCanBoardVehicle", Ff4Ride.SetCanBoardVehicle },               // (vehicle, on) - operands only
 			{ "checkMapName", CheckMapName },                                     // (name, equal, label)
+			{ "gravityCharacter", engine => { engine.getWord(); engine.getDword(); engine.getWord(); } },   // (cast, on, ?) - libff4 reads its operands only
 			{ "hpSetting", Ff4PartyCommands.HpSetting },                      // (type, hp, ?)
 			{ "syncCharacterLv", Ff4PartyCommands.SyncCharacterLv },          // (a, b, grown, to, test, ?)
 			{ "evaluateMagneticEquipment", Ff4PartyCommands.EvaluateMagneticEquipment }, // (on)
