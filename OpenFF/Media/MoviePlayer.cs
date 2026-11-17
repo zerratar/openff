@@ -37,6 +37,7 @@ namespace OpenFF.Client
 		private volatile bool _videoDone;
 		private int _width, _height;
 		private long _lastTimeMs, _frameMs = 42;
+		private volatile int _dropped;
 
 		// Sound: PCM blocks (16-bit, interleaved) as the decoder makes them.
 		private readonly ConcurrentQueue<byte[]> _pcm = new ConcurrentQueue<byte[]>();
@@ -85,6 +86,14 @@ namespace OpenFF.Client
 						if (!decoder.Decode(frame, frame.Length) || !decoder.Shown) continue;
 						_width = decoder.Width;
 						_height = decoder.Height;
+						// Behind the clock (a slower machine, a Debug build): decoded, as the next picture builds on it, but
+						// not shown - the picture keeps time with the sound and the movie ends when it should.
+						if (_clock.IsRunning && block.TimeMs + _frameMs < _clock.ElapsedMilliseconds)
+						{
+							_lastTimeMs = block.TimeMs;
+							_dropped++;
+							continue;
+						}
 						_room.Wait();
 						if (_stopping) return;
 						if (!_spare.TryTake(out byte[] rgba) || rgba.Length != _width * _height * 4) rgba = new byte[_width * _height * 4];
@@ -287,7 +296,7 @@ namespace OpenFF.Client
 			try { _room.Release(QueuedFrames); } catch (SemaphoreFullException) { }
 			try { _sound?.Stop(); } catch (Exception) { }
 			if (Error != null) Log.Write(LogChannel.General, "movie: " + Error);
-			Log.Write(LogChannel.General, "movie: done at " + _clock.ElapsedMilliseconds + " ms (picture " + _shownTimeMs + " of " + _lastTimeMs + " ms, " + (_videoDone ? "all decoded" : "decoding") + ")");
+			Log.Write(LogChannel.General, "movie: done at " + _clock.ElapsedMilliseconds + " ms (picture " + _shownTimeMs + " of " + _lastTimeMs + " ms, " + (_videoDone ? "all decoded" : "decoding") + ", " + _dropped + " late picture(s) not shown)");
 		}
 
 		public void Dispose()

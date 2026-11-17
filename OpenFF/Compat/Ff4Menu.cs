@@ -106,6 +106,12 @@ namespace OpenFF.Client
 
 		private string _lookAtOpen;
 
+		/// <summary>The field the party walks with nothing else going on: no scene, event, message, battle, shop, map, chest,
+		/// warp, extra, vehicle change or encounter - when the menu may open (and the drives' story step waits for).</summary>
+		internal static bool FieldFree => EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !EventBusy() && !Game.Battle.InBattle && !Ff4Battle.Active
+			&& !(Ff4Shop.Instance?.IsOpen ?? false) && !(Ff4NaviMap.Instance?.IsOpen ?? false) && !Ff4Chests.Busy && !Ff4Warp.Busy && !Ff4Extras.Busy && !Ff4Ride.Busy
+			&& !EncounterZoom.Playing && !BlurRotate.Playing && !(Instance?.IsOpen ?? false);
+
 		private void Close()
 		{
 			_open = false;
@@ -177,9 +183,7 @@ namespace OpenFF.Client
 			Ff4MenuCamera.Step(_open && !_fromTitle && !_fromEnding && !_eventPick && _screen != Screen.Shop);
 			if (!_open)
 			{
-				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !EventBusy() && !Game.Battle.InBattle && !Ff4Battle.Active
-					&& !(Ff4Shop.Instance?.IsOpen ?? false) && !(Ff4NaviMap.Instance?.IsOpen ?? false) && !Ff4Chests.Busy && !Ff4Warp.Busy && !Ff4Extras.Busy && !Ff4Ride.Busy && !EncounterZoom.Playing && !BlurRotate.Playing
-					&& (input.KeyPressed("Tab") || input.Pressed(Pad.X)))
+				if (FieldFree && (input.KeyPressed("Tab") || input.Pressed(Pad.X)))
 				{
 					Open();
 				}

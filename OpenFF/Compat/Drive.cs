@@ -69,6 +69,7 @@ namespace OpenFF.Client
 
 		private static int _framesLeft;
 		private static Regex _waitFor;
+		private static int _storyLeft, _storyQuiet, _storyBattle, _storyPress;
 		private static bool _matched;
 		private static string _path;
 		private static bool _done;
@@ -137,6 +138,23 @@ namespace OpenFF.Client
 					}
 				}
 				return;
+			}
+			if (_storyLeft > 0)
+			{
+				// story <timeout>: the game driven on until the field is free for 3 seconds - Enter every 2/3 second through
+				// messages, questions and scenes, a fight ended (every foe felled) once it has run 3 seconds.
+				_storyLeft--;
+				bool free = Ff4Menu.FieldFree && GlobalScope.dgs.CFade.Main().isCleared();
+				_storyQuiet = free ? _storyQuiet + 1 : 0;
+				if (Ff4Battle.Active) { if (++_storyBattle == StepsPerSecond * 3) Log.Write(LogChannel.General, "drive: story ends a fight - " + (Ff4Battle.Instance?.FellAllFoes() ?? -1) + " foe(s) felled"); }
+				else _storyBattle = 0;
+				if (_storyQuiet >= StepsPerSecond * 3) { _storyLeft = 0; Log.Write(LogChannel.General, "drive: story idle on " + GlobalScope.stg.CStageMng.CurrentName); }
+				else if (_storyLeft == 0) Log.Write(LogChannel.General, "drive: story timed out on " + GlobalScope.stg.CStageMng.CurrentName + " (scene " + Ff4Cutscene.Active + ", event " + Ff4Menu.EventBusy() + ", message " + OpenFF.Game.Dialogue.IsOpen + ", battle " + Ff4Battle.Active + ")");
+				else
+				{
+					if (!free && !Ff4Battle.Active && ++_storyPress >= StepsPerSecond * 2 / 3) { _storyPress = 0; DesktopInput.Injected.Add(Keys.Enter); _framesLeft = 3; }
+					return;
+				}
 			}
 			if (_waitFor != null)
 			{
@@ -459,6 +477,13 @@ namespace OpenFF.Client
 					if (bits.Length < 2 || !int.TryParse(bits[0], out int member) || job < 0) { Log.Write(LogChannel.General, "drive: job wants <member> <job>"); break; }
 					try { OpenFF.Game.Party.SetJob(member, (OpenFF.Job)job); Log.Write(LogChannel.File, "drive: job " + OpenFF.Data.ModCharacters.Jobs[job].Name + " on member " + member); }
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: job failed: " + ex.Message); }
+					break;
+				}
+				case "story":
+				{
+					// story [timeout seconds]: see the step loop.
+					_storyLeft = (int)(Seconds(string.IsNullOrWhiteSpace(step.Arg) ? "300" : step.Arg.Trim(), 300) * StepsPerSecond);
+					_storyQuiet = _storyBattle = _storyPress = 0;
 					break;
 				}
 				case "endbattle":
