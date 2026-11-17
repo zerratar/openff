@@ -583,7 +583,7 @@ namespace OpenFF.Client
 		private static void BootEventBattle(GlobalScope.ScriptEngine engine)
 		{
 			int party = (int)engine.getWord();
-			engine.getByte();
+			int battleMap = engine.getByte();   // the battle stage (b09): the fight on it, and the field set up again after
 			int type = engine.getByte();   // the opening: 0 Normal, 1 Back attack, 2 Surprise (table at 0x1bbf50; 3 and up Normal)
 			engine.getByte(); engine.getByte();
 			// "world encount2" (WSEncountDirection2): the whirl to white, then the battle - the script held on this command
@@ -600,7 +600,7 @@ namespace OpenFF.Client
 				Ff4Battle.Instance?.SetNextOpening(opening);
 				// bootProgram(1): the battle goes on to its scene, not back to the field.
 				if (scene != null && Ff4Battle.Instance != null) Ff4Battle.Instance.AfterBattle = () => Ff4Cutscene.PlayBootScene(scene);
-				if (Ff4Battle.Instance == null || !Ff4Battle.Instance.StartParty(party))
+				if (Ff4Battle.Instance == null || !Ff4Battle.Instance.StartParty(party, false, battleMap))
 				{
 					Log.Write(LogChannel.General, "script: bootEventBattle " + party + " could not start");
 					Ff4Battle.Instance?.SetNextOpening(Ff4Battle.OpenNormal);
