@@ -157,6 +157,13 @@ namespace OpenFF.Client
 				// story <timeout>: the game driven on until the field is free for 3 seconds - Enter every 2/3 second through
 				// messages, questions and scenes, a fight ended (every foe felled) once it has run 3 seconds.
 				_storyLeft--;
+				// An event's item window (a key item at a spot) is the drive's to answer (useitem): the story stops at it.
+				if (Ff4Menu.Instance?.EventPickOpen == true)
+				{
+					_storyLeft = 0;
+					Log.Write(LogChannel.General, "drive: story stops at the event's item window on " + GlobalScope.stg.CStageMng.CurrentName);
+					return;
+				}
 				bool free = Ff4Menu.FieldFree && GlobalScope.dgs.CFade.Main().isCleared();
 				_storyQuiet = free ? _storyQuiet + 1 : 0;
 				if (Ff4Battle.Active) { if (++_storyBattle == StepsPerSecond * 3) Log.Write(LogChannel.General, "drive: story ends a fight - " + (Ff4Battle.Instance?.FellAllFoes() ?? -1) + " foe(s) felled"); }
