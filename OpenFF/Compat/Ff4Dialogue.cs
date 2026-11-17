@@ -88,6 +88,8 @@ namespace OpenFF.Client
 			return width + 2 * NamePad;
 		}
 
+		private static string _voicedLine;
+
 		private static void Read(GlobalScope.menu.MessageWindow window)
 		{
 			DialogueData d = _data;
@@ -97,6 +99,14 @@ namespace OpenFF.Client
 			(d.OpenX, d.OpenY) = window.Ff4Openness;
 			d.Text = window.Ff4Text ?? "";
 			d.Next = window.Ff4Next && !Ff4FieldCommands.IsOpen;   // the Yes / No up: no page arrow (bootInn clears it, as libff4's)
+			// Settings' Subtitles off: a scene's line that is spoken is heard, not shown - the bar stays down while its voice plays
+			// and for the rest of that line; a line with no voice still shows.
+			if (d.Bar && Ff4Cutscene.VoicePlaying) _voicedLine = d.Text;
+			if (d.Bar && !Ff4Settings.Current.Subtitles && d.Text.Length > 0 && (Ff4Cutscene.VoicePlaying || d.Text == _voicedLine))
+			{
+				d.Open = d.Bar = d.Window = false;
+				return;
+			}
 			int who = window.Ff4NameWho;
 			d.Speaker = null;
 			d.NameWidth = 0;
