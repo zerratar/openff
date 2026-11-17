@@ -108,6 +108,9 @@ namespace OpenFF.Client
 			{ "checkItem_Num", Ff4PartyCommands.CheckItemNum },                 // (item, test, count, label)
 			{ "alterPlayer_State", Ff4Ride.AlterPlayerState },                  // (state, ?) - aboard a vehicle
 			{ "checkPlayer_State", Ff4Ride.CheckPlayerState },                  // (state, label)
+			{ "setVehicleFieldNo", Ff4Ride.SetVehicleFieldNo },                 // (vehicle, world)
+			{ "setCanBoardVehicle", Ff4Ride.SetCanBoardVehicle },               // (vehicle, on) - operands only
+			{ "checkMapName", CheckMapName },                                     // (name, equal, label)
 			{ "hpSetting", Ff4PartyCommands.HpSetting },                      // (type, hp, ?)
 			{ "syncCharacterLv", Ff4PartyCommands.SyncCharacterLv },          // (a, b, grown, to, test, ?)
 			{ "evaluateMagneticEquipment", Ff4PartyCommands.EvaluateMagneticEquipment }, // (on)
@@ -255,6 +258,19 @@ namespace OpenFF.Client
 			mtx.a[10] = y;
 			mtx.a[11] = z;
 			GlobalScope.characterMng.setPoseMtx(characterId, mtx);
+		}
+
+		/// <summary>checkMapName(name, equal, label): jumps when the map's name begins with <c>name</c> (equal 1) or does not (0) -
+		/// the world state's own map name, as the global script's bars on Teleport, Warp and the Exit items per map read it
+		/// (FF3's handler compared FF3's saved map name, never set here).</summary>
+		private static void CheckMapName(GlobalScope.ScriptEngine engine)
+		{
+			string name = engine.getString() ?? "";
+			bool equal = engine.getDword() != 0;
+			uint label = engine.getDword();
+			string map = GlobalScope.stg.CStageMng.CurrentName ?? "";
+			bool same = map.StartsWith(name, StringComparison.Ordinal);
+			if (same == equal) engine.jump(label);
 		}
 
 		private static void SetRelationOfMapjumpobjAndFlag(GlobalScope.ScriptEngine engine)

@@ -407,6 +407,25 @@ namespace OpenFF.Client
 			Log.Write(LogChannel.General, "ride: aboard type " + type + " by the script (alterPlayer_State " + state + ")");
 		}
 
+		/// <summary>setVehicleFieldNo(vehicle, world): wscSetVehicleStayingMap - the world the vehicle stays on from now (the
+		/// Lunar Whale on the Earth once it rises at Mysidia, the Enterprise back on the Earth).</summary>
+		public static void SetVehicleFieldNo(GlobalScope.ScriptEngine engine)
+		{
+			uint vehicle = engine.getDword();
+			int world = engine.getByte();
+			int type = TypeOfState(vehicle);
+			if (type < 0) return;
+			Ff4Vehicles.SetStay(type, world);
+			Log.Write(LogChannel.File, "ride: vehicle " + type + " stays on world " + world);
+		}
+
+		/// <summary>setCanBoardVehicle(vehicle, on): libff4 reads its operands only.</summary>
+		public static void SetCanBoardVehicle(GlobalScope.ScriptEngine engine)
+		{
+			engine.getDword();
+			engine.getByte();
+		}
+
 		/// <summary>checkPlayer_State(state, label): jumps when the party rides that vehicle (0: rides none of them).</summary>
 		public static void CheckPlayerState(GlobalScope.ScriptEngine engine)
 		{
