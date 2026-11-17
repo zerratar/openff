@@ -70,6 +70,19 @@ namespace OpenFF.Client
 		private static int _framesLeft;
 		private static Regex _waitFor;
 		private static int _storyLeft, _storyQuiet, _storyBattle, _storyPress;
+
+		/// <summary>The world's mode, state and the state's phase, for a story step's report.</summary>
+		private static string WorldState()
+		{
+			try
+			{
+				var w = GlobalScope.wld.WorldPart.getInstance()?.getWorldSystem();
+				if (w == null) return " (no world)";
+				var st = w.CrtState();
+				return " (" + w.Mode() + ", " + (st?.GetType().Name ?? "-") + " " + st?.phase() + ", jump " + w.IsMapJump() + ")";
+			}
+			catch (Exception ex) { return " (" + ex.GetType().Name + ")"; }
+		}
 		private static bool _matched;
 		private static string _path;
 		private static bool _done;
@@ -148,8 +161,8 @@ namespace OpenFF.Client
 				_storyQuiet = free ? _storyQuiet + 1 : 0;
 				if (Ff4Battle.Active) { if (++_storyBattle == StepsPerSecond * 3) Log.Write(LogChannel.General, "drive: story ends a fight - " + (Ff4Battle.Instance?.FellAllFoes() ?? -1) + " foe(s) felled"); }
 				else _storyBattle = 0;
-				if (_storyQuiet >= StepsPerSecond * 3) { _storyLeft = 0; Log.Write(LogChannel.General, "drive: story idle on " + GlobalScope.stg.CStageMng.CurrentName); }
-				else if (_storyLeft == 0) Log.Write(LogChannel.General, "drive: story timed out on " + GlobalScope.stg.CStageMng.CurrentName + " (scene " + Ff4Cutscene.Active + ", event " + Ff4Menu.EventBusy() + ", message " + OpenFF.Game.Dialogue.IsOpen + ", battle " + Ff4Battle.Active + ")");
+				if (_storyQuiet >= StepsPerSecond * 3) { _storyLeft = 0; Log.Write(LogChannel.General, "drive: story idle on " + GlobalScope.stg.CStageMng.CurrentName + WorldState()); }
+				else if (_storyLeft == 0) Log.Write(LogChannel.General, "drive: story timed out on " + GlobalScope.stg.CStageMng.CurrentName + WorldState() + " (scene " + Ff4Cutscene.Active + ", event " + Ff4Menu.EventBusy() + ", message " + OpenFF.Game.Dialogue.IsOpen + ", battle " + Ff4Battle.Active + ")");
 				else
 				{
 					if (!free && ++_storyPress >= StepsPerSecond * 2 / 3) { _storyPress = 0; DesktopInput.Injected.Add(Keys.Enter); _framesLeft = 3; }

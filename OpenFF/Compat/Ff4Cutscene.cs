@@ -131,7 +131,7 @@ namespace OpenFF.Client
 			{ "ce_SetupSE", Ff4Music.Operands(1) },          // (bank): dssndLoadSE, likewise
 			{ "ce_CleanupSE", Ff4Music.Operands(1) },        // (bank): dssndUnloadSE
 			{ "ce_VoiceSkipOn", Ff4Music.Operands(0) },      // libff4's is empty
-			{ "ce_CleanupMap", engine => Guard("stage", () => GlobalScope.stageMng?.delStage()) },   // the scene's stage gone
+			{ "ce_CleanupMap", Ff4Music.Operands(0) },       // delStage: libff4's scene part ends here and the world sets its stage up anew; the scene runs on the world part here, its stage put away by the next map jump (taken now, the jump found none to leave - Fabul's ship stood still)
 			{ "ce_SlotBGMPlay", SlotBgmPlay },               // (slot, bgm)
 			{ "ce_SlotBGMStop", SlotBgmStop },               // (slot, fade frames)
 			{ "ce_StopBGM", StopBgm },                       // (fade frames): every slot

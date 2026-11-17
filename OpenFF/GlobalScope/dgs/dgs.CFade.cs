@@ -128,7 +128,9 @@ internal static partial class GlobalScope
 					{
 						num3 = MASTERBRIGHTNESS_MIN;
 					}
-					Brightness = (short)(Brightness__ + num3 * num / 4096);
+					// PORT: from where the screen stands to the target - a fade to black from white (Leviathan's scene ends white)
+					// added the whole way to +16 and stopped at 0, neither out nor clear, and the map jump waiting on it never left.
+					Brightness = (short)(Brightness__ + (num3 - Brightness__) * num / 4096);
 					if ((fadeType == FADE_TYPE.FADE_TYPE_WHITE && Brightness >= num3) || (fadeType == FADE_TYPE.FADE_TYPE_BLACK && Brightness <= num3))
 					{
 						Brightness = (short)num3;
