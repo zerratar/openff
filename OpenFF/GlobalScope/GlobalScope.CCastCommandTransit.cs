@@ -89,7 +89,9 @@ internal static partial class GlobalScope
 				return -1;
 			}
 			num = evt.CHichParameterManager.getInstance().getManCastIndex(_HichIndex);
-			_ = 0;
+			// PORT: a cast the map's table does not have (Kaipo's inn names one the scene booted elsewhere): none, as the
+			// handlers' own -1 checks expect, not an index out of the table.
+			if (num < 0) return -1;
 			return evt.CHichParameterManager.getInstance().CharaIndex(num);
 		}
 

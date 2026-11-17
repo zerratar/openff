@@ -81,9 +81,15 @@ namespace OpenFF
 			}
 			catch (Exception ex)
 			{
-				Warn(what + ": " + ex.GetType().Name + ": " + ex.Message);
+				// The first time a place throws, where in the code (a failure each frame would otherwise fill the log with the
+				// same line and no way to find it).
+				bool first;
+				lock (_guarded) first = _guarded.Add(what + ex.GetType().Name);
+				Warn(what + ": " + ex.GetType().Name + ": " + ex.Message + (first ? " | " + ex.StackTrace?.Replace(Environment.NewLine, " | ") : ""));
 			}
 		}
+
+		private static readonly System.Collections.Generic.HashSet<string> _guarded = new System.Collections.Generic.HashSet<string>();
 	}
 
 	/// <summary>

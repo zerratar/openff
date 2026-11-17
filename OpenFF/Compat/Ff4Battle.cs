@@ -2790,11 +2790,13 @@ namespace OpenFF.Client
 			}
 			List<int> commands = choosing ? Commands : null;
 			int count = commands?.Count ?? 0;
+			// The list may have changed under the scroll (a member's turn ended as the fight did): kept within it.
+			_commandScroll = Math.Max(0, Math.Min(_commandScroll, Math.Max(0, count - 1)));
 			for (int row = 0; row < h.Command.Count; row++)
 			{
 				int i = _commandScroll + row;
 				CommandRow c = h.Command[row];
-				c.Present = i < count;
+				c.Present = i >= 0 && i < count;
 				c.Name = c.Present ? CommandName(commands[i]) : "";
 				c.Lit = c.Present && _pick == Pick.Command && i == _cursor;
 				c.Disabled = c.Present && !CommandUsable(_acting, commands[i]);
