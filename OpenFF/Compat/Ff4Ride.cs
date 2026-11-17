@@ -397,7 +397,19 @@ namespace OpenFF.Client
 		private static int _pendingBoard = -1;
 
 		/// <summary>Tools: a drive's ride step boards as the script would.</summary>
-		internal static void DriveBoard(uint state) => Board(state);
+		internal static void DriveBoard(uint state)
+		{
+			// The vehicle brought to where the lead stands first (a drive's jump put the lead there, the vehicle elsewhere).
+			int type = TypeOfState(state);
+			Vehicle v = type >= 0 && _world >= 0 ? _vehicles[type] : null;
+			if (v != null && Hero != null)
+			{
+				GlobalScope.VecFx32 at = Hero.getPosition();
+				v.X = at.x;
+				v.Z = at.z;
+			}
+			Board(state);
+		}
 
 		private static void Board(uint state)
 		{
