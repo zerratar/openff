@@ -127,8 +127,14 @@ namespace OpenFF.Client
 		{
 			if (!GameProfile.IsFf4) return;
 			_world = WorldOf(GlobalScope.stg.CStageMng.CurrentName);
-			if (_world < 0) { Ff4Vehicles.ArriveOn = -1; return; }
+			if (_world < 0) { Ff4Vehicles.ArriveOn = -1; _pendingBoard = -1; return; }
 			OpenFF.Game.Guard("ride: vehicles", CreateVehicles);
+			if (_pendingBoard >= 0)
+			{
+				uint state = (uint)_pendingBoard;
+				_pendingBoard = -1;
+				OpenFF.Game.Guard("ride: boarding", () => Board(state));
+			}
 		}
 
 		private static void CreateVehicles()
@@ -383,8 +389,23 @@ namespace OpenFF.Client
 		{
 			uint state = engine.getDword();
 			engine.getWord();
+			Board(state);
+		}
+
+		/// <summary>An alterPlayer_State the world's first script step asked for before the host made the vehicles (libff4's
+		/// are the map's objects, there with it): it boards as they come (the Enterprise leaving Baron after Kain's demand).</summary>
+		private static int _pendingBoard = -1;
+
+		private static void Board(uint state)
+		{
 			int type = TypeOfState(state);
 			Vehicle v = type >= 0 && _world >= 0 ? _vehicles[type] : null;
+			if (v == null && type >= 0 && _world < 0)
+			{
+				_pendingBoard = (int)state;
+				Log.Write(LogChannel.File, "ride: alterPlayer_State " + state + " waits for the world's vehicles");
+				return;
+			}
 			if (v == null || Hero == null)
 			{
 				Log.Write(LogChannel.General, "ride: alterPlayer_State " + state + " - no vehicle " + type + " on this map");
