@@ -73,6 +73,7 @@ namespace OpenFF.Client
 			Formation = 1;
 			_party.Join(0, 10);
 			_positions[0] = 1;   // initForNewgame: addMember(0, 1)
+			Ff4Speculation.FieldSymbol = 0;
 			// --party=4:10,3:12 - extra members for a test start (the child Rydia at 10, Rosa at 12).
 			string extra = Options.Get("party");
 			if (!string.IsNullOrEmpty(extra))
@@ -219,6 +220,8 @@ namespace OpenFF.Client
 		{
 			public int Gil;
 			public int Formation = 1;
+			/// <summary>The field's leading character (GameParameter::fieldSymbolID); -1 in saves from before it was kept.</summary>
+			public int Symbol = -1;
 			public List<SavedCharacter> Roster = new List<SavedCharacter>();
 			/// <summary>(item id, count) pairs, in bag order.</summary>
 			public List<int[]> Items = new List<int[]>();
@@ -227,7 +230,7 @@ namespace OpenFF.Client
 		public static Saved Snapshot()
 		{
 			Party p = Party;
-			Saved s = new Saved { Gil = p.Gil, Formation = Formation };
+			Saved s = new Saved { Gil = p.Gil, Formation = Formation, Symbol = Ff4Speculation.FieldSymbol };
 			foreach (Character c in p.Roster)
 			{
 				s.Roster.Add(new SavedCharacter
@@ -286,6 +289,8 @@ namespace OpenFF.Client
 			}
 			foreach (int[] stack in s.Items) if (stack != null && stack.Length >= 2) p.AddItem(stack[0], stack[1]);
 			_party = p;
+			// A save from before the field symbol was kept: Cecil leads when he is in the party, as the story keeps him.
+			Ff4Speculation.FieldSymbol = s.Symbol >= 0 ? s.Symbol : p.Get(1)?.InParty == true ? 1 : p.Get(0)?.InParty == true ? 0 : -1;
 			Log.Write(LogChannel.General, "party: restored - " + p.Describe().Replace("\n", " | "));
 		}
 
@@ -345,8 +350,17 @@ namespace OpenFF.Client
 			int type = (int)engine.getDword();
 			engine.getByte();
 			Character c = Party.Get(type);
+			int symbol = Ff4Speculation.FieldSymbol >= 0 ? Ff4Speculation.FieldSymbol : Party.Leader?.Id ?? -1;
+			string look = Ff4PartyCommands.LeaderLook();
 			bool left = Party.Leave(type);
 			if (left) _positions.Remove(type);
+			// babilCommand_SubPartyPC: the field's leader gone, each place in turn hands it on - the last one filled has it - and
+			// the field walks as that one.
+			if (left && Party.Get(symbol)?.InParty != true)
+			{
+				for (int place = 0; place < 5; place++) if (TypeAt(place) is int there && there >= 0) Ff4Speculation.FieldSymbol = there;
+				if (Ff4PartyCommands.LeaderLook() != look) Ff4PartyCommands.LeaderChanged();
+			}
 			Log.Write(LogChannel.General, "party: " + (c?.Name ?? ("type " + type)) + (left ? " leaves - " : " was not in the party - ") + Party.Members.Count + " in the party");
 		}
 
