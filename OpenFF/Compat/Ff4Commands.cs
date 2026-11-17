@@ -28,6 +28,9 @@ namespace OpenFF.Client
 			{ "changeCamera_Mode", ChangeCameraMode },                 // () - FF3's takes the mode; FF4's means "back to following"
 			{ "setEffect_Scale", SetEffectScale },                     // (index, x, y, z) - FF3's has a second word
 			{ "setInsideMapJump", SetInsideMapJump },                 // (trigger, map, ax, ay, az, facing, x1, y1, z1, x2, y2, z2)
+			{ "setRelationOfMapjumpobjAndFlag", SetRelationOfMapjumpobjAndFlag },   // (trigger, group, index, ?)
+			{ "setDoor", engine => { string door = engine.getString(), trigger = engine.getString(); int bank = (int)engine.getDword(), number = (int)engine.getDword(); engine.getDword(); Ff4Exits.SetDoor(door, trigger, bank, number); } },   // (door, trigger, bank, number, ?)
+			{ "setRelationMapjumpToDoorAttr", engine => { string door = engine.getString(), trigger = engine.getString(); engine.getDword(); Ff4Exits.SetFarDoor(door, trigger); } },   // (door, trigger, ?)
 			{ "setOutsideMapJump", SetOutsideMapJump },               // the same, for leaving by the map's edge
 			{ "confirm", Ff4FieldCommands.Confirm },                          // (a, b): the Yes/No box
 			{ "confirmWait", Ff4FieldCommands.ConfirmWait },                  // (yesText, noText, jumpIfYes, jumpIfNo)
@@ -99,6 +102,9 @@ namespace OpenFF.Client
 			{ "resurrectionDeadMember", Ff4PartyCommands.ResurrectionDeadMember }, // (?, ?, ?)
 			{ "setCondition", Ff4PartyCommands.SetCondition },                // (type or 15, condition number)
 			{ "conditionRecoveryByCharacter", Ff4PartyCommands.ConditionRecoveryByCharacter }, // (type, five condition numbers)
+			{ "checkCharacterStatusJump", Ff4PartyCommands.CheckCharacterStatusJump }, // (type, condition number, label)
+			{ "setItemUseMenuManager", Ff4ItemPickCommands.SetItemUseMenuManager },   // () - the event's item window
+			{ "checkUseItem_Id", Ff4ItemPickCommands.CheckUseItemId },             // (item, label)
 			{ "hpSetting", Ff4PartyCommands.HpSetting },                      // (type, hp, ?)
 			{ "syncCharacterLv", Ff4PartyCommands.SyncCharacterLv },          // (a, b, grown, to, test, ?)
 			{ "evaluateMagneticEquipment", Ff4PartyCommands.EvaluateMagneticEquipment }, // (on)
@@ -205,18 +211,15 @@ namespace OpenFF.Client
 			}
 		}
 
-		/// <summary>Commands that only dress the game - door swings, footstep dust, BGM ducking, the jump history - skipped without a word in the log.</summary>
+		/// <summary>Commands that only dress the game - footstep dust, BGM ducking - skipped without a word in the log.</summary>
 		public static readonly HashSet<string> Cosmetic = new HashSet<string>(StringComparer.Ordinal)
 		{
 			"setMapjumpBGMOperation",
-			"setRelationMapjumpToDoorAttr", "setDoor", "setRelationOfMapjumpobjAndFlag",   // door swings on exits
 			"createEffectTaskWalk", "createEffectTaskRun", "createEffectTaskWait",        // footstep dust
 			"setShadowScale",
 			// Sound bookkeeping FF3's player has no slot for: the battle theme choice, the
 			// division of BGM data, a reset.
 			"setBattleBGM", "bgmContinueForConteEvent", "soundReset", "bgmDivideLoadDataTypeSpecific",
-			// checkCharacterStatusJump jumps when a member carries a status condition (none does here).
-			"checkCharacterStatusJump",
 		};
 
 		/// <summary>
@@ -249,6 +252,14 @@ namespace OpenFF.Client
 			mtx.a[10] = y;
 			mtx.a[11] = z;
 			GlobalScope.characterMng.setPoseMtx(characterId, mtx);
+		}
+
+		private static void SetRelationOfMapjumpobjAndFlag(GlobalScope.ScriptEngine engine)
+		{
+			string trigger = engine.getString();
+			uint group = engine.getWord(), index = engine.getWord();
+			engine.getDword();
+			Ff4Exits.AddFlag(trigger, group, index);
 		}
 
 		private static void SetInsideMapJump(GlobalScope.ScriptEngine engine)

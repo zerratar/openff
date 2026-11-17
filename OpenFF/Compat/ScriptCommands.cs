@@ -300,6 +300,16 @@ namespace OpenFF.Client
 				int at = 16 + (data[14] | (data[15] << 8)) * 16;
 				int end = (int)Math.Min((uint)(data[8] | (data[9] << 8) | (data[10] << 16) | (data[11] << 24)), (uint)data.Length);
 				string map = name.Substring(6, name.Length - 13);
+				if (opsOf != null && Array.Exists(opsOf.Split(','), c => c == "@*" || string.Equals(c, "@" + map, StringComparison.OrdinalIgnoreCase)))
+				{
+					// The cast table: each cast's constructor, normal (talk / touch) and destructor entry, at the offsets the uses show.
+					int casts = data[14] | (data[15] << 8);
+					for (int c = 0; c < casts; c++)
+					{
+						int e = 16 + c * 16;
+						opLines.Add("cast " + map + " " + BitConverter.ToUInt32(data, e) + ": ctor @" + Entry(data, e + 4) + " normal @" + Entry(data, e + 8) + " dtor @" + Entry(data, e + 12));
+					}
+				}
 				while (at + 2 <= end)
 				{
 					int opcode = data[at] | (data[at + 1] << 8);
@@ -338,6 +348,13 @@ namespace OpenFF.Client
 			string path = System.IO.Path.Combine(AppContext.BaseDirectory, "logs", "ff4-commands.txt");
 			System.IO.File.WriteAllLines(path, lines);
 			Log.Write(LogChannel.General, "script: " + lines[0] + " - " + path);
+		}
+
+		/// <summary>A cast table entry: the file offset its code starts at, as the uses show them, or "-" for none.</summary>
+		private static string Entry(byte[] data, int at)
+		{
+			uint offset = BitConverter.ToUInt32(data, at);
+			return offset == uint.MaxValue ? "-" : offset.ToString();
 		}
 
 		/// <summary>An instruction's operands as text, read from <paramref name="at"/> (just past its opcode).</summary>

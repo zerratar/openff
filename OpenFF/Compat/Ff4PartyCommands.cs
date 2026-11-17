@@ -120,6 +120,17 @@ namespace OpenFF.Client
 			else if (Member(type) is Character c) On(c, id);
 		}
 
+		/// <summary>checkCharacterStatusJump(type, condition number, label): jumps when the member is in the party with that
+		/// status (a number past 7 asks for any - Condition::is(-1)).</summary>
+		public static void CheckCharacterStatusJump(GlobalScope.ScriptEngine engine)
+		{
+			Character c = Member(engine.getDword());
+			uint number = engine.getDword();
+			uint label = engine.getDword();
+			if (c == null) return;
+			if (number < 8 ? Has(c, ConditionOf(number)) : c.Conditions != 0) engine.jump(label);
+		}
+
 		/// <summary>ConditionRecoveryByCharacter(type, five condition numbers): those statuses off the member.</summary>
 		public static void ConditionRecoveryByCharacter(GlobalScope.ScriptEngine engine)
 		{

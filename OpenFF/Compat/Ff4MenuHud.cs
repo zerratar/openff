@@ -93,7 +93,7 @@ namespace OpenFF.Client
 			public bool Root, Picking, Bubble, Question, Yes, No;
 			// The full screens: which is up, its title, its help line; Inventory's list and its use on a member; Magic's member
 			// and spells.
-			public bool Full, Inventory, Magic, Using;
+			public bool Full, Inventory, Magic, Using, EventPick;
 			public string Title = "", Help = "", UseName = "", UseCount = "";
 			public string KeyItemsLabel = "Key Items", SortLabel = "Sort", UseLabel = "Use", ChangeLabel = "Change Characters", SchoolLabel = "";
 			public int UseIcon = -1;

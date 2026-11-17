@@ -116,7 +116,7 @@ executable) and checked frame by frame against the Steam game.
 | FF4 | Done | Still open |
 | --- | --- | --- |
 | Battle | 100% | |
-| Field: walking, exits, talking, events, vehicles, field magic | 85% | A full playthrough still to be checked scene by scene |
+| Field: walking, exits, doors, key items, talking, events, vehicles, field magic | 85% | A full playthrough still to be checked scene by scene |
 | Maps, models and the world map | 85% | Some lighting and materials |
 | Title and map changes | 85% | The opening movie |
 | The Fat Chocobo's extras, name entry | 85% | |

@@ -43,7 +43,7 @@ Every run writes `logs/ff3.log` beside the executable (the previous run is kept 
 | `--probe` | A per-frame heartbeat in the log (vertices, bounds, camera, world state) |
 | `--ff4table` | List every FF4 script command that is only skipped |
 | `--battle-event-trace=1` | Log every FF4 battle event command as it runs (`battle: event 36 #80 AddPlayer 5`), its operands as they stand |
-| `--ff4usage=1`, `--ff4ops=<command>,...` , `--ff4ops=@<map>` or `--ff4ops=@*` | Every script command FF4's scripts use (`logs/ff4-commands.txt`), or each use of some commands, or a map's (or every) whole script, with operands (`logs/ff4-ops.txt`) |
+| `--ff4usage=1`, `--ff4ops=<command>,...` , `--ff4ops=@<map>` or `--ff4ops=@*` | Every script command FF4's scripts use (`logs/ff4-commands.txt`), or each use of some commands, or a map's (or every) whole script, with operands, and with `@` the cast table - each cast's entry offsets (`logs/ff4-ops.txt`) |
 | `FF3_DUMP=<dir>`, `FF3_DUMP_FONTS=<dir>` | Dump decoded data and font atlases as they load |
 | `FF3_SPEED=<n>` | While fast-forwarding, each game step runs n times |
 

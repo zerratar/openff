@@ -276,6 +276,8 @@ internal static partial class GlobalScope
 									break;
 								}
 								stageMng.setStage(arg);
+								// PORT: FF4's door the party came through, open on arrival (Ff4Exits).
+								OpenFF.Client.Ff4Exits.StageSet();
 								if (!map.CMapParameterManager.Instance().isLoaded() || sys.Mode() == CBaseSystem.WORLD_MODE.WORLD_MODE_FIELD)
 								{
 									return;

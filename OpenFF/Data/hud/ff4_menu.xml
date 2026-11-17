@@ -27,6 +27,7 @@
     menu.magic              Magic: menu.head (the member: name, level, hp, maxHp, mp, maxMp, face), menu.spell[0..14],
                             menu.spellScroll, menu.schoolLabel (C's school), menu.changeLabel
     menu.keyItemsLabel, sortLabel, useLabel   the other key hints' words
+    menu.eventPick          the event's item window (Ff4MenuItemPick): Inventory without Key Items and Sort
 -->
 <menu style="width: 1920px; height: 1080px">
   <name>ff4_menu</name>
@@ -528,10 +529,10 @@
       </frame>
       <frame bind-display="!menu.using">
       <id>browseKeys</id><x>0</x><y>995.6</y><width>1920</width><height>60.75</height>
-        <frame class="key-cap" style="-ff-cell: key 48"><id>key0</id><x>929.6</x><y>0</y><width>60.75</width><height>60.75</height></frame>
-        <frame class="m-key-label" bind-text="{menu.keyItemsLabel}"><id>label0</id><x>990.4</x><y>0</y><width>360</width><height>60.75</height></frame>
-        <frame class="key-cap" style="-ff-cell: key 16"><id>key1</id><x>1189.9</x><y>0</y><width>60.75</width><height>60.75</height></frame>
-        <frame class="m-key-label" bind-text="{menu.sortLabel}"><id>label1</id><x>1250.7</x><y>0</y><width>360</width><height>60.75</height></frame>
+        <frame class="key-cap" bind-display="!menu.eventPick" style="-ff-cell: key 48"><id>key0</id><x>929.6</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-display="!menu.eventPick" bind-text="{menu.keyItemsLabel}"><id>label0</id><x>990.4</x><y>0</y><width>360</width><height>60.75</height></frame>
+        <frame class="key-cap" bind-display="!menu.eventPick" style="-ff-cell: key 16"><id>key1</id><x>1189.9</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+        <frame class="m-key-label" bind-display="!menu.eventPick" bind-text="{menu.sortLabel}"><id>label1</id><x>1250.7</x><y>0</y><width>360</width><height>60.75</height></frame>
         <frame class="key-cap" style="-ff-cell: key 43"><id>key2</id><x>1348.7</x><y>0</y><width>60.75</width><height>60.75</height></frame>
         <frame class="m-key-label" bind-text="{menu.confirm}"><id>label2</id><x>1409.5</x><y>0</y><width>360</width><height>60.75</height></frame>
         <frame class="key-cap" style="-ff-cell: key 15"><id>key3</id><x>1568.5</x><y>0</y><width>60.75</width><height>60.75</height></frame>

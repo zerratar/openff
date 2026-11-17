@@ -109,6 +109,7 @@ namespace OpenFF.Client
 		private void Close()
 		{
 			_open = false;
+			_eventPick = false;
 			Game.Input.Capture = false;
 			// WSMenu's exit waits on the party loader: a leader turned Toad, Pig or Mini (or back), or a new leader, walks as such.
 			if (!_fromTitle && !_fromEnding && _lookAtOpen != null && Ff4PartyCommands.LeaderLook() != _lookAtOpen) Ff4PartyCommands.LeaderChanged();
@@ -173,7 +174,7 @@ namespace OpenFF.Client
 			InputState input = Game.Input;
 			ApplySettingsOnce();
 			// Steam's menu closes the field camera in on the lead, from the root and its question; the full screens cover it.
-			Ff4MenuCamera.Step(_open && !_fromTitle && !_fromEnding && _screen != Screen.Shop);
+			Ff4MenuCamera.Step(_open && !_fromTitle && !_fromEnding && !_eventPick && _screen != Screen.Shop);
 			if (!_open)
 			{
 				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !EventBusy() && !Game.Battle.InBattle && !Ff4Battle.Active
@@ -196,6 +197,7 @@ namespace OpenFF.Client
 			// The menu key closes it from the main menu; in a screen C and M are the screen's (Key Items, the next member).
 			bool atRoot = _screen == Screen.Root && _mode == Mode.Browse && !_question;
 			if (_fromEnding && input.KeyPressed("Escape")) { EndingDone(); return; }
+			if (_eventPick && input.KeyPressed("Escape")) { EndEventPick(-1); return; }
 			if (input.KeyPressed("Escape") || (atRoot && (input.KeyPressed("Tab") || input.Pressed(Pad.X)))) { Close(); return; }
 			if (Ff4Party.Party.Members.Count == 0) { Close(); return; }
 			_member = Math.Clamp(_member, 0, Ff4Party.Party.Members.Count - 1);
@@ -372,6 +374,7 @@ namespace OpenFF.Client
 
 		private List<OpenFF.Data.ItemStack> Bag()
 		{
+			if (_eventPick) return EventPickList();
 			List<OpenFF.Data.ItemStack> bag = new List<OpenFF.Data.ItemStack>();
 			foreach (OpenFF.Data.ItemStack s in Ff4Party.Party.Inventory)
 			{
@@ -423,8 +426,10 @@ namespace OpenFF.Client
 		{
 			IReadOnlyList<OpenFF.Data.ItemStack> items = Bag();
 			if (input.Pressed(Pad.Up) || input.Pressed(Pad.Down) || input.Pressed(Pad.Left) || input.Pressed(Pad.Right) || input.Pressed(Pad.A) || input.Pressed(Pad.X)) _sortNote = null;
-			if (_mode == Mode.Browse && input.Pressed(Pad.X)) { _keyItems = !_keyItems; _cursor = _scroll = 0; return; }   // C: Key Items
-			if (_mode == Mode.Browse && !_keyItems && input.KeyPressed("Tab"))
+			if (_eventPick && input.Pressed(Pad.B)) { EndEventPick(-1); return; }
+			if (_eventPick && input.Pressed(Pad.A)) { EndEventPick(items.Count > 0 ? items[Math.Min(_cursor, items.Count - 1)].ItemId : -1); return; }
+			if (_mode == Mode.Browse && !_eventPick && input.Pressed(Pad.X)) { _keyItems = !_keyItems; _cursor = _scroll = 0; return; }   // C: Key Items
+			if (_mode == Mode.Browse && !_keyItems && !_eventPick && input.KeyPressed("Tab"))
 			{
 				// Tab: MSSItem's Sort - the line for the order (50110 consumables, 50111 weapons, 50112 armour at the top), the
 				// bag sorted so, and the next press the next order.
@@ -908,6 +913,7 @@ namespace OpenFF.Client
 				h.Title = _keyItems ? h.KeyItemsLabel : T(50002, "Inventory");
 				List<OpenFF.Data.ItemStack> items = Bag();
 				h.Using = _mode == Mode.ItemTarget;
+				h.EventPick = _eventPick;
 				for (int k = 0; k < h.Item.Count; k++)
 				{
 					int i = _scroll + k;

@@ -31,6 +31,13 @@ namespace OpenFF.Client
 			public int Facing;                       // eighths of a turn
 			public int MinX, MinY, MinZ, MaxX, MaxY, MaxZ; // 20.12, this map
 			public bool Armed;                       // false while the leader stands inside
+			/// <summary>setRelationOfMapjumpobjAndFlag's (group, index) pairs, at most 4: set when the party goes out by it.</summary>
+			public readonly List<(uint Group, uint Index)> Flags = new List<(uint, uint)>();
+			/// <summary>setDoor's door: this map's material shown open (alpha 0) as the party steps in, and its sound.</summary>
+			public string Door;
+			public int DoorSeBank = -1, DoorSeNumber = -1;
+			/// <summary>setRelationMapjumpToDoorAttr's door: the destination map's material shown open as it is set up.</summary>
+			public string FarDoor;
 		}
 
 		private static readonly List<Exit> _exits = new List<Exit>();
@@ -53,6 +60,74 @@ namespace OpenFF.Client
 		{
 			_exits.Clear();
 			_stage = stage;
+			// The flags of the exit taken, set once the map it left is gone and before the new one's scripts run, as
+			// WSMapJump's initialize does (loadTargetJumpObjectFlag): Baron's 405/406 pick its Exit spell's door, t17_00's
+			// 851-854 which way the party came in.
+			if (_pendingFlags.Count > 0)
+			{
+				foreach ((uint group, uint index) in _pendingFlags) GlobalScope.FlagManager.singleton().set(group, index);
+				Log.Write(LogChannel.General, "exits: flags of the exit taken set: " + string.Join(", ", _pendingFlags.ConvertAll(f => f.Group + "/" + f.Index)));
+				_pendingFlags.Clear();
+			}
+		}
+
+		private static readonly List<(uint Group, uint Index)> _pendingFlags = new List<(uint, uint)>();
+		private static string _pendingFarDoor;
+
+		/// <summary>The stage is set: the door the party came through stands open (WSPrepare::wsProcessSetupStage's
+		/// popOpenDoorAttr - the material at alpha 0 until the map is set up again).</summary>
+		public static void StageSet()
+		{
+			string door = _pendingFarDoor;
+			_pendingFarDoor = null;
+			if (string.IsNullOrEmpty(door)) return;
+			try { GlobalScope.stageMng?.setMaterialAlpha(door, 0); Log.Write(LogChannel.General, "exits: came through door " + door + ", open (alpha now " + GlobalScope.stageMng?.getMaterialAlpha(door) + ")"); }
+			catch (Exception ex) { Log.Write(LogChannel.General, "exits: door " + door + " not opened: " + ex.Message); }
+		}
+
+		private static Exit Named(string trigger, string what)
+		{
+			Exit exit = _exits.Find(e => string.Equals(e.Trigger, trigger, StringComparison.OrdinalIgnoreCase));
+			if (exit == null) Log.Write(LogChannel.General, "exits: " + (_stage ?? "?") + " " + what + " for " + trigger + ", no such exit");
+			return exit;
+		}
+
+		/// <summary>setDoor(door, trigger, bank, number, ?): the exit's door on this map and the sound it opens with.</summary>
+		public static void SetDoor(string door, string trigger, int bank, int number)
+		{
+			Exit exit = Named(trigger, "door " + door);
+			if (exit == null) return;
+			exit.Door = door;
+			exit.DoorSeBank = bank;
+			exit.DoorSeNumber = number;
+		}
+
+		/// <summary>setRelationMapjumpToDoorAttr(door, trigger, ?): the door the exit comes out of on its destination.</summary>
+		public static void SetFarDoor(string door, string trigger)
+		{
+			Exit exit = Named(trigger, "far door " + door);
+			if (exit != null) exit.FarDoor = door;
+		}
+
+		/// <summary>MapJumpObject::door: a closed door of the exit taken opens - its material gone, its sound played.</summary>
+		private static void OpenDoor(Exit exit)
+		{
+			if (string.IsNullOrEmpty(exit.Door)) return;
+			try
+			{
+				if (GlobalScope.stageMng == null || GlobalScope.stageMng.getMaterialAlpha(exit.Door) == 0) return;
+				GlobalScope.stageMng.setMaterialAlpha(exit.Door, 0);
+				if (exit.DoorSeBank != -1 && exit.DoorSeNumber != -1) GlobalScope.MatrixSound.MtxSENDS_Play(exit.DoorSeBank, exit.DoorSeNumber, 100, 128);
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "exits: door " + exit.Door + ": " + ex.Message); }
+		}
+
+		/// <summary>setRelationOfMapjumpobjAndFlag(trigger, group, index, ?): MapJumpObject::addFlagSequence - a flag the exit sets
+		/// when taken (up to 4; group or index 0xffffffff is none).</summary>
+		public static void AddFlag(string trigger, uint group, uint index)
+		{
+			Exit exit = Named(trigger, "flag " + group + "/" + index);
+			if (exit != null && exit.Flags.Count < 4) exit.Flags.Add((group, index));
 		}
 
 		/// <summary>
@@ -122,6 +197,10 @@ namespace OpenFF.Client
 				jump.setUp(destination, 0, pos, rot, _Flag: true);
 				world.setMapJump(b: true);
 				Ff4Warp.ExitTaken(destination, pos.x, pos.y, pos.z, exit.Facing);
+				_pendingFlags.Clear();
+				_pendingFlags.AddRange(exit.Flags);
+				_pendingFarDoor = exit.FarDoor;
+				OpenDoor(exit);
 				return;
 			}
 		}
