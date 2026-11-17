@@ -25,6 +25,10 @@ internal static partial class GlobalScope
 
 		public float scale;
 
+		/// <summary>PORT: a picture to keep its own shape (a hero's face in the menus): its widths drawn by the window's
+		/// square-pixel share (Ff4Ui.SquareX), from its left, rather than stretched with the 800 x 480 space.</summary>
+		public bool Square;
+
 		public byte[] color = new byte[4];
 
 		public int x;

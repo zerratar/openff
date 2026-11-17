@@ -51,6 +51,7 @@ internal static partial class GlobalScope
 										sys2d.Nscr nscr = new sys2d.Nscr();
 										nscr.Load("menu_pc.NSCR");
 										NNS_G2dBGSetupCell((int)(_PC + 8), nscr.pDataCe(), bgSelect, _Position.x * 8, _Position.y * 8);
+										bgCell[_PC + 8].Square = true;   // PORT: the face at its own shape on any window
 									}
 									else
 									{

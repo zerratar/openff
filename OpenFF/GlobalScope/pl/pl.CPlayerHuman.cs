@@ -687,6 +687,7 @@ internal static partial class GlobalScope
 				if (StickPace < 0f || wMax <= 0 || rMax <= 0)
 				{
 					unpaceMotion();
+					if (!running && fieldRunMotion()) runMotionAt(wMax);
 					if (running)
 					{
 						setMass(rAcc, 0, rMax, turnAcc, 0, turnMax);
@@ -702,11 +703,26 @@ internal static partial class GlobalScope
 				int max = (int)Math.Round(wMax + (rMax - wMax) * pace);
 				setMass(acc, 0, max, turnAcc, 0, turnMax);
 				// The motion at the speed's ratio to its own: 1.0 at the walk for the walk motion, 1.0 at the run for the run's.
-				float ratio = (float)max / (running ? rMax : wMax);
+				float ratio = (float)max / (running ? rMax : fieldRunMotion() ? townRunMax() : wMax);
 				ratio = Math.Min(1.6f, Math.Max(0.6f, ratio));
 				setMotionSpeed((int)Math.Round(4096 * ratio));
 				pacedMotion_ = true;
 				OpenFF.Client.Log.Sample(OpenFF.Client.LogChannel.Input, "pace", 30, () => "stick pace " + pace.ToString("0.00") + ": " + (running ? "run" : "walk") + " max " + max + " (walk " + wMax + ", run " + rMax + ") motion x" + ratio.ToString("0.00"));
+			}
+
+			/// <summary>PORT: the world map walks at its own pace (960, between a town's walk of 640 and run of 1443) - with the run
+			/// motion when the player runs (CPlayerHumanWalk), which is then played at that pace's share of a town run's so the
+			/// feet keep to the ground.</summary>
+			private bool fieldRunMotion() => getNowAct() == 1 && getMotionIndex() == 1005;
+
+			private int townRunMax() => FX_Mul(4736, (int)(CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PLAYER_MOVE_TYPE.PLAYER_MOVE_TYPE_HERO_TOWN).SMveMax() * 1.6f));
+
+			private void runMotionAt(int max)
+			{
+				int run = townRunMax();
+				if (run <= 0) return;
+				setMotionSpeed((int)Math.Round(4096 * Math.Min(1.6f, Math.Max(0.5f, (float)max / run))));
+				pacedMotion_ = true;
 			}
 
 			private void unpaceMotion()

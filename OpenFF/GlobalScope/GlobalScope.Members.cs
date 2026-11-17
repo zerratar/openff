@@ -11278,6 +11278,7 @@ internal static partial class GlobalScope
 							bgCell[index].oam = null;
 							bgCell[index].oam = null;
 							bgCell[index].numOAM = 0;
+							bgCell[index].Square = false;
 							if (pCellData != null)
 							{
 								NNSG2dCellData nNSG2dCellData = pCellData.pCellDataArrayHead[0];
@@ -11373,6 +11374,7 @@ internal static partial class GlobalScope
 												float num9 = (((num8 & 4) != 0) ? 0.5f : 1f) * bG_CELL.scale;
 												float num10 = (((num8 & 8) != 0) ? 0.6f : 1f);
 												float num11 = (((num8 & 8) != 0) ? (2f / 3f) : 1f);
+												if (bG_CELL.Square) { num10 *= OpenFF.Client.Ff4Ui.SquareX; }   // PORT: a face keeps its shape (BG_CELL.Square)
 												drawImage(vtc, j * 6, (float)bG_CELL.x + (float)num2 * num10 * bG_CELL.scale - (float)bgOffset[num, 0] - (float)screenOffset[0], (float)bG_CELL.y + (float)num3 * num11 * bG_CELL.scale - (float)bgOffset[num, 1] - (float)screenOffset[1], (float)num4 * num10 * num9, (float)num5 * num11 * num9, ((num8 & 1) == 0) ? num6 : (num6 + sw), ((num8 & 2) == 0) ? num7 : (num7 + sh), ((num8 & 1) == 0) ? sw : (-sw), ((num8 & 2) == 0) ? sh : (-sh), bG_CELL.color);
 											}
 											glEnable(3553u);

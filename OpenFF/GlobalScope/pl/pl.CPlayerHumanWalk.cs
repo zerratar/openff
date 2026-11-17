@@ -57,6 +57,15 @@ internal static partial class GlobalScope
 				{
 					return;
 				}
+				// PORT: on the world map a run is a walk at the field's pace (the act below turns it so) - drawn as a run, its
+				// motion at that pace (CPlayerHuman.pacedMass), while the player runs; the walk's when they hold to walk.
+				if (Player().getInPutMode() == INPUT_MODE.INPUT_MODE_FIELD && static_cast<CPlayerHuman>(Player()).getHumanType() != PLAYER_HUMAN_TYPE.PLAYER_HUMAN_TYPE_FAIRY && Player().getPlayerMoveType() != PLAYER_MOVE_TYPE.PLAYER_MOVE_TYPE_FROG)
+				{
+					bool held = (dv.CDeviceManager.getInstance().Pad().pad_trs(0) & 0x20) != 0;   // B flips the setting (isRun, which also wants the d-pad - not the stick)
+					bool running = opt.COptionManager.getSingleton().gameOption().worldMoveType() == opt.WORLD_MOVE_TYPE.WORLD_MOVE_TYPE_RUN ? !held : held;
+					int wanted = running ? 1005 : 1004;
+					if (Player().getMotionIndex() != wanted) { Player().startMotion(wanted, _Loop: true, 5u); OpenFF.Client.Log.First(OpenFF.Client.LogChannel.File, "field-run-" + wanted, 2, () => "field: the world map's walk drawn as " + (wanted == 1005 ? "a run" : "a walk")); }
+				}
 				if (CCastCommandTransit.getInstance().cast_BaseSystem().Mode() == wld.CBaseSystem.WORLD_MODE.WORLD_MODE_FIELD)
 				{
 					if (Player().getLandFormIndex() == 4 && evt.CEventManager.getInstance().FlagMng().get(0u, (uint)evt.EVENT_VEHICLE_FLAG[0]) == 1 && Player().isOperater())
