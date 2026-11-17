@@ -396,6 +396,9 @@ namespace OpenFF.Client
 		/// are the map's objects, there with it): it boards as they come (the Enterprise leaving Baron after Kain's demand).</summary>
 		private static int _pendingBoard = -1;
 
+		/// <summary>Tools: a drive's ride step boards as the script would.</summary>
+		internal static void DriveBoard(uint state) => Board(state);
+
 		private static void Board(uint state)
 		{
 			int type = TypeOfState(state);

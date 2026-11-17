@@ -510,6 +510,15 @@ namespace OpenFF.Client
 					Log.Write(LogChannel.General, "drive: useitem " + step.Arg + (done ? "" : " - no item window up"));
 					break;
 				}
+				case "ride":
+				{
+					// ride <state>: aboard as alterPlayer_State would put the party (2 the Enterprise, 1 the hovercraft, ...), the vehicle
+					// brought to the lead - a drive's way onto the world's vehicles.
+					bool ok = uint.TryParse(step.Arg.Trim(), out uint rideState);
+					if (ok) Ff4Ride.DriveBoard(rideState);
+					Log.Write(LogChannel.General, "drive: ride " + step.Arg + (ok ? "" : " - wants a state number"));
+					break;
+				}
 				case "endbattle":
 				{
 					// endbattle: every foe of the fight felled, those an event keeps standing too - a sweep's way past a scripted fight.
