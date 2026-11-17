@@ -59,6 +59,8 @@ internal static partial class GlobalScope
 			{
 				initializeLogic();
 				initializeFlag(set_reset: true);
+				// PORT: a save read before the engine started (--load) has its flags put back.
+				OpenFF.Client.Ff4Saves.FlagsMade();
 				initializeValue();
 			}
 

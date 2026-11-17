@@ -254,6 +254,18 @@ namespace OpenFF.Client
 			Pending = null;
 		}
 
+		/// <summary>The engine's flags made anew as it starts: a save read before (--load) puts its flags in them.</summary>
+		public static void FlagsMade()
+		{
+			if (Pending?.Flags == null || GlobalScope.flags == null) return;
+			foreach (string f in Pending.Flags)
+			{
+				int colon = f.IndexOf(':');
+				if (colon > 0 && int.TryParse(f.Substring(0, colon), out int g) && int.TryParse(f.Substring(colon + 1), out int i)
+					&& g >= 0 && g < GlobalScope.flags.GetLength(0) && i >= 0 && i < GlobalScope.flags.GetLength(1)) GlobalScope.flags[g, i] = 1;
+			}
+		}
+
 		/// <summary>--load=&lt;slot&gt;: an FF4 game starts from a slot instead of the new game.</summary>
 		public static void LoadAtBoot()
 		{
