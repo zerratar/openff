@@ -22105,6 +22105,9 @@ internal static partial class GlobalScope
 
 						internal static void glTexParameteri(uint target, uint pname, int param)
 						{
+							// PORT: a model drawn with a texture freed under it (Fabul's scene of Kain and Rosa, as its effects came in):
+							// nothing to set - the draw goes on as it does for a texture unbound.
+							if (m_uiBindTexture >= m_aGlTexture.Length || m_aGlTexture[m_uiBindTexture] == null) return;
 							switch (pname)
 							{
 							case 10240u:
