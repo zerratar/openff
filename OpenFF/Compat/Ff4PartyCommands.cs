@@ -120,6 +120,21 @@ namespace OpenFF.Client
 			else if (Member(type) is Character c) On(c, id);
 		}
 
+		/// <summary>checkItem_Num(item, test, count, label): jumps when the bag (or the key items) holds the item and its count
+		/// against <c>count</c> holds (0 more, 1 at least, 2 fewer, 3 at most, 4 exactly); an item not held never jumps (libff4's
+		/// searchNormalItem / searchImportantItem finding nothing) - the Sealed Cave's crystals, Kokkol's Adamantite.</summary>
+		public static void CheckItemNum(GlobalScope.ScriptEngine engine)
+		{
+			int item = (int)engine.getWord();
+			uint test = engine.getDword();
+			int count = engine.getByte();
+			uint label = engine.getDword();
+			int held = P?.CountItem(item) ?? 0;
+			if (held == 0) return;
+			bool jump = test switch { 0 => held > count, 1 => held >= count, 2 => held < count, 3 => held <= count, 4 => held == count, _ => false };
+			if (jump) engine.jump(label);
+		}
+
 		/// <summary>checkCharacterStatusJump(type, condition number, label): jumps when the member is in the party with that
 		/// status (a number past 7 asks for any - Condition::is(-1)).</summary>
 		public static void CheckCharacterStatusJump(GlobalScope.ScriptEngine engine)

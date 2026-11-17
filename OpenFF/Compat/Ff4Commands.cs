@@ -105,6 +105,9 @@ namespace OpenFF.Client
 			{ "checkCharacterStatusJump", Ff4PartyCommands.CheckCharacterStatusJump }, // (type, condition number, label)
 			{ "setItemUseMenuManager", Ff4ItemPickCommands.SetItemUseMenuManager },   // () - the event's item window
 			{ "checkUseItem_Id", Ff4ItemPickCommands.CheckUseItemId },             // (item, label)
+			{ "checkItem_Num", Ff4PartyCommands.CheckItemNum },                 // (item, test, count, label)
+			{ "alterPlayer_State", Ff4Ride.AlterPlayerState },                  // (state, ?) - aboard a vehicle
+			{ "checkPlayer_State", Ff4Ride.CheckPlayerState },                  // (state, label)
 			{ "hpSetting", Ff4PartyCommands.HpSetting },                      // (type, hp, ?)
 			{ "syncCharacterLv", Ff4PartyCommands.SyncCharacterLv },          // (a, b, grown, to, test, ?)
 			{ "evaluateMagneticEquipment", Ff4PartyCommands.EvaluateMagneticEquipment }, // (on)
