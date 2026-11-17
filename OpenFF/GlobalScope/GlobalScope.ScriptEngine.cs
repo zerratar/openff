@@ -48,6 +48,17 @@ internal static partial class GlobalScope
 				while (suspend_ == 0)
 				{
 					resumePC_ = pc_;
+					// PORT: a logic whose pc left its code (a call to a function the script has not) stops, said once, rather than
+					// taking the game down reading past the end.
+					byte[] code = reinterpret_cast<byte[]>(scriptData_?.m_abyData);
+					if (code == null || (long)pc_ + 2 > code.Length)
+					{
+						uint map = logic.getMapNo(), cast = logic.getCastNo(), at = pc_;
+						OpenFF.Client.Log.First(OpenFF.Client.LogChannel.General, "script-off-code:" + map + ":" + cast, 3, () => "script: map " + map + " cast " + cast + " ran off its code at " + at + " (" + (code?.Length ?? 0) + " bytes) - stopped");
+						logic.setDisable();
+						suspend_ = 1;
+						return;
+					}
 					uint num = fetch();
 					OpenFF.Client.ScriptCommands.Dispatch(this, num);
 				}

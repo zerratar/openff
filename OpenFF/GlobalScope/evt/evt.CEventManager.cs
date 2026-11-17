@@ -200,6 +200,14 @@ internal static partial class GlobalScope
 				return m_Instance;
 			}
 
+			/// <summary>PORT (FF4): a cast of the map's table with no code to run when pressed on - a map's collision box (Agart's well has one).</summary>
+			public bool IsScriptless(uint castNo)
+			{
+				if (m_MapScript == null) return false;
+				CastInfo info = m_LogicMng.getCastInfoArray(m_MapScript.getMapNo(), castNo);
+				return info != null && info.getNormal() == CastInfo.INVALID_SCRIPT && info.getConstructor() == CastInfo.INVALID_SCRIPT;
+			}
+
 			public void startLogic(uint castNo)
 			{
 				if (m_MapScript != null)

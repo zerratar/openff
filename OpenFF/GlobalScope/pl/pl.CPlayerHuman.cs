@@ -481,7 +481,10 @@ internal static partial class GlobalScope
 
 			public override void checkCollisionCharacter(chr.CCharacterEureka _Target)
 			{
-				if ((getColType() & 2) != 0 && !AutoRun() && (getNowAct() == 0 || getNowAct() == 1 || getNowAct() == 2 || getNowAct() == 3))
+				// PORT (FF4): a cast with no code (Agart's well's collision box) is not pressed on - it took the press from the well
+				// beside it and its logic started at no code.
+				if ((getColType() & 2) != 0 && !AutoRun() && (getNowAct() == 0 || getNowAct() == 1 || getNowAct() == 2 || getNowAct() == 3)
+					&& !(OpenFF.Client.GameProfile.IsFf4 && evt.CEventManager.getInstance().IsScriptless(_Target.LogicIndex())))
 				{
 					setTarget(_Target);
 				}
