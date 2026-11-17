@@ -7,6 +7,25 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## 0.3.10 - Job charges, FF4 Warp and Help (2026-11-17)
+
+For modders, FF3 jobs can now have their own magic charges: give the Onion Knight 99 uses of every magic level, or any table you like, from Crystal's job inspector. In FF4, Teleport and Warp work from the menu, Settings' Help is in, and a sweep of every map and story battle fixed the few that misbehaved.
+
+**Added**
+- Crystal, FF3 jobs: a job's **magic charges** (FF3's MP, the uses of each magic level 1..8) in place of the game's table, for every hero holding the job, on FF3's own job system as well as the mastery one. `"charges": 99` in `defs/jobs/<id>.json` is 99 at every level; eight numbers set each magic level; a table by hero level changes them as heroes grow. The job inspector has a **Magic charges** card with a *99 at every level* button.
+- FF4: **Teleport** and **Warp** from the Magic menu, as on Steam: the leader is drawn up and vanishes, then Teleport leaves the dungeon and Warp goes back a floor. Where the game forbids them (towns, the world map) they're greyed, and Warp is greyed with no floor behind you. The save keeps where they lead.
+- FF4: Settings' **Help** - the ten topics and their pages as Steam shows them, the pages scrolling while Up or Down is held and showing the keys' icons in the text.
+- FF4: casting Toad, Pig or Mini from the menu (or curing them), or choosing a new leader in Party, changes the leader's field figure as the menu closes.
+- FF4: OpenFF's menu (Esc) has **Skip scene** while a scene can be skipped. A mouse click or the pad's L still asks, as on Steam.
+- FF4 Settings: the Voices slider sets the scenes' voice volume; Battle Mode and Subtitles turn over with Left or Right; Quit closes the game, as Steam's does.
+
+**Fixes**
+- FF4 battle: a fight whose last foe fell between turns (Doom running out, for one) now ends instead of waiting forever.
+- FF4 battle: story foes whose records hold no reward no longer take 1 gil and 1 EXP off the party ("Found -1 gil").
+- FF4 battle: the Mopingway fight no longer aborts.
+- FF4: the Giant of Babil's core room shows its CPU and the two nodes beside it.
+- FF4: pressing Esc to close the menu no longer opens OpenFF's menu straight after.
+
 ## 0.3.9 - Shared expressions, FF4 field magic (2026-11-14)
 
 For modders, a character's face packs now share their pictures: replace a face once in Crystal and every pack that shows the same picture uses it, so redrawing j101_001's nine faces covers all eight packs. In FF4, white magic can now be cast from the menu, and battles keep their frame rate on the enemy's turn.
