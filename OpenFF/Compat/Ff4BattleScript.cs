@@ -175,6 +175,8 @@ namespace OpenFF.Client
 			private bool Initialize()
 			{
 				int c = Command;
+				// --battle-event-trace: every command of an event as it is reached, its words as they stand (a script read off the log).
+				if (Trace) Log.Write(LogChannel.File, "battle: event " + _id + " #" + _index + " " + (c >= 0 && c < CommandNames.Length ? CommandNames[c] : "?" + c) + " " + string.Join(" ", System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(1, Math.Max(0, Length / 4 - 1)), k => Op(k).ToString())));
 				switch (c)
 				{
 					case 0: case 2: case 3: case 5: case 8: case 10: return true;   // Start (and its no-op twins), Label
@@ -412,6 +414,8 @@ namespace OpenFF.Client
 						return true;
 				}
 			}
+
+			private static readonly bool Trace = OpenFF.Client.Options.Get("battle-event-trace") != null;
 
 			private static readonly string[] CommandNames =
 			{

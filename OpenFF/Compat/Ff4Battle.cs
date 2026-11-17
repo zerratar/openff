@@ -778,7 +778,12 @@ namespace OpenFF.Client
 							if (f.Member != null) { f.Member.Hp = f.MaxHp; f.Member.Mp = f.Member.MaxMp; f.Member.Conditions = 0; }
 						}
 						_help = null;
-						_gameOver = AfterBattle == null && !BattleParameterFlag(0xB);
+						// setRestartAfterBattle (OutsideToBattle flag 2): the script means this fight to be lost and goes on after it -
+						// back to the field it came from (Kain at Fabul, the Dark Elf before Edward's harp), as setNextPart does.
+						bool restart = false;
+						try { restart = GlobalScope.btl.OutsideToBattle.getInstance().restart(); } catch (Exception) { }
+						_gameOver = AfterBattle == null && !BattleParameterFlag(0xB) && !restart;
+						if (restart) Log.Write(LogChannel.General, "battle: lost, and the story goes on (setRestartAfterBattle)");
 						if (_gameOver)
 						{
 							GlobalScope.dgs.CFade.Main().fadeOut(15, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
@@ -2365,6 +2370,8 @@ namespace OpenFF.Client
 		private void End()
 		{
 			Log.Write(LogChannel.File, "battle: over (step " + LegacyStep.Count + ")");
+			// BattlePart::doUninitialize: OutsideToBattle::initialize clears the restart for the fights after this one.
+			try { GlobalScope.btl.OutsideToBattle.getInstance().offRestart(); } catch (Exception) { }
 			ClearEventModels();
 			EndOpening();
 			_sinceBattle = 0;

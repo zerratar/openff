@@ -24,7 +24,7 @@ behaviour or to a stand-in. That is why "renders" comes first and "behaves" late
 | Lighting and materials | Scene lights and toon shading not applied. The Red Wings' flight set beside Steam's shot by shot - the sky, its clouds, the spinning propellers' blur: the same. |
 | Shadows | The field's; scene casts' own (ce_ShadowSetting) as libff4's: the disc follows the hips' x and z at the scale the script gives (4096 the model's own size, not the character's default times it), flat, dropped onto the ground - the collision, or where none is (the Red Wings' deck) the floor at the cast's own height (its feet when they stand well over it), as FF4 drops it onto the stage model (setShadowStage) - and lifted half a unit over it (FF4's 0x40 relies on the DS's polygon ids; here the deck would win the depth test). Set beside Steam's opening and "Must we now be thieves" frames: the same faint discs, the same size, under the soldiers' feet. |
 
-## The field - 80%
+## The field - 85%
 
 | | State |
 | --- | --- |
@@ -62,7 +62,7 @@ scene engine, which is ours from the binary's disassembly.
 | Growth | As libff4's levelUp / setParameter / PlayerHp::setMaxHp: climbing a level moves each attribute and MP by the table's new row less its old (anything else that moved them stays moved); HP rolls between the rows' least and most; past level 70 every level adds the battle commands' bonuses (player.chaindata chain 36: Fight 10 HP and 1 strength, White Magic 5 MP and 1 spirit..., a spell in a slot by its school's command); a level down takes the rows as they are. The bases are kept in the save, the +50% augments on top. |
 | Monsters | monster.chaindata read whole into the data layer (`MonsterDefinition`): stats, MP, attack and its elements, races, defences, weaknesses, resistances, absorbs, status immunities, drops, gil and EXP, the casting motion - the battle reads them from there, Crystal's Monsters page shows them, and mods see them through the API. |
 
-## Encounters, shops, inns - 75%
+## Encounters, shops, inns - 90%
 
 Encounters start from the map's tables and the field's step counter.
 
@@ -70,7 +70,8 @@ Encounters start from the map's tables and the field's step counter.
 | --- | --- |
 | Shops | Steam's screen (bootShop), measured off its draws, a layout of the menu's: Buy first, C for Sell; the lit item's line, the gil, how many the bag holds and the party wears, the party's faces by place, the wares and their prices; Enter asks how many ("x n" between the arrows, the other prices hidden), Enter again buys or sells, the buzzer for what cannot be paid for or held. |
 | Inns | Steam's: the price in the message window, the Yes / No over it and the gil window; Yes with the gil plays the night, Yes without it is turned away, No declines (selectEndWait as libff4's). The field's other Yes / No questions use the same window. |
-| Open | The shopkeeper's lines Steam's PC screen may show; the encounter details listed in FF4-Internals. |
+| Encounters | The map's land-form rates, battle stages and groups by the terrain under the party (MAPPARAMETER), the step counter, and each battle's opening by world::attackType - the party's dash and average level against the area's: Surprise, Preemptive, Back attack or Normal. |
+| Open | Whether Steam's PC build adds shopkeeper lines of its own (unchecked). |
 
 ## Battle - 100%
 
@@ -133,7 +134,7 @@ event's OffInvokeProdaction lets an action go without its name and chant. The ef
 battle loads (the VRAM manager's 32 slots were FF3's: the pack past them was left half set up, a spell or an ability
 drawn a part short).
 
-## Menus - 60%
+## Menus - 90%
 
 The field menu is being rebuilt screen by screen to match the Steam game's: each screen is
 captured from Steam (Tools/ff4hook's `draws`: every quad of a frame in 1080p pixels), its places,
@@ -143,6 +144,7 @@ game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rule
 
 | | State |
 | --- | --- |
+| Story fights | Checked with the story's own party, each run to its end: Tellah's Meteor on Golbez (the event ends it), the Mist girl, Edward, Yang, Zemus (events end them), Kain at Fabul and the Dark Elf before Edward's harp (lost by design: setRestartAfterBattle - OutsideToBattle flag 2 - takes the story on instead of the title, as BattlePart::setNextPart, cleared as each fight closes), Golbez in the Dwarf Castle (Rydia joins, summons, cures). Odin's timer, the Crystal on Zeromus and the other bosses' own mechanics still to be run. |
 | Root | The nine commands in MENU_LAYOUT's order with the scroll bar, the place and the gil, the key hints, the member panel's five places, the lead's thought in its balloon (babil_speculation.bbd's line for where the story stands). The place as WSMenu::wsmGetSavePointIndex names it (babil_savepoint.bbd: "Baron Castle", not the plate's "- 1F"). The field camera closes in on the lead as Steam's (eye +8,-32,-36, target +9,-5,-10 from the field's, half the way each step - traced with ff4hook), Steam's dark bar under the key hints. On the world maps the area under the party (MSSGetFieldAreaMessageNo: libff4's mss_FA00 chip table - Overworld, Baron, The Damcyan Desert, Damcyan, Fabul, Mysidia, Troia, Eblan, Mist, Agart; the Underworld, the Lunar Surface); a cleared game reads its "clear" record everywhere. |
 | Inventory | Two columns with the items' symbols, greyed by the record's field-use flag as WSCMenu::checkItem (Red Fang); key items on C; using an item on the party's places; status cures cure; Sort (Tab) as MSSItem's - consumables, weapons or armour at the top in turn, each in its records' order. |
 | Magic | The member between arrows, the spell's cost and line from babil_ability.msd, three columns, C for the next school, Z / M to change member. Spells the menu cannot cast or cannot afford greyed (magic +0x20, as Steam's Hold and Libra); Sight cast from here. Casting from the menu as libff4's (MSSMagic, itm::ItemUse::useMagicInField): Enter on a spell the caster may cast goes to the party's places, Left to all for a spell that spreads; Cure's line heals (the target's vitality / 8 + the caster's spirit / 2) x the power, shared over all as (90 - 5 x those standing)%, Esuna's take their conditions off, Raise and Arise lift KO (a tenth of the HP, all of it), Float, Mini and Toad toggle; nothing done is the error sound and no MP. Teleport and Warp as libff4's (WSTelepoDirection): no target, the menu shuts, the music stops, effect 489 on the leader, who is drawn up thin and tall and vanishes, then the map jump - Teleport to the dungeon's way out (setTelepo), Warp back a floor (the map-jump history: exits into a dungeon push their arrival, addDesionList too, a world map or clearDesionList empties it; the save keeps the way out and the newest two). Spells and items the map's script bars (restrictionItemUse: Teleport in towns and on the world, Warp there too, Sight aboard the Lunar Whale) are greyed, Warp too with no floor behind; the bar lasts until the next map jump. The menu remakes the field's leader as it closes when Toad, Pig or Mini (or the leader) changed (WSMenu's party loader). Open: the effect over the places; the places' screen and the Warp/Teleport direction not yet set beside Steam's (the Steam save has no caster). |

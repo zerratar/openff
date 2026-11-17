@@ -4,7 +4,7 @@ OpenFF plays **Final Fantasy III** and **Final Fantasy IV** (the 3D remakes) fro
 own on Steam or GOG, as a native desktop game, and lets mods change almost anything in them.
 
 - **FF3 is complete**: title to credits, played exactly as the original.
-- **FF4 is in progress** (about 80%): it plays from the title to the ending, matched frame by
+- **FF4 is in progress** (about 85%): it plays from the title to the ending, matched frame by
   frame against the Steam game. See [FF4 status](Docs/FF4-Status.md).
 - **Crystal**, the editor, makes mods: maps, text, models, scenes and C# code, either for OpenFF
   or installed straight into your Steam copy.
@@ -116,14 +116,14 @@ executable) and checked frame by frame against the Steam game.
 | FF4 | Done | Still open |
 | --- | --- | --- |
 | Battle | 100% | |
-| Field: walking, exits, talking, events, vehicles | 85% | Some details per map |
+| Field: walking, exits, talking, events, vehicles, field magic | 85% | A full playthrough still to be checked scene by scene |
 | Maps, models and the world map | 85% | Some lighting and materials |
 | Title and map changes | 85% | The opening movie |
 | The Fat Chocobo's extras, name entry | 85% | |
 | Cutscenes | 80% | Sky and shadow details |
-| Menus | 80% | Some screens |
+| Menus | 90% | The spell effect over the party's places |
 | Party data: growth, magic, equipment, items, monsters | 90% | |
-| Shops, inns, saves, encounters | 75% | Encounter details |
+| Shops, inns, saves, encounters | 90% | Steam's own save files are not read |
 | Steam achievements | 95% | A real unlock still to be watched on Steam |
 
 Details for every part: [FF4 status](Docs/FF4-Status.md). What has been read out of FF4's
