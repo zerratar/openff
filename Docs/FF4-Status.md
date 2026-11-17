@@ -136,6 +136,8 @@ event's OffInvokeProdaction lets an action go without its name and chant. The ef
 battle loads (the VRAM manager's 32 slots were FF3's: the pack past them was left half set up, a spell or an ability
 drawn a part short).
 
+**Story check (chapter by chapter, from New Game).** Driven through the real game (Tools: the drives' `story` step, `jump`, saves): the opening, the Red Wings fight, the King, Cecil's room and the night, the Mist Cave and its Dragon, the Antlion's den. What it found and fixed: every Yes / No went the wrong way (confirmWait's labels read as texts) and a Yes / No over a message never came up (endMessage waited for the window to close); Cecil's bed crashed (an object with a chest's model took FF3's chest path); a scene handing back to the world map crashed (its bare name, f00); a boss a map's script starts (bootEventBattle) ran without its stage, so the map's after-battle event never came and the screen stayed white; the opening movie fell behind its sound in a Debug build; FF4 battles had no music of their own. Still to walk: Mist village onwards.
+
 **Story fights.** Checked with the story's own party, each run to its end: Tellah's Meteor on Golbez (the event ends it), the Mist girl, Edward, Yang, Zemus (events end them), Kain at Fabul and the Dark Elf before Edward's harp (lost by design: setRestartAfterBattle - OutsideToBattle flag 2 - takes the story on instead of the title, as BattlePart::setNextPart, cleared as each fight closes), Golbez in the Dwarf Castle (Rydia joins, summons, cures). Odin's timer, the Crystal on Zeromus and the other bosses' own mechanics still to be run.
 
 ## Menus - 90%
