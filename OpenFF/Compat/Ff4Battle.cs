@@ -969,6 +969,9 @@ namespace OpenFF.Client
 			{
 				List<int> commands = Commands;
 				int count = commands.Count;
+				if (count == 0) return;
+				// The list may have changed under the cursor (another member's, or the fight ending as the press came).
+				_cursor = Math.Min(Math.Max(0, _cursor), count - 1);
 				if (input.Pressed(Pad.Up)) _cursor = (_cursor + count - 1) % count;
 				if (input.Pressed(Pad.Down)) _cursor = (_cursor + 1) % count;
 				if (_cursor < _commandScroll) _commandScroll = _cursor;

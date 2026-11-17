@@ -381,14 +381,16 @@ namespace OpenFF.Client
 					// approach <cast>: the hero 14 units south of that cast's place in the map's cast table (a chest), facing it, to press the action key at.
 					try
 					{
-						uint hich = uint.Parse(step.Arg.Trim());
+						string[] ap = step.Arg.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+						uint hich = uint.Parse(ap[0]);
+						float away = ap.Length > 1 && float.TryParse(ap[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float d) ? d : 14f;   // approach <cast> [distance]
 						var table = GlobalScope.evt.CHichParameterManager.getInstance().getHichManParam();
 						OpenFF.Vector3? found = null;
 						for (int i = 0; i < table.m_NumMan && i < table.m_HichInd.Length; i++)
 							if (table.m_HichInd[i].m_Id == hich) found = new OpenFF.Vector3(table.m_HichInd[i].m_Position[0], table.m_HichInd[i].m_Position[1], table.m_HichInd[i].m_Position[2]);
 						if (found == null) { Log.Write(LogChannel.General, "drive: approach - no cast " + hich + " in the map's cast table"); break; }
 						OpenFF.Vector3 at = found.Value;
-						OpenFF.Game.Hero.Teleport(new OpenFF.Vector3(at.X, at.Y, at.Z + 14f));
+						OpenFF.Game.Hero.Teleport(new OpenFF.Vector3(at.X, at.Y, at.Z + away));
 						OpenFF.Game.Hero.Face(180f);
 						Log.Write(LogChannel.File, "drive: approach " + hich + " at " + at);
 					}
@@ -486,6 +488,13 @@ namespace OpenFF.Client
 					// story [timeout seconds]: see the step loop.
 					_storyLeft = (int)(Seconds(string.IsNullOrWhiteSpace(step.Arg) ? "300" : step.Arg.Trim(), 300) * StepsPerSecond);
 					_storyQuiet = _storyBattle = _storyPress = 0;
+					break;
+				}
+				case "useitem":
+				{
+					// useitem <id>: the event's item window (a key item at a spot) answered with that item.
+					bool done = int.TryParse(step.Arg.Trim(), out int useId) && (Ff4Menu.Instance?.DecideEventPick(useId) ?? false);
+					Log.Write(LogChannel.General, "drive: useitem " + step.Arg + (done ? "" : " - no item window up"));
 					break;
 				}
 				case "endbattle":

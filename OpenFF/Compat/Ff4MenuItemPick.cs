@@ -39,6 +39,14 @@ namespace OpenFF.Client
 			Log.Write(LogChannel.File, "menu: the event's item window");
 		}
 
+		/// <summary>The drives' useitem: the window up, that item decided as if picked (false when the window is not up).</summary>
+		internal bool DecideEventPick(int item)
+		{
+			if (!EventPickOpen) return false;
+			EndEventPick(item);
+			return true;
+		}
+
 		/// <summary>iwCreateList(0x27): the bag without its key items, then the key items.</summary>
 		private List<OpenFF.Data.ItemStack> EventPickList()
 		{
