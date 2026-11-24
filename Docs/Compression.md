@@ -50,7 +50,8 @@ original file.
 | `.namp` | 239 | `NAMP` | animation |
 | `.ncap` | 221 | `NCAP` | motion |
 
-These are NitroSDK containers, which the game reads through its `NNSG3d` code. Decoding
-them - so a model or a texture can be looked at, let alone edited - is its own project
-and is not started. The archive extractor and this decompressor get you the bytes; what
-they mean is still the game's business.
+These are NitroSDK containers, which the game reads through its `NNSG3d` code. The
+archive extractor and this decompressor get you the bytes; the editor reads what is
+inside them: models and textures (`Mdl0.cs`, `Shared/Graphics/Tex0.cs`,
+[Graphics](Graphics.md)), motion (`Ncap.cs`, [Editor ▸ Motion](Editor.md#motion)), a
+stage's animation (`Editor/Namp.cs`) and collision (`Mcl.cs`).

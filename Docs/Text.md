@@ -78,5 +78,6 @@ do quietly.
 ## Not covered
 
 Control codes inside message text (colour, icons, waits) are passed through as the
-bytes they are. `.script` event bytecode, which decides *when* a message is shown, is
-still opaque.
+bytes they are. `.script` event bytecode, which decides *when* a message is shown, has
+its own tools: [Events](Events.md) disassembles it with each line of text beside the
+instruction that shows it, and [Script language](Script-Language.md) compiles it back.
