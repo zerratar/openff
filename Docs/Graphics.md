@@ -328,8 +328,10 @@ tile everything twice over.
 
 ## What is left
 
-The NitroSDK animation - `.ncap` motion and `.namp`, 460 files - and `.mcl` collision.
-Neither blocks anything the editor does today.
+No format in the table below is unread any more. The NitroSDK animation is read too:
+`.ncap` motion by `Ncap.cs` ([Editor ▸ Motion](Editor.md#motion)) and a stage's `.namp`
+by `Editor/Namp.cs` (its texture scroll and alpha played; the texture pattern and
+visibility read and reported). `.mcl` collision is read and rebuilt by `Mcl.cs`.
 
 ## What each format is
 
@@ -338,9 +340,9 @@ Neither blocks anything the editor does today.
 | `.NCGR`, `.NCBR` | 542 | pictures, as PNG | yes |
 | `.nmdp` | 833 | models (`BMD0`), 370 with their own textures | yes |
 | `.ntxp` | 756 | textures (`BTX0`) | yes |
-| `.ncap` | 221 | motion | no |
-| `.namp` | 239 | animation | no |
+| `.ncap` | 221 | motion | yes |
+| `.namp` | 239 | animation | yes |
 | `.NANR` | 51 | 2D animation | yes |
 | `.NCER` | 81 | cells: which part of a sheet is a sprite | yes |
 | `.NSCR` | 109 | 106 are cell banks, 3 are really tile maps | yes |
-| `.mcl` | 322 | map collision (`MCL `) | no |
+| `.mcl` | 322 | map collision (`MCL `) | yes |

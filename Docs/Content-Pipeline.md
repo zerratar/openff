@@ -265,11 +265,17 @@ dotnet run --project Crystal.Editor -- mdl ..\extractediles ..\models
 dotnet run --project Crystal.Editor -- cells ..\\extracted ..\\cells
 ```
 
-## Not decoded yet
+## Collision
 
-What is left of the NitroSDK data is `NAMP` and `NCAP` animation and `MCL` collision. The 2D pictures turned out
-to need no decoder at all - all 542 are PNGs. `Docs/Graphics.md` has what each format
-holds and which order is worth taking them in.
+Every map's `MCL` collision mesh, summarised as JSON (objects, exits, attributes):
 
-`--dump=<dir>` is the shortcut in the meantime: the running game writes out every
-image blob it decodes, which covers the art without decoding anything by hand.
+```bash
+dotnet run --project Crystal.Editor -- mcl ..\extracted\files ..\collision
+```
+
+That was the last of the NitroSDK data to be read: `NCAP` motion (`Ncap.cs`) and a
+stage's `NAMP` animation (`Editor/Namp.cs`) decode too. The 2D pictures turned out to
+need no decoder at all - all 542 are PNGs. `Docs/Graphics.md` has what each format holds.
+
+`--dump=<dir>` is another way to the art: the running game writes out every image blob
+it decodes.
