@@ -52,6 +52,11 @@ namespace Crystal.Editor
 		/// texture in one of the two formats that carry their own alpha.
 		/// </summary>
 		public bool Translucent { get; set; }
+		/// <summary>
+		/// Both faces drawn. False for a game material that draws front faces only (polyAttr
+		/// bit 7 without bit 6), which the .glb export keeps as a one-sided material.
+		/// </summary>
+		public bool DoubleSided { get; set; } = true;
 		/// <summary>The material's texture scale, rotation (sin, cos) and translation, when not the identity.</summary>
 		public float[] TexMatrix { get; set; }
 		/// <summary>
@@ -310,6 +315,7 @@ namespace Crystal.Editor
 					Alpha = material != null ? Math.Min(1f, material.Alpha / 31f) : 1f,
 					Hidden = piece.Hidden,
 					Translucent = Translucent(material, formats),
+					DoubleSided = material == null || !material.FrontOnly,
 					WrapS = material == null ? "repeat" : Wrap(material.RepeatS, material.FlipS),
 					WrapT = material == null ? "repeat" : Wrap(material.RepeatT, material.FlipT),
 					TexMatrix = material != null && material.HasTexMatrix

@@ -137,6 +137,9 @@ namespace Crystal
 		// a lit material (polyAttr bit 0) is drawn light x diffuse / 4 + light x ambient / 4 + emission x 8, not its diffuse.
 		public uint DiffAmb, SpecEmi, PolyAttr;
 		public bool Lit => (PolyAttr & 1) != 0;
+		// polyAttr bit 7 draws the polygons' front faces, bit 6 their back faces: a material with
+		// bit 7 alone is one-sided, and the DS culls its back faces.
+		public bool FrontOnly => (PolyAttr & 0xC0) == 0x80;
 		public int Width;
 		public int Height;
 		public bool RepeatS, RepeatT, FlipS, FlipT;
