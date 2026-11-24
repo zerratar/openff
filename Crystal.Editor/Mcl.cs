@@ -168,7 +168,7 @@ namespace Crystal
 		public const int BlockSize = 8;
 
 		/// <summary>ATTRIBUTE_MAX - the attributes the game names, out of the 64 there is room for.</summary>
-		public const int AttributeMax = 42;
+		public const int AttributeMax = 43;
 
 		/// <summary>ATTRIBUTE_MAPJUMP_01. The twelve exits are this and the eleven after it.</summary>
 		public const int FirstJumpAttribute = 25;
