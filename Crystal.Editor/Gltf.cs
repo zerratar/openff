@@ -176,7 +176,8 @@ namespace Crystal
 			int MaterialFor(ModelGroup group)
 			{
 				string key = (group.Texture ?? "#") + "|" + group.Colour.ToString("X6", CultureInfo.InvariantCulture)
-					+ "|" + group.Alpha.ToString(CultureInfo.InvariantCulture) + "|" + (group.Translucent ? "t" : "o");
+					+ "|" + group.Alpha.ToString(CultureInfo.InvariantCulture) + "|" + (group.Translucent ? "t" : "o")
+					+ "|" + (group.DoubleSided ? "2" : "1");
 				if (materialIndex.TryGetValue(key, out int have)) return have;
 
 				JsonObject pbr = new JsonObject { ["metallicFactor"] = 0, ["roughnessFactor"] = 1 };
@@ -210,7 +211,10 @@ namespace Crystal
 				{
 					["name"] = group.Material ?? ("material" + materials.Count),
 					["pbrMetallicRoughness"] = pbr,
-					["doubleSided"] = true,
+					// One-sided where the game culls (a material drawing front faces only): the
+					// strips are re-wound to one winding, counter-clockwise in front as glTF's,
+					// and mdl-import turns doubleSided back into polyAttr's face bits.
+					["doubleSided"] = group.DoubleSided,
 					["alphaMode"] = group.Translucent || group.Alpha < 1f ? "BLEND" : "MASK"
 				};
 				if (!(group.Translucent || group.Alpha < 1f)) material["alphaCutoff"] = 0.05;
